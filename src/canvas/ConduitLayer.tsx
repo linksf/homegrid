@@ -1,5 +1,7 @@
 import type { JSX } from 'react';
-import type { Conduit, Diagram, WireColor } from '../domain/types';
+import type { Diagram, ResolvedWire, WireColor } from '../domain/types';
+import { WireChevronPath } from './WireChevronPath';
+import { wireWorldPolyline } from './wire-path-utils';
 
 const WIRE_CLASS: Record<WireColor, string> = {
   red: 'wire-stroke wire-stroke--red',
@@ -9,54 +11,41 @@ const WIRE_CLASS: Record<WireColor, string> = {
 
 type ConduitBundleProps = {
   diagram: Diagram;
-  conduit: Conduit;
+  conduit: Diagram['conduits'][number];
+  resolvedByWireId: Map<string, ResolvedWire>;
 };
 
-function offsetPolyline(points: { x: number; y: number }[], ox: number, oy: number): { x: number; y: number }[] {
-  return points.map((pt) => ({ x: pt.x + ox, y: pt.y + oy }));
+function polylineToPath(pts: { x: number; y: number }[]): string {
+  return pts.map((pt, idx) => `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ');
 }
 
-export function ConduitBundle({ diagram, conduit }: ConduitBundleProps): JSX.Element | null {
-  const layout = diagram.layout.conduitPaths[conduit.id]?.points;
-  if (!layout || layout.length < 2) return null;
-
+export function ConduitBundle({ diagram, conduit, resolvedByWireId }: ConduitBundleProps): JSX.Element | null {
   const wires = conduit.wireIds
     .map((id) => diagram.wires.find((w) => w.id === id))
     .filter((w): w is NonNullable<typeof w> => Boolean(w));
   if (wires.length === 0) return null;
 
-  const [p0, p1] = [layout[0]!, layout[layout.length - 1]!];
-  const dx = p1.x - p0.x;
-  const dy = p1.y - p0.y;
-  const len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len;
-  const uy = dy / len;
-  /** Unit perpendicular for bundling parallel runs */
-  const px = -uy;
-  const py = ux;
-
-  const spacing = 5;
-  const n = wires.length;
-
-  const polylineToPath = (pts: { x: number; y: number }[]): string =>
-    pts.map((pt, idx) => `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ');
-
   return (
     <g className="conduit-bundle" data-conduit-id={conduit.id}>
-      {wires.map((wire, idx) => {
-        const offset = (idx - (n - 1) / 2) * spacing;
-        const ox = px * offset;
-        const oy = py * offset;
-        const pts = offsetPolyline(layout, ox, oy);
+      {wires.map((wire) => {
+        const pts = wireWorldPolyline(diagram, wire.id);
+        if (!pts || pts.length < 2) return null;
+        const rw = resolvedByWireId.get(wire.id);
         return (
-          <path
-            key={wire.id}
-            className={WIRE_CLASS[wire.color]}
-            d={polylineToPath(pts)}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <g key={wire.id} data-wire-id={wire.id}>
+            <path
+              className={WIRE_CLASS[wire.color]}
+              d={polylineToPath(pts)}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <WireChevronPath
+              points={pts}
+              resolvedDirection={rw?.resolvedDirection ?? null}
+              directionConflict={rw?.directionConflict ?? false}
+            />
+          </g>
         );
       })}
       <title>{conduit.label}</title>
@@ -64,11 +53,16 @@ export function ConduitBundle({ diagram, conduit }: ConduitBundleProps): JSX.Ele
   );
 }
 
-export function ConduitLayer({ diagram }: { diagram: Diagram }): JSX.Element {
+type ConduitLayerProps = {
+  diagram: Diagram;
+  resolvedByWireId: Map<string, ResolvedWire>;
+};
+
+export function ConduitLayer({ diagram, resolvedByWireId }: ConduitLayerProps): JSX.Element {
   return (
     <g className="conduit-layer" role="presentation" aria-label="Conduits">
       {diagram.conduits.map((c) => (
-        <ConduitBundle key={c.id} conduit={c} diagram={diagram} />
+        <ConduitBundle key={c.id} conduit={c} diagram={diagram} resolvedByWireId={resolvedByWireId} />
       ))}
     </g>
   );

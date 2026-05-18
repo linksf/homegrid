@@ -1,7 +1,7 @@
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import type { AnchorPosition } from '../domain/types';
 import { addJunctionBox } from '../domain/mutations';
-import type { Diagram } from '../domain/types';
+import type { Diagram, ResolvedWire } from '../domain/types';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { ConduitLayer } from './ConduitLayer';
 import { JunctionBoxShape } from './JunctionBoxShape';
@@ -9,6 +9,7 @@ import { useDiagramViewport } from './CanvasViewport';
 
 export type DiagramSvgProps = {
   diagram: Diagram;
+  resolvedByWireId: Map<string, ResolvedWire>;
   tool: EditorMainTool;
   selectedBoxId: string | null;
   onSelectBox: (id: string | null) => void;
@@ -25,6 +26,7 @@ export type DiagramSvgProps = {
 
 export function DiagramSvg({
   diagram,
+  resolvedByWireId,
   tool,
   selectedBoxId,
   onSelectBox,
@@ -52,7 +54,7 @@ export function DiagramSvg({
 
   return (
     <g className="diagram-svg" aria-label="Wiring diagram">
-      <ConduitLayer diagram={diagram} />
+      <ConduitLayer diagram={diagram} resolvedByWireId={resolvedByWireId} />
 
       {diagram.junctionBoxes.map((box) => (
         <JunctionBoxShape

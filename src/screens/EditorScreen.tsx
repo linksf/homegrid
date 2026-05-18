@@ -4,7 +4,7 @@ import type { AnchorPosition, WireColor } from '../domain/types';
 import { addLocalConduit, addSpanConduit } from '../domain/mutations';
 import { CanvasViewport } from '../canvas/CanvasViewport';
 import { DiagramSvg } from '../canvas/DiagramSvg';
-import { useJobStore } from '../store/job-store';
+import { useJobStore, useResolvedWireMap } from '../store/job-store';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { Toolbar } from '../editor/Toolbar';
 import { ConduitDialog, type ConduitDialogState } from '../editor/ConduitDialog';
@@ -23,6 +23,7 @@ type EditorScreenProps = {
 export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   const job = useJobStore((s) => s.activeJob);
   const updateDiagram = useJobStore((s) => s.updateDiagram);
+  const resolvedByWireId = useResolvedWireMap();
 
   const [tool, setTool] = useState<EditorMainTool>('select');
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
@@ -122,6 +123,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         <CanvasViewport viewBox="-800 -600 5200 4000">
           <DiagramSvg
             diagram={job.diagram}
+            resolvedByWireId={resolvedByWireId}
             tool={tool}
             selectedBoxId={selectedBoxId}
             onSelectBox={(id) => setSelectedBoxId(id)}

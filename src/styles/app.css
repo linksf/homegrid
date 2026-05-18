@@ -349,3 +349,16 @@ body {
   stroke: var(--wire-white);
   filter: drop-shadow(0 0 0.65px CanvasText);
 }
+
+.wire-chevron {
+  fill: color-mix(in srgb, CanvasText 52%, transparent);
+  stroke: none;
+  pointer-events: none;
+}
+
+.wire-chevron-group--conflict .wire-chevron {
+  fill: color-mix(in srgb, #b91c1c 75%, CanvasText);
+  stroke: #ef4444;
+  stroke-width: 1.35;
+  paint-order: stroke fill;
+}
