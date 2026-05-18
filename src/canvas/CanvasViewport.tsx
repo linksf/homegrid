@@ -1,5 +1,5 @@
 import type { JSX, PropsWithChildren, RefObject } from 'react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 4;
@@ -13,6 +13,24 @@ type CanvasViewportProps = PropsWithChildren<{
 type PanSession = {
   pointerId: number;
 };
+
+export type DiagramViewportSnapshot = Readonly<{
+  translateX: number;
+  translateY: number;
+  scale: number;
+  svgRef: RefObject<SVGSVGElement | null>;
+  clientPointToWorld: (clientX: number, clientY: number) => { x: number; y: number } | null;
+}>;
+
+const DiagramViewportContext = createContext<DiagramViewportSnapshot | null>(null);
+
+export function useDiagramViewport(): DiagramViewportSnapshot {
+  const snapshot = useContext(DiagramViewportContext);
+  if (!snapshot) {
+    throw new Error('useDiagramViewport must be used beneath <CanvasViewport/>');
+  }
+  return snapshot;
+}
 
 type ViewTransform = {
   tx: number;
@@ -34,8 +52,9 @@ function svgRootPointFromClient(svg: SVGSVGElement, clientX: number, clientY: nu
   return { x: p.x, y: p.y };
 }
 
-/** Pan / zoom viewport state bundled to keep wheel maths consistent. */
-function useDiagramViewportHandlers(svgRef: RefObject<SVGSVGElement | null>) {
+/** Infinite-ish SVG diagram surface with wheel zoom toward the cursor and pointer-drag pan on the sheet backdrop. */
+export function CanvasViewport({ children, className, viewBox = '-800 -600 5200 4000' }: CanvasViewportProps): JSX.Element {
+  const svgRef = useRef<SVGSVGElement>(null);
   const [view, setView] = useState<ViewTransform>({ tx: 0, ty: 0, scale: 1 });
   const panSession = useRef<PanSession | null>(null);
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
@@ -45,35 +64,52 @@ function useDiagramViewportHandlers(svgRef: RefObject<SVGSVGElement | null>) {
     [view.tx, view.ty, view.scale],
   );
 
-  const onWheelCapture = useCallback(
-    (e: React.WheelEvent<SVGSVGElement>) => {
-      e.preventDefault();
-      const svg = svgRef.current;
-      if (!svg) return;
+  const viewportSnapshot = useMemo((): DiagramViewportSnapshot => {
+    return {
+      translateX: view.tx,
+      translateY: view.ty,
+      scale: view.scale,
+      svgRef,
+      clientPointToWorld(clientX: number, clientY: number) {
+        const svg = svgRef.current;
+        if (!svg) return null;
+        const root = svgRootPointFromClient(svg, clientX, clientY);
 
-      const dzRaw = Math.exp(-e.deltaY * 0.0015);
-
-      const pivot = svgRootPointFromClient(svg, e.clientX, e.clientY);
-
-      setView((vp) => {
-        const prevS = vp.scale;
-        const nextS = clampScale(prevS * dzRaw);
-        if (nextS === prevS) return vp;
-
-        const world = {
-          x: (pivot.x - vp.tx) / prevS,
-          y: (pivot.y - vp.ty) / prevS,
-        };
-
+        /** Convert from root SVG coords into world coords inside viewport `<g>`. */
         return {
-          scale: nextS,
-          tx: pivot.x - world.x * nextS,
-          ty: pivot.y - world.y * nextS,
+          x: (root.x - view.tx) / view.scale,
+          y: (root.y - view.ty) / view.scale,
         };
-      });
-    },
-    [svgRef],
-  );
+      },
+    };
+  }, [view.scale, view.tx, view.ty]);
+
+  const onWheelCapture = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const dzRaw = Math.exp(-e.deltaY * 0.0015);
+
+    const pivot = svgRootPointFromClient(svg, e.clientX, e.clientY);
+
+    setView((vp) => {
+      const prevS = vp.scale;
+      const nextS = clampScale(prevS * dzRaw);
+      if (nextS === prevS) return vp;
+
+      const world = {
+        x: (pivot.x - vp.tx) / prevS,
+        y: (pivot.y - vp.ty) / prevS,
+      };
+
+      return {
+        scale: nextS,
+        tx: pivot.x - world.x * nextS,
+        ty: pivot.y - world.y * nextS,
+      };
+    });
+  }, []);
 
   function beginPan(e: React.PointerEvent) {
     if (!svgRef.current) return;
@@ -109,49 +145,35 @@ function useDiagramViewportHandlers(svgRef: RefObject<SVGSVGElement | null>) {
     }
   }
 
-  return {
-    viewportTransform,
-    onWheelCapture,
-    beginPan,
-    movePan,
-    endPan,
-  };
-}
-
-/**
- * Infinite-ish SVG diagram surface with wheel zoom toward the cursor and pointer-drag pan on the sheet backdrop.
- */
-export function CanvasViewport({ children, className, viewBox = '-800 -600 5200 4000' }: CanvasViewportProps): JSX.Element {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const { viewportTransform, onWheelCapture, beginPan, movePan, endPan } = useDiagramViewportHandlers(svgRef);
-
   const viewBoxNums = useMemo(() => viewBox.trim().split(/[\s,]+/).map(Number), [viewBox]);
   const [minX = -800, minY = -600, vw = 5200, vh = 4000] = viewBoxNums;
 
   return (
-    <svg
-      ref={svgRef}
-      className={[className, 'canvas-viewport'].filter(Boolean).join(' ')}
-      viewBox={`${minX} ${minY} ${vw} ${vh}`}
-      preserveAspectRatio="xMidYMid meet"
-      onWheelCapture={onWheelCapture}
-    >
-      <rect className="canvas-viewport__frame" width={vw} height={vh} x={minX} y={minY} />
+    <DiagramViewportContext.Provider value={viewportSnapshot}>
+      <svg
+        ref={svgRef}
+        className={[className, 'canvas-viewport'].filter(Boolean).join(' ')}
+        viewBox={`${minX} ${minY} ${vw} ${vh}`}
+        preserveAspectRatio="xMidYMid meet"
+        onWheelCapture={onWheelCapture}
+      >
+        <rect className="canvas-viewport__frame" width={vw} height={vh} x={minX} y={minY} />
 
-      <rect
-        className="canvas-viewport__sheet"
-        x={minX}
-        y={minY}
-        width={vw}
-        height={vh}
-        onPointerDown={beginPan}
-        onPointerMove={movePan}
-        onPointerUp={endPan}
-        onPointerCancel={endPan}
-        onLostPointerCapture={endPan}
-      />
+        <rect
+          className="canvas-viewport__sheet"
+          x={minX}
+          y={minY}
+          width={vw}
+          height={vh}
+          onPointerDown={beginPan}
+          onPointerMove={movePan}
+          onPointerUp={endPan}
+          onPointerCancel={endPan}
+          onLostPointerCapture={endPan}
+        />
 
-      <g transform={viewportTransform}>{children}</g>
-    </svg>
+        <g transform={viewportTransform}>{children}</g>
+      </svg>
+    </DiagramViewportContext.Provider>
   );
 }
