@@ -156,8 +156,67 @@ body {
   font-size: 1.125rem;
 }
 
-.editor-screen__placeholder {
-  opacity: 0.8;
+.canvas-viewport {
+  display: block;
+  width: 100%;
+  height: clamp(340px, 72vh, 900px);
+  touch-action: none;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+  background-color: Canvas;
+}
+
+.canvas-viewport__frame {
+  fill: color-mix(in srgb, CanvasText 6%, Canvas);
+  stroke: color-mix(in srgb, CanvasText 22%, Canvas);
+  stroke-width: 1;
+}
+
+.canvas-viewport__sheet {
+  fill: transparent;
+  stroke: transparent;
+  cursor: grab;
+}
+
+.canvas-viewport__sheet:active {
+  cursor: grabbing;
+}
+
+.diagram-svg {
+  isolation: isolate;
+}
+
+.junction-box-frame {
+  fill: Canvas;
+  stroke: CanvasText;
+  stroke-width: 3;
+}
+
+.junction-box-frame--breaker {
+  stroke-width: 4;
+}
+
+.junction-box-frame--normal {
+  stroke-width: 2;
+}
+
+.junction-box-frame__label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.editor-screen__viewport {
+  width: 100%;
+}
+
+.editor-screen--deck .editor-screen__header {
+  margin-bottom: 0.75rem;
+}
+
+.editor-screen__helper {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
 }
 
 :root {
