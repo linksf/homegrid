@@ -78,6 +78,7 @@ export interface Diagram {
   junctionBoxes: JunctionBox[];
   breakers: Breaker[];
   conduits: Conduit[];
+  wires: Wire[];
   wireLinks: WireLink[];
   layout: LayoutState;
 }

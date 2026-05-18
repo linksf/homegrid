@@ -23,6 +23,7 @@ export function createEmptyJob(name = 'Untitled job'): Job {
       junctionBoxes: [breakerBox],
       breakers: [],
       conduits: [],
+      wires: [],
       wireLinks: [],
       layout: { conduitPaths: {}, wireLinkPaths: {} },
     },

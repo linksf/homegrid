@@ -17,3 +17,7 @@ export type {
 } from './types';
 
 export { anchorPoint } from './anchors';
+export { createEmptyJob } from './defaults';
+export { resolveDirections } from './direction';
+export { createWireLink } from './mutations';
+export { isWhiteMismatch } from './warnings';
