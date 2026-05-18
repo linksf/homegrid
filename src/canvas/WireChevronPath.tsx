@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import type { WireDirection } from '../domain/types';
-import { polylineLength } from './wire-path-utils';
+import { polylineLength } from '../domain/wire-geometry';
 
 type Pt79 = { x: number; y: number };
 

@@ -10,6 +10,7 @@ import type {
   WireLink,
 } from './types';
 import { isWhiteMismatch } from './warnings';
+import { wireLinkEndpoint } from './wire-geometry';
 
 export const MIN_JUNCTION_SIZE = Object.freeze({
   width: 96,
@@ -142,6 +143,43 @@ export function createWireLink(a: Wire, b: Wire): WireLink {
     wireIdA,
     wireIdB,
     whiteMismatchWarning: isWhiteMismatch(a, b),
+  };
+}
+
+export function addWireLinkToDiagram(diagram: Diagram, wireIdA: string, wireIdB: string): Diagram {
+  const wa = diagram.wires.find((w) => w.id === wireIdA);
+  const wb = diagram.wires.find((w) => w.id === wireIdB);
+  if (!wa || !wb) {
+    throw new Error('Wire not found');
+  }
+  if (wireIdA === wireIdB) {
+    throw new Error('Cannot link a wire to itself');
+  }
+
+  const sortedPair = [wireIdA, wireIdB].sort((x, y) => (x < y ? -1 : x > y ? 1 : 0));
+  const [idA, idB] = sortedPair;
+  const already = diagram.wireLinks.some((l) => l.wireIdA === idA && l.wireIdB === idB);
+  if (already) {
+    return diagram;
+  }
+
+  const link = createWireLink(wa, wb);
+  const pa = wireLinkEndpoint(diagram, wa);
+  const pb = wireLinkEndpoint(diagram, wb);
+  if (!pa || !pb) {
+    throw new Error('Cannot place wire link: missing wire geometry');
+  }
+
+  return {
+    ...diagram,
+    wireLinks: [...diagram.wireLinks, link],
+    layout: {
+      ...diagram.layout,
+      wireLinkPaths: {
+        ...diagram.layout.wireLinkPaths,
+        [link.id]: { points: [pa, pb] },
+      },
+    },
   };
 }
 

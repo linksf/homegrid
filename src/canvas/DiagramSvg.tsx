@@ -5,6 +5,7 @@ import type { Diagram, ResolvedWire } from '../domain/types';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { ConduitLayer } from './ConduitLayer';
 import { JunctionBoxShape } from './JunctionBoxShape';
+import { WireLinkLayer } from './WireLinkShape';
 import { useDiagramViewport } from './CanvasViewport';
 
 export type DiagramSvgProps = {
@@ -12,7 +13,10 @@ export type DiagramSvgProps = {
   resolvedByWireId: Map<string, ResolvedWire>;
   tool: EditorMainTool;
   selectedBoxId: string | null;
+  selectedWireId: string | null;
+  connectPendingWireId: string | null;
   onSelectBox: (id: string | null) => void;
+  onWirePointerDown?: (wireId: string) => void;
   onApplyDiagram: (mutator: (diagram: Diagram) => Diagram) => void;
   onPlacedJunction?: () => void;
   onAnchorPick?: (payload: { boxId: string; anchor: AnchorPosition }) => void;
@@ -29,7 +33,10 @@ export function DiagramSvg({
   resolvedByWireId,
   tool,
   selectedBoxId,
+  selectedWireId,
+  connectPendingWireId,
   onSelectBox,
+  onWirePointerDown,
   onApplyDiagram,
   onPlacedJunction,
   onAnchorPick,
@@ -54,7 +61,14 @@ export function DiagramSvg({
 
   return (
     <g className="diagram-svg" aria-label="Wiring diagram">
-      <ConduitLayer diagram={diagram} resolvedByWireId={resolvedByWireId} />
+      <ConduitLayer
+        diagram={diagram}
+        resolvedByWireId={resolvedByWireId}
+        tool={tool}
+        selectedWireId={selectedWireId}
+        connectPendingWireId={connectPendingWireId}
+        onWirePointerDown={onWirePointerDown}
+      />
 
       {diagram.junctionBoxes.map((box) => (
         <JunctionBoxShape
@@ -68,6 +82,8 @@ export function DiagramSvg({
           onApplyDiagram={onApplyDiagram}
         />
       ))}
+
+      <WireLinkLayer diagram={diagram} />
 
       {tool === 'place-junction' && (
         <rect

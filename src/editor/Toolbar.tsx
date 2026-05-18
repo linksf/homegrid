@@ -41,6 +41,14 @@ export function Toolbar({ tool, onToolChange }: ToolbarProps): JSX.Element {
       >
         Span conduit
       </button>
+      <button
+        type="button"
+        className={['btn', tool === 'connect-wires' ? 'btn--active' : ''].filter(Boolean).join(' ')}
+        aria-pressed={tool === 'connect-wires'}
+        onClick={() => onToolChange('connect-wires')}
+      >
+        Link wires
+      </button>
     </div>
   );
 }

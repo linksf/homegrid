@@ -2,4 +2,5 @@ export type EditorMainTool =
   | 'select'
   | 'place-junction'
   | 'conduit-local'
-  | 'conduit-span';
+  | 'conduit-span'
+  | 'connect-wires';

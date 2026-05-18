@@ -1,4 +1,4 @@
-import type { Diagram, Wire } from '../domain/types';
+import type { Diagram, Wire } from './types';
 
 function offsetPolyline(points: { x: number; y: number }[], ox: number, oy: number): { x: number; y: number }[] {
   return points.map((pt) => ({ x: pt.x + ox, y: pt.y + oy }));
@@ -44,4 +44,20 @@ export function polylineLength(points: { x: number; y: number }[]): number {
     sum += Math.hypot(b.x - a.x, b.y - a.y);
   }
   return sum;
+}
+
+/** Placement for a wire-link endpoint: along the conduit run, or at the breaker panel. */
+export function wireLinkEndpoint(diagram: Diagram, wire: Wire): { x: number; y: number } | null {
+  const poly = wireWorldPolyline(diagram, wire.id);
+  if (poly && poly.length >= 2) {
+    return poly[Math.floor(poly.length / 2)]!;
+  }
+  if (wire.breakerId) {
+    const br = diagram.breakers.find((b) => b.id === wire.breakerId);
+    if (!br) return null;
+    const box = diagram.junctionBoxes.find((j) => j.id === br.junctionBoxId);
+    if (!box) return null;
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  }
+  return null;
 }

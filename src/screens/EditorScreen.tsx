@@ -1,7 +1,8 @@
 import type { JSX } from 'react';
 import { useEffect, useState } from 'react';
 import type { AnchorPosition, WireColor } from '../domain/types';
-import { addLocalConduit, addSpanConduit } from '../domain/mutations';
+import { addLocalConduit, addSpanConduit, addWireLinkToDiagram } from '../domain/mutations';
+import { isWhiteMismatch } from '../domain/warnings';
 import { CanvasViewport } from '../canvas/CanvasViewport';
 import { DiagramSvg } from '../canvas/DiagramSvg';
 import { useJobStore, useResolvedWireMap } from '../store/job-store';
@@ -16,6 +17,8 @@ const WORLD_BOUNDS = {
   height: 4000,
 } as const;
 
+const WHITE_MISMATCH_SESSION_KEY = 'wirer:white-mismatch-toast';
+
 type EditorScreenProps = {
   onBack: () => void;
 };
@@ -27,12 +30,16 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
 
   const [tool, setTool] = useState<EditorMainTool>('select');
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+  const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
+  const [connectPendingWireId, setConnectPendingWireId] = useState<string | null>(null);
+  const [whiteMismatchBanner, setWhiteMismatchBanner] = useState(false);
   const [conduitDialog, setConduitDialog] = useState<ConduitDialogState>(null);
   const [spanAnchorA, setSpanAnchorA] = useState<{ boxId: string; anchor: AnchorPosition } | null>(null);
 
   useEffect(() => {
     setSpanAnchorA(null);
     setConduitDialog(null);
+    setConnectPendingWireId(null);
   }, [tool]);
 
   function handleAnchorPick(payload: { boxId: string; anchor: AnchorPosition }) {
@@ -56,6 +63,60 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         anchorB: payload.anchor,
       });
       setSpanAnchorA(null);
+    }
+  }
+
+  function handleWirePointerDown(wireId: string) {
+    if (!job) return;
+
+    if (tool === 'select') {
+      setSelectedWireId(wireId);
+      setSelectedBoxId(null);
+      return;
+    }
+
+    if (tool !== 'connect-wires') {
+      return;
+    }
+
+    if (!connectPendingWireId) {
+      setConnectPendingWireId(wireId);
+      return;
+    }
+
+    if (connectPendingWireId === wireId) {
+      return;
+    }
+
+    const wa = job.diagram.wires.find((w) => w.id === connectPendingWireId);
+    const wb = job.diagram.wires.find((w) => w.id === wireId);
+    if (!wa || !wb) {
+      setConnectPendingWireId(null);
+      return;
+    }
+
+    const sorted = [connectPendingWireId, wireId].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    const [idLo, idHi] = sorted;
+    const dupe = job.diagram.wireLinks.some((l) => l.wireIdA === idLo && l.wireIdB === idHi);
+    if (dupe) {
+      setConnectPendingWireId(null);
+      return;
+    }
+
+    const willWarn = isWhiteMismatch(wa, wb);
+
+    try {
+      updateDiagram((d) => addWireLinkToDiagram(d, connectPendingWireId, wireId));
+    } catch {
+      setConnectPendingWireId(null);
+      return;
+    }
+
+    setConnectPendingWireId(null);
+
+    if (willWarn && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(WHITE_MISMATCH_SESSION_KEY)) {
+      sessionStorage.setItem(WHITE_MISMATCH_SESSION_KEY, '1');
+      setWhiteMismatchBanner(true);
     }
   }
 
@@ -106,6 +167,10 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     helper = spanAnchorA
       ? 'Tap an anchor on a second junction box to complete the span run.'
       : 'Tap an anchor on the starting junction box, then a second box.';
+  } else if (tool === 'connect-wires') {
+    helper = connectPendingWireId
+      ? 'Tap a second wire to place the dashed link.'
+      : 'Tap one wire, then another, to add a link between them.';
   }
 
   return (
@@ -119,6 +184,18 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
 
       <Toolbar tool={tool} onToolChange={setTool} />
 
+      {whiteMismatchBanner && (
+        <div className="editor-screen__banner" role="status">
+          <p>
+            You linked a white conductor to a non-white one. That often means a neutral is tied to a hot — double-check
+            before energizing.
+          </p>
+          <button type="button" className="btn btn--small" onClick={() => setWhiteMismatchBanner(false)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <div className="editor-screen__viewport">
         <CanvasViewport viewBox="-800 -600 5200 4000">
           <DiagramSvg
@@ -126,7 +203,13 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
             resolvedByWireId={resolvedByWireId}
             tool={tool}
             selectedBoxId={selectedBoxId}
-            onSelectBox={(id) => setSelectedBoxId(id)}
+            selectedWireId={selectedWireId}
+            connectPendingWireId={connectPendingWireId}
+            onSelectBox={(id) => {
+              setSelectedBoxId(id);
+              setSelectedWireId(null);
+            }}
+            onWirePointerDown={handleWirePointerDown}
             onApplyDiagram={(mutator) => updateDiagram(mutator)}
             onPlacedJunction={() => setTool('select')}
             onAnchorPick={handleAnchorPick}
