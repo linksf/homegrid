@@ -1,9 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import './styles/app.css';
 import { useJobStore } from './store/job-store';
+import { EditorScreen } from './screens/EditorScreen';
+import { HomeScreen } from './screens/HomeScreen';
+
+type AppScreen = 'home' | 'editor';
 
 export default function App() {
   const loadLibrary = useJobStore((s) => s.loadLibrary);
+  const [screen, setScreen] = useState<AppScreen>('home');
 
   useEffect(() => {
     void loadLibrary();
@@ -11,8 +16,11 @@ export default function App() {
 
   return (
     <main className="app">
-      <h1>Wirer</h1>
-      <p>Electrical wiring mapper</p>
+      {screen === 'home' ? (
+        <HomeScreen onOpenEditor={() => setScreen('editor')} />
+      ) : (
+        <EditorScreen onBack={() => setScreen('home')} />
+      )}
     </main>
   );
 }
