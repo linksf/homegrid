@@ -260,3 +260,92 @@ body {
   font-size: 0.85rem;
   opacity: 0.75;
 }
+
+.conduit-dialog {
+  border: 1px solid color-mix(in srgb, CanvasText 20%, Canvas);
+  border-radius: 12px;
+  padding: 0;
+  color: CanvasText;
+  background-color: Canvas;
+  max-width: min(420px, 92vw);
+}
+
+.conduit-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.conduit-dialog__form {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.conduit-dialog__title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.conduit-dialog__hint {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.conduit-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.conduit-dialog__field--inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.conduit-dialog__field input,
+.conduit-dialog__field select {
+  min-height: 40px;
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 35%, Canvas);
+  padding: 0 0.5rem;
+  background: Canvas;
+  color: inherit;
+}
+
+.conduit-dialog__wires {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.conduit-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.wire-stroke {
+  stroke-width: 3.5;
+  fill: none;
+}
+
+.wire-stroke--red {
+  stroke: var(--wire-red);
+}
+
+.wire-stroke--black {
+  stroke: var(--wire-black);
+}
+
+.wire-stroke--white {
+  stroke: var(--wire-white);
+  filter: drop-shadow(0 0 0.65px CanvasText);
+}

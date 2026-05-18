@@ -1,7 +1,9 @@
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
+import type { AnchorPosition } from '../domain/types';
 import { addJunctionBox } from '../domain/mutations';
 import type { Diagram } from '../domain/types';
 import type { EditorMainTool } from '../editor/editor-tools';
+import { ConduitLayer } from './ConduitLayer';
 import { JunctionBoxShape } from './JunctionBoxShape';
 import { useDiagramViewport } from './CanvasViewport';
 
@@ -12,6 +14,7 @@ export type DiagramSvgProps = {
   onSelectBox: (id: string | null) => void;
   onApplyDiagram: (mutator: (diagram: Diagram) => Diagram) => void;
   onPlacedJunction?: () => void;
+  onAnchorPick?: (payload: { boxId: string; anchor: AnchorPosition }) => void;
   worldRect: {
     minX: number;
     minY: number;
@@ -27,11 +30,14 @@ export function DiagramSvg({
   onSelectBox,
   onApplyDiagram,
   onPlacedJunction,
+  onAnchorPick,
   worldRect,
 }: DiagramSvgProps): JSX.Element {
   const vp = useDiagramViewport();
 
   const { minX, minY, width, height } = worldRect;
+
+  const anchorsInteractive = tool === 'conduit-local' || tool === 'conduit-span';
 
   function placeJunction(e: ReactPointerEvent<SVGRectElement>) {
     if (e.button !== 0) return;
@@ -46,13 +52,16 @@ export function DiagramSvg({
 
   return (
     <g className="diagram-svg" aria-label="Wiring diagram">
+      <ConduitLayer diagram={diagram} />
+
       {diagram.junctionBoxes.map((box) => (
         <JunctionBoxShape
           key={box.id}
           box={box}
           tool={tool}
           selected={selectedBoxId === box.id}
-          anchorsInteractive={false}
+          anchorsInteractive={anchorsInteractive}
+          onAnchorPointerDown={(anchor) => onAnchorPick?.({ boxId: box.id, anchor })}
           onSelect={() => onSelectBox(box.id)}
           onApplyDiagram={onApplyDiagram}
         />

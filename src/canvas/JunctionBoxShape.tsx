@@ -30,6 +30,7 @@ type JunctionBoxShapeProps = {
   tool: EditorMainTool;
   selected: boolean;
   anchorsInteractive?: boolean;
+  onAnchorPointerDown?: (anchor: AnchorPosition) => void;
   onSelect: () => void;
   onApplyDiagram: (mutator: (diagram: Diagram) => Diagram) => void;
 };
@@ -67,6 +68,7 @@ export function JunctionBoxShape({
   tool,
   selected,
   anchorsInteractive = false,
+  onAnchorPointerDown,
   onSelect,
   onApplyDiagram,
 }: JunctionBoxShapeProps): JSX.Element {
@@ -255,7 +257,7 @@ export function JunctionBoxShape({
 
       {ANCHORS.map((anchor) => {
         const pt = anchorPoint(box, anchor);
-        const canInteract = anchorsInteractive;
+        const interactive = anchorsInteractive && Boolean(onAnchorPointerDown);
 
         return (
           <circle
@@ -264,8 +266,16 @@ export function JunctionBoxShape({
             cx={pt.x}
             cy={pt.y}
             r={11}
-            pointerEvents={canInteract ? 'auto' : 'none'}
+            pointerEvents={interactive ? 'auto' : 'none'}
             data-anchor={anchor}
+            onPointerDown={
+              interactive
+                ? (e) => {
+                    e.stopPropagation();
+                    onAnchorPointerDown?.(anchor);
+                  }
+                : undefined
+            }
           />
         );
       })}

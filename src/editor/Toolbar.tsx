@@ -25,6 +25,22 @@ export function Toolbar({ tool, onToolChange }: ToolbarProps): JSX.Element {
       >
         Add box
       </button>
+      <button
+        type="button"
+        className={['btn', tool === 'conduit-local' ? 'btn--active' : ''].filter(Boolean).join(' ')}
+        aria-pressed={tool === 'conduit-local'}
+        onClick={() => onToolChange('conduit-local')}
+      >
+        Local conduit
+      </button>
+      <button
+        type="button"
+        className={['btn', tool === 'conduit-span' ? 'btn--active' : ''].filter(Boolean).join(' ')}
+        aria-pressed={tool === 'conduit-span'}
+        onClick={() => onToolChange('conduit-span')}
+      >
+        Span conduit
+      </button>
     </div>
   );
 }

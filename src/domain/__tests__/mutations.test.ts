@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveDirections } from '../direction';
 import { createEmptyJob } from '../defaults';
-import { addBreaker, addJunctionBox, MIN_JUNCTION_SIZE, moveJunctionBox, resizeJunctionBox } from '../mutations';
+import { addBreaker, addJunctionBox, addLocalConduit, addSpanConduit, MIN_JUNCTION_SIZE, moveJunctionBox, resizeJunctionBox } from '../mutations';
 import type { Diagram } from '../types';
 
 describe('addBreaker', () => {
@@ -80,5 +80,48 @@ describe('junction geometry mutations', () => {
     const resized = diagram.junctionBoxes.find((b) => b.id === id)!;
     expect(resized.width).toBeGreaterThanOrEqual(MIN_JUNCTION_SIZE.width);
     expect(resized.height).toBeGreaterThanOrEqual(MIN_JUNCTION_SIZE.height);
+  });
+});
+
+describe('conduit mutations', () => {
+  it('adds a local conduit with wires, layout, and outward stub path', () => {
+    const job = createEmptyJob('C');
+    let diagram = job.diagram;
+    diagram = addJunctionBox(diagram, 400, 400);
+    const normal = diagram.junctionBoxes.find((b) => b.type === 'normal');
+    expect(normal).toBeDefined();
+
+    const next = addLocalConduit(diagram, {
+      junctionBoxId: normal!.id,
+      anchor: 'middle-right',
+      wireColors: ['black', 'red'],
+    });
+
+    expect(next.conduits).toHaveLength(1);
+    const conduit = next.conduits[0]!;
+    expect(conduit.kind).toBe('local');
+    expect(next.wires.filter((w) => w.conduitId === conduit.id)).toHaveLength(2);
+    const path = next.layout.conduitPaths[conduit.id]?.points;
+    expect(path?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('adds a span conduit between two boxes', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addJunctionBox(diagram, 500, 500);
+    diagram = addJunctionBox(diagram, 900, 500);
+
+    const normals = diagram.junctionBoxes.filter((j) => j.type === 'normal');
+    expect(normals.length).toBeGreaterThanOrEqual(2);
+
+    const next = addSpanConduit(diagram, {
+      junctionBoxIdA: normals[0]!.id,
+      anchorA: 'middle-right',
+      junctionBoxIdB: normals[1]!.id,
+      anchorB: 'middle-left',
+      wireColors: ['white'],
+    });
+
+    expect(next.conduits[0]!.kind).toBe('span');
+    expect(next.layout.conduitPaths[next.conduits[0]!.id]?.points).toHaveLength(2);
   });
 });
