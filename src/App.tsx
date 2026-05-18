@@ -15,7 +15,7 @@ export default function App() {
   }, [loadLibrary]);
 
   return (
-    <main className="app">
+    <main className={screen === 'editor' ? 'app app--editor' : 'app'}>
       {screen === 'home' ? (
         <HomeScreen onOpenEditor={() => setScreen('editor')} />
       ) : (

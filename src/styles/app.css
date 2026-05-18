@@ -29,6 +29,11 @@ body {
   margin: 0 auto;
 }
 
+.app--editor {
+  max-width: none;
+  margin: 0;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -271,6 +276,74 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.editor-screen__canvas-col {
+  width: 100%;
+  min-width: 0;
+}
+
+.inspector-sheet__grip {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .editor-screen__inspector-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    padding: 0.4rem 1rem max(0.75rem, env(safe-area-inset-bottom, 0px));
+    max-height: min(46vh, 400px);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    background: Canvas;
+    border-radius: 14px 14px 0 0;
+    border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+    border-bottom: none;
+    box-shadow: 0 -8px 32px rgb(0 0 0 / 16%);
+  }
+
+  .inspector-sheet__grip {
+    display: block;
+    width: 36px;
+    height: 5px;
+    border-radius: 999px;
+    background: color-mix(in srgb, CanvasText 22%, transparent);
+    margin: 0 auto 0.55rem;
+  }
+
+  .editor-screen__inspector-sheet .inspector {
+    border: none;
+    background: transparent;
+    padding: 0.35rem 0 0;
+  }
+
+  .editor-screen--deck {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (min-width: 768px) {
+  .editor-screen__main {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+
+  .editor-screen__canvas-col {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .editor-screen__sidebar {
+    width: min(320px, 34vw);
+    flex-shrink: 0;
+  }
+
+  .editor-screen__inspector-sheet {
+    display: contents;
+  }
 }
 
 .wire-link__path--selected {

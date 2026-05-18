@@ -255,6 +255,7 @@ export function JunctionBoxShape({
         {label}
       </text>
 
+      {/* Anchor rings use r=11 (22px diameter) for tap targets */}
       {ANCHORS.map((anchor) => {
         const pt = anchorPoint(box, anchor);
         const interactive = anchorsInteractive && Boolean(onAnchorPointerDown);

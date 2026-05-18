@@ -204,31 +204,33 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       )}
 
       <div className="editor-screen__main">
-        <div className="editor-screen__viewport">
-          <CanvasViewport viewBox="-800 -600 5200 4000">
-            <DiagramSvg
-              diagram={job.diagram}
-              resolvedByWireId={resolvedByWireId}
-              tool={tool}
-              selectedBoxId={selectedBoxId}
-              selectedWireId={selectedWireId}
-              connectPendingWireId={connectPendingWireId}
-            onSelectBox={(id) => {
-              setSelectedBoxId(id);
-              setSelectedWireId(null);
-              setSelectedLinkId(null);
-            }}
-            selectedLinkId={selectedLinkId}
-              onWirePointerDown={handleWirePointerDown}
-              onApplyDiagram={(mutator) => updateDiagram(mutator)}
-              onPlacedJunction={() => setTool('select')}
-              onAnchorPick={handleAnchorPick}
-              worldRect={WORLD_BOUNDS}
-            />
-          </CanvasViewport>
+        <div className="editor-screen__canvas-col">
+          <div className="editor-screen__viewport">
+            <CanvasViewport viewBox="-800 -600 5200 4000">
+              <DiagramSvg
+                diagram={job.diagram}
+                resolvedByWireId={resolvedByWireId}
+                tool={tool}
+                selectedBoxId={selectedBoxId}
+                selectedWireId={selectedWireId}
+                connectPendingWireId={connectPendingWireId}
+                onSelectBox={(id) => {
+                  setSelectedBoxId(id);
+                  setSelectedWireId(null);
+                  setSelectedLinkId(null);
+                }}
+                selectedLinkId={selectedLinkId}
+                onWirePointerDown={handleWirePointerDown}
+                onApplyDiagram={(mutator) => updateDiagram(mutator)}
+                onPlacedJunction={() => setTool('select')}
+                onAnchorPick={handleAnchorPick}
+                worldRect={WORLD_BOUNDS}
+              />
+            </CanvasViewport>
+          </div>
         </div>
 
-        <div className="editor-screen__sidebar">
+        <aside className="editor-screen__sidebar">
           <IssuesPanel
             diagram={job.diagram}
             resolvedByWireId={resolvedByWireId}
@@ -247,14 +249,17 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
             onExport={exportActive}
             onBack={onBack}
           />
-          <Inspector
-            wire={selectedWire}
-            onUpdateWire={(patch) => {
-              if (!selectedWireId) return;
-              updateDiagram((d) => updateWire(d, selectedWireId, patch));
-            }}
-          />
-        </div>
+          <div className="editor-screen__inspector-sheet">
+            <div className="inspector-sheet__grip" aria-hidden />
+            <Inspector
+              wire={selectedWire}
+              onUpdateWire={(patch) => {
+                if (!selectedWireId) return;
+                updateDiagram((d) => updateWire(d, selectedWireId, patch));
+              }}
+            />
+          </div>
+        </aside>
       </div>
 
       <footer className="editor-screen__helper">{helper}</footer>
