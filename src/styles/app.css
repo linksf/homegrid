@@ -261,6 +261,65 @@ body {
   opacity: 0.75;
 }
 
+.editor-screen__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inspector {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+  background: color-mix(in srgb, CanvasText 4%, Canvas);
+  padding: 1rem 1.1rem;
+}
+
+.inspector__title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.inspector__meta {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  opacity: 0.88;
+}
+
+.inspector__empty {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.inspector__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  font-weight: 600;
+}
+
+.inspector__label {
+  font-size: 0.85rem;
+}
+
+.inspector__input {
+  min-height: 40px;
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 35%, Canvas);
+  padding: 0 0.5rem;
+  background: Canvas;
+  color: inherit;
+}
+
+.inspector__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  opacity: 0.82;
+  font-weight: 400;
+}
+
 .conduit-dialog {
   border: 1px solid color-mix(in srgb, CanvasText 20%, Canvas);
   border-radius: 12px;

@@ -1,13 +1,14 @@
 import type { JSX } from 'react';
 import { useEffect, useState } from 'react';
 import type { AnchorPosition, WireColor } from '../domain/types';
-import { addLocalConduit, addSpanConduit, addWireLinkToDiagram } from '../domain/mutations';
+import { addLocalConduit, addSpanConduit, addWireLinkToDiagram, updateWire } from '../domain/mutations';
 import { isWhiteMismatch } from '../domain/warnings';
 import { CanvasViewport } from '../canvas/CanvasViewport';
 import { DiagramSvg } from '../canvas/DiagramSvg';
 import { useJobStore, useResolvedWireMap } from '../store/job-store';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { Toolbar } from '../editor/Toolbar';
+import { Inspector } from '../editor/Inspector';
 import { ConduitDialog, type ConduitDialogState } from '../editor/ConduitDialog';
 
 const WORLD_BOUNDS = {
@@ -158,6 +159,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     );
   }
 
+  const selectedWire = selectedWireId ? (job.diagram.wires.find((w) => w.id === selectedWireId) ?? null) : null;
+
   let helper = 'Scroll to zoom, drag empty canvas to pan.';
   if (tool === 'place-junction') {
     helper = 'Tap the canvas to drop a new junction box. Wheel zoom still works; switch back to Select to drag the sheet.';
@@ -196,26 +199,36 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         </div>
       )}
 
-      <div className="editor-screen__viewport">
-        <CanvasViewport viewBox="-800 -600 5200 4000">
-          <DiagramSvg
-            diagram={job.diagram}
-            resolvedByWireId={resolvedByWireId}
-            tool={tool}
-            selectedBoxId={selectedBoxId}
-            selectedWireId={selectedWireId}
-            connectPendingWireId={connectPendingWireId}
-            onSelectBox={(id) => {
-              setSelectedBoxId(id);
-              setSelectedWireId(null);
-            }}
-            onWirePointerDown={handleWirePointerDown}
-            onApplyDiagram={(mutator) => updateDiagram(mutator)}
-            onPlacedJunction={() => setTool('select')}
-            onAnchorPick={handleAnchorPick}
-            worldRect={WORLD_BOUNDS}
-          />
-        </CanvasViewport>
+      <div className="editor-screen__main">
+        <div className="editor-screen__viewport">
+          <CanvasViewport viewBox="-800 -600 5200 4000">
+            <DiagramSvg
+              diagram={job.diagram}
+              resolvedByWireId={resolvedByWireId}
+              tool={tool}
+              selectedBoxId={selectedBoxId}
+              selectedWireId={selectedWireId}
+              connectPendingWireId={connectPendingWireId}
+              onSelectBox={(id) => {
+                setSelectedBoxId(id);
+                setSelectedWireId(null);
+              }}
+              onWirePointerDown={handleWirePointerDown}
+              onApplyDiagram={(mutator) => updateDiagram(mutator)}
+              onPlacedJunction={() => setTool('select')}
+              onAnchorPick={handleAnchorPick}
+              worldRect={WORLD_BOUNDS}
+            />
+          </CanvasViewport>
+        </div>
+
+        <Inspector
+          wire={selectedWire}
+          onUpdateWire={(patch) => {
+            if (!selectedWireId) return;
+            updateDiagram((d) => updateWire(d, selectedWireId, patch));
+          }}
+        />
       </div>
 
       <footer className="editor-screen__helper">{helper}</footer>

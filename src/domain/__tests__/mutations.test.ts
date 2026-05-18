@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveDirections } from '../direction';
 import { createEmptyJob } from '../defaults';
-import { addBreaker, addJunctionBox, addLocalConduit, addSpanConduit, MIN_JUNCTION_SIZE, moveJunctionBox, resizeJunctionBox } from '../mutations';
+import { addBreaker, addJunctionBox, addLocalConduit, addSpanConduit, MIN_JUNCTION_SIZE, moveJunctionBox, resizeJunctionBox, updateWire } from '../mutations';
 import type { Diagram } from '../types';
 
 describe('addBreaker', () => {
@@ -27,6 +27,8 @@ describe('addBreaker', () => {
     expect(white!.breakerId).toBe(br.id);
     expect(black!.manualDirection).toBeNull();
     expect(white!.manualDirection).toBeNull();
+    expect(black!.label).toBe('Black #1');
+    expect(white!.label).toBe('White #1');
 
     const resolved = resolveDirections(next);
     expect(resolved.get(br.blackWireId)?.resolvedDirection).toBe('away');
@@ -43,6 +45,33 @@ describe('addBreaker', () => {
       junctionBoxes: [{ ...job.diagram.junctionBoxes[0]!, type: 'normal' }],
     };
     expect(() => addBreaker(d, d.junctionBoxes[0]!.id)).toThrow();
+  });
+});
+
+describe('updateWire', () => {
+  it('sets label and manual direction only when not breaker-locked', () => {
+    const job = createEmptyJob('U');
+    const panelId = job.diagram.junctionBoxes[0]!.id;
+    let diagram = addBreaker(job.diagram, panelId);
+    const br = diagram.breakers[0]!;
+    const blackId = br.blackWireId;
+
+    diagram = updateWire(diagram, blackId, { label: 'Renamed hot', manualDirection: 'toward' });
+    const black = diagram.wires.find((w) => w.id === blackId)!;
+    expect(black.label).toBe('Renamed hot');
+    expect(black.manualDirection).toBeNull();
+
+    diagram = addJunctionBox(diagram, 300, 300);
+    diagram = addLocalConduit(diagram, {
+      junctionBoxId: diagram.junctionBoxes.find((b) => b.type === 'normal')!.id,
+      anchor: 'top-center',
+      wireColors: ['red'],
+    });
+    const redWire = diagram.wires.find((w) => w.color === 'red' && w.conduitId)!;
+    diagram = updateWire(diagram, redWire.id, { manualDirection: 'away', label: 'Traveler A' });
+    const updated = diagram.wires.find((w) => w.id === redWire.id)!;
+    expect(updated.manualDirection).toBe('away');
+    expect(updated.label).toBe('Traveler A');
   });
 });
 

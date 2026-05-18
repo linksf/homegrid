@@ -19,5 +19,5 @@ export type {
 export { anchorPoint } from './anchors';
 export { createEmptyJob } from './defaults';
 export { resolveDirections } from './direction';
-export { addBreaker, addWireLinkToDiagram, createWireLink } from './mutations';
+export { addBreaker, addWireLinkToDiagram, createWireLink, updateWire } from './mutations';
 export { isWhiteMismatch } from './warnings';

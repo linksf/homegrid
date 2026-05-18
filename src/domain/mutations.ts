@@ -92,6 +92,27 @@ export function resizeJunctionBox(
   };
 }
 
+export function updateWire(
+  diagram: Diagram,
+  wireId: string,
+  patch: Partial<Pick<Wire, 'label' | 'manualDirection'>>,
+): Diagram {
+  return {
+    ...diagram,
+    wires: diagram.wires.map((w) => {
+      if (w.id !== wireId) return w;
+      const label = patch.label !== undefined ? patch.label : w.label;
+      const manualDirection =
+        w.breakerId != null
+          ? null
+          : patch.manualDirection !== undefined
+            ? patch.manualDirection
+            : w.manualDirection;
+      return { ...w, label, manualDirection };
+    }),
+  };
+}
+
 export function addBreaker(diagram: Diagram, breakerBoxId: string): Diagram {
   const box = diagram.junctionBoxes.find((j) => j.id === breakerBoxId);
   if (!box || box.type !== 'breaker') {
@@ -102,10 +123,12 @@ export function addBreaker(diagram: Diagram, breakerBoxId: string): Diagram {
   const blackWireId = nanoid();
   const whiteWireId = nanoid();
 
+  const breakerIndex = diagram.breakers.length + 1;
+
   const breaker: Breaker = {
     id: breakerId,
     junctionBoxId: breakerBoxId,
-    label: `Breaker ${diagram.breakers.length + 1}`,
+    label: `Breaker ${breakerIndex}`,
     blackWireId,
     whiteWireId,
   };
@@ -114,7 +137,7 @@ export function addBreaker(diagram: Diagram, breakerBoxId: string): Diagram {
     {
       id: blackWireId,
       color: 'black',
-      label: '',
+      label: defaultWireLabel('black', breakerIndex),
       conduitId: null,
       breakerId: breakerId,
       manualDirection: null,
@@ -122,7 +145,7 @@ export function addBreaker(diagram: Diagram, breakerBoxId: string): Diagram {
     {
       id: whiteWireId,
       color: 'white',
-      label: '',
+      label: defaultWireLabel('white', breakerIndex),
       conduitId: null,
       breakerId: breakerId,
       manualDirection: null,
