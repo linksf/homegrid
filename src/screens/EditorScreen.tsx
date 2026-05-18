@@ -9,6 +9,7 @@ import { useJobStore, useResolvedWireMap } from '../store/job-store';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { Toolbar } from '../editor/Toolbar';
 import { Inspector } from '../editor/Inspector';
+import { IssuesPanel } from '../editor/IssuesPanel';
 import { ConduitDialog, type ConduitDialogState } from '../editor/ConduitDialog';
 
 const WORLD_BOUNDS = {
@@ -27,11 +28,13 @@ type EditorScreenProps = {
 export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   const job = useJobStore((s) => s.activeJob);
   const updateDiagram = useJobStore((s) => s.updateDiagram);
+  const exportActive = useJobStore((s) => s.exportActive);
   const resolvedByWireId = useResolvedWireMap();
 
   const [tool, setTool] = useState<EditorMainTool>('select');
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
   const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
   const [connectPendingWireId, setConnectPendingWireId] = useState<string | null>(null);
   const [whiteMismatchBanner, setWhiteMismatchBanner] = useState(false);
   const [conduitDialog, setConduitDialog] = useState<ConduitDialogState>(null);
@@ -73,6 +76,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     if (tool === 'select') {
       setSelectedWireId(wireId);
       setSelectedBoxId(null);
+      setSelectedLinkId(null);
       return;
     }
 
@@ -209,10 +213,12 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
               selectedBoxId={selectedBoxId}
               selectedWireId={selectedWireId}
               connectPendingWireId={connectPendingWireId}
-              onSelectBox={(id) => {
-                setSelectedBoxId(id);
-                setSelectedWireId(null);
-              }}
+            onSelectBox={(id) => {
+              setSelectedBoxId(id);
+              setSelectedWireId(null);
+              setSelectedLinkId(null);
+            }}
+            selectedLinkId={selectedLinkId}
               onWirePointerDown={handleWirePointerDown}
               onApplyDiagram={(mutator) => updateDiagram(mutator)}
               onPlacedJunction={() => setTool('select')}
@@ -222,13 +228,33 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
           </CanvasViewport>
         </div>
 
-        <Inspector
-          wire={selectedWire}
-          onUpdateWire={(patch) => {
-            if (!selectedWireId) return;
-            updateDiagram((d) => updateWire(d, selectedWireId, patch));
-          }}
-        />
+        <div className="editor-screen__sidebar">
+          <IssuesPanel
+            diagram={job.diagram}
+            resolvedByWireId={resolvedByWireId}
+            selectedWireId={selectedWireId}
+            selectedLinkId={selectedLinkId}
+            onSelectWire={(id) => {
+              setSelectedWireId(id);
+              setSelectedBoxId(null);
+              setSelectedLinkId(null);
+            }}
+            onSelectLink={(id) => {
+              setSelectedLinkId(id);
+              setSelectedWireId(null);
+              setSelectedBoxId(null);
+            }}
+            onExport={exportActive}
+            onBack={onBack}
+          />
+          <Inspector
+            wire={selectedWire}
+            onUpdateWire={(patch) => {
+              if (!selectedWireId) return;
+              updateDiagram((d) => updateWire(d, selectedWireId, patch));
+            }}
+          />
+        </div>
       </div>
 
       <footer className="editor-screen__helper">{helper}</footer>

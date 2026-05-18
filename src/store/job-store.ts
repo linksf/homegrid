@@ -108,7 +108,7 @@ export const useJobStore = create<JobStore>((set, get) => ({
     const a = document.createElement('a');
     a.href = url;
     const safe = job.name.replace(/[^\w\-]+/g, '_').slice(0, 80) || 'job';
-    a.download = `${safe}.wirer.json`;
+    a.download = `${safe}.wirer`;
     a.rel = 'noopener';
     document.body.appendChild(a);
     a.click();

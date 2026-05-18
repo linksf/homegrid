@@ -14,6 +14,7 @@ export type DiagramSvgProps = {
   tool: EditorMainTool;
   selectedBoxId: string | null;
   selectedWireId: string | null;
+  selectedLinkId: string | null;
   connectPendingWireId: string | null;
   onSelectBox: (id: string | null) => void;
   onWirePointerDown?: (wireId: string) => void;
@@ -34,6 +35,7 @@ export function DiagramSvg({
   tool,
   selectedBoxId,
   selectedWireId,
+  selectedLinkId,
   connectPendingWireId,
   onSelectBox,
   onWirePointerDown,
@@ -83,7 +85,7 @@ export function DiagramSvg({
         />
       ))}
 
-      <WireLinkLayer diagram={diagram} />
+      <WireLinkLayer diagram={diagram} selectedLinkId={selectedLinkId} />
 
       {tool === 'place-junction' && (
         <rect
