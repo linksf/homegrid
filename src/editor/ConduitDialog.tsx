@@ -10,25 +10,41 @@ export type ConduitDialogState =
       anchor: AnchorPosition;
     }
   | {
+      kind: 'breaker';
+      junctionBoxId: string;
+      anchor: AnchorPosition;
+    }
+  | {
       kind: 'span';
       junctionBoxIdA: string;
       anchorA: AnchorPosition;
       junctionBoxIdB: string;
       anchorB: AnchorPosition;
+    }
+  | {
+      kind: 'device';
+      deviceNodeId: string;
     };
 
 type ConduitDialogProps = {
   state: ConduitDialogState;
   onDismiss: () => void;
   onConfirm: (wireColors: WireColor[]) => void;
+  onConfirmBreaker?: (label: string) => void;
 };
 
 const COLOR_OPTIONS: WireColor[] = ['black', 'white', 'red'];
 
-export function ConduitDialog({ state, onDismiss, onConfirm }: ConduitDialogProps): JSX.Element | null {
+export function ConduitDialog({
+  state,
+  onDismiss,
+  onConfirm,
+  onConfirmBreaker,
+}: ConduitDialogProps): JSX.Element | null {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [count, setCount] = useState(3);
   const [colors, setColors] = useState<WireColor[]>(() => Array.from({ length: 3 }, () => 'black'));
+  const [breakerLabel, setBreakerLabel] = useState('');
 
   useEffect(() => {
     const el = dialogRef.current;
@@ -37,6 +53,9 @@ export function ConduitDialog({ state, onDismiss, onConfirm }: ConduitDialogProp
       return;
     }
     el?.showModal();
+    if (state.kind === 'breaker') {
+      setBreakerLabel('');
+    }
   }, [state]);
 
   useEffect(() => {
@@ -55,23 +74,65 @@ export function ConduitDialog({ state, onDismiss, onConfirm }: ConduitDialogProp
 
   const title = useMemo(() => {
     if (!state) return '';
-    return state.kind === 'local' ? 'Local conduit' : 'Span conduit';
+    if (state.kind === 'local') return 'Local conduit';
+    if (state.kind === 'device') return 'Terminal conduit';
+    if (state.kind === 'breaker') return 'Breaker circuit';
+    return 'Span conduit';
   }, [state]);
+
+  function handleBackdropClick(e: React.MouseEvent<HTMLDialogElement>) {
+    if (e.target === dialogRef.current) {
+      onDismiss();
+    }
+  }
 
   if (!state) {
     return null;
+  }
+
+  if (state.kind === 'breaker') {
+    return (
+      <dialog ref={dialogRef} className="conduit-dialog" onClose={onDismiss} onClick={handleBackdropClick}>
+        <form
+          className="conduit-dialog__form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onConfirmBreaker?.(breakerLabel.trim());
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="conduit-dialog__title">{title}</h2>
+          <p className="conduit-dialog__hint">
+            Adds one black and one white conductor leaving the panel. Black is seeded <strong>away</strong> from the
+            panel; white is seeded <strong>toward</strong> the panel. Direction propagates to connected wires.
+          </p>
+          <label className="conduit-dialog__field">
+            <span>Label</span>
+            <input
+              type="text"
+              value={breakerLabel}
+              onChange={(e) => setBreakerLabel(e.target.value)}
+              placeholder="Breaker circuit"
+              autoComplete="off"
+            />
+          </label>
+          <div className="conduit-dialog__actions">
+            <button type="button" className="btn" onClick={onDismiss}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn--primary">
+              Add breaker circuit
+            </button>
+          </div>
+        </form>
+      </dialog>
+    );
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (colors.length === 0) return;
     onConfirm(colors);
-  }
-
-  function handleBackdropClick(e: React.MouseEvent<HTMLDialogElement>) {
-    if (e.target === dialogRef.current) {
-      onDismiss();
-    }
   }
 
   return (

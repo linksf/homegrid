@@ -8,6 +8,8 @@ const white: Wire = {
   label: '',
   conduitId: 'c1',
   breakerId: null,
+  hubId: null,
+  deviceNodeId: null,
   manualDirection: null,
 };
 const black: Wire = {
@@ -16,6 +18,8 @@ const black: Wire = {
   label: '',
   conduitId: 'c1',
   breakerId: null,
+  hubId: null,
+  deviceNodeId: null,
   manualDirection: null,
 };
 

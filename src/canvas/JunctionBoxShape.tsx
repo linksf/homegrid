@@ -7,10 +7,11 @@ import {
   moveJunctionBox,
   resizeJunctionBox,
 } from '../domain/mutations';
-import type { Diagram } from '../domain/types';
+import type { Diagram, Hub } from '../domain/types';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { useDiagramViewport } from './CanvasViewport';
-
+import { HubShape } from './HubShape';
+import { HubSlotMarkers } from './HubSlotMarkers';
 const ANCHORS: AnchorPosition[] = [
   'top-left',
   'top-center',
@@ -27,11 +28,17 @@ type ResizeCorner = 'nw' | 'ne' | 'sw' | 'se';
 
 type JunctionBoxShapeProps = {
   box: JunctionBox;
+  diagram: Diagram;
+  hubs: Hub[];
   tool: EditorMainTool;
   selected: boolean;
+  selectedHubId: string | null;
+  connectPendingHubId: string | null;
   anchorsInteractive?: boolean;
   onAnchorPointerDown?: (anchor: AnchorPosition) => void;
   onSelect: () => void;
+  onSelectHub: (hubId: string) => void;
+  onHubPointerDown?: (hubId: string) => void;
   onApplyDiagram: (mutator: (diagram: Diagram) => Diagram) => void;
 };
 
@@ -45,12 +52,6 @@ type DragKind =
       base: JunctionBox;
     };
 
-function displayLabel(box: JunctionBox): string {
-  const trimmed = box.label.trim();
-  if (trimmed.length > 0) return trimmed;
-  if (box.type === 'breaker') return 'Breaker panel';
-  return 'Junction box';
-}
 
 function clampWithMinimums(rect: { x: number; y: number; width: number; height: number }): {
   x: number;
@@ -65,11 +66,17 @@ function clampWithMinimums(rect: { x: number; y: number; width: number; height: 
 
 export function JunctionBoxShape({
   box,
+  diagram,
+  hubs,
   tool,
   selected,
+  selectedHubId,
+  connectPendingHubId,
   anchorsInteractive = false,
   onAnchorPointerDown,
   onSelect,
+  onSelectHub,
+  onHubPointerDown,
   onApplyDiagram,
 }: JunctionBoxShapeProps): JSX.Element {
   const vp = useDiagramViewport();
@@ -221,8 +228,6 @@ export function JunctionBoxShape({
     }
   }
 
-  const label = displayLabel(box);
-
   return (
     <g
       className={`junction-box ${selected ? 'junction-box--selected' : ''}`}
@@ -242,18 +247,6 @@ export function JunctionBoxShape({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       />
-
-      <text
-        className={`junction-box__label ${
-          box.type === 'breaker' ? 'junction-box__label--breaker' : ''
-        }`}
-        pointerEvents="none"
-        x={box.x + box.width / 2}
-        y={box.y + (box.type === 'breaker' ? 20 : 18)}
-        textAnchor="middle"
-      >
-        {label}
-      </text>
 
       {/* Anchor rings use r=11 (22px diameter) for tap targets */}
       {ANCHORS.map((anchor) => {
@@ -280,6 +273,22 @@ export function JunctionBoxShape({
           />
         );
       })}
+
+      <HubSlotMarkers box={box} diagram={diagram} />
+
+      {hubs.map((hub) => (
+        <HubShape
+          key={hub.id}
+          box={box}
+          hub={hub}
+          diagram={diagram}
+          tool={tool}
+          selected={selectedHubId === hub.id}
+          connectPendingHubId={connectPendingHubId}
+          onSelect={() => onSelectHub(hub.id)}
+          onHubPointerDown={onHubPointerDown}
+        />
+      ))}
 
       {tool === 'select' && (
         <g className="junction-box__handles" pointerEvents="auto">

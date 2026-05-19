@@ -1,23 +1,57 @@
+import { directionForBreakerWire, isBreakerConduit } from './breaker-conduit';
 import type { Diagram, ResolvedWire, WireDirection } from './types';
 
 type DirectionSource = ResolvedWire['directionSource'];
 
+type Neighbor = { wireId: string; flip: boolean };
+
+function oppositeDirection(d: WireDirection): WireDirection {
+  return d === 'away' ? 'toward' : 'away';
+}
+
+function addNeighbor(adj: Map<string, Neighbor[]>, from: string, to: string, flip: boolean) {
+  if (!adj.has(from)) adj.set(from, []);
+  adj.get(from)!.push({ wireId: to, flip });
+}
+
 export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
   const wireById = new Map(diagram.wires.map((w) => [w.id, w]));
-  const adj = new Map<string, Set<string>>();
-
-  const linkNeighbor = (a: string, b: string) => {
-    if (!adj.has(a)) adj.set(a, new Set());
-    if (!adj.has(b)) adj.set(b, new Set());
-    adj.get(a)!.add(b);
-    adj.get(b)!.add(a);
-  };
+  const adj = new Map<string, Neighbor[]>();
 
   for (const w of diagram.wires) {
-    if (!adj.has(w.id)) adj.set(w.id, new Set());
+    if (!adj.has(w.id)) adj.set(w.id, []);
   }
+
+  /** Wire-to-wire splices invert direction (each wire's polyline runs out from its junction). */
   for (const link of diagram.wireLinks) {
-    linkNeighbor(link.wireIdA, link.wireIdB);
+    addNeighbor(adj, link.wireIdA, link.wireIdB, true);
+    addNeighbor(adj, link.wireIdB, link.wireIdA, true);
+  }
+
+  const byHub = new Map<string, string[]>();
+  for (const w of diagram.wires) {
+    if (!w.hubId) continue;
+    if (!byHub.has(w.hubId)) byHub.set(w.hubId, []);
+    byHub.get(w.hubId)!.push(w.id);
+  }
+  for (const ids of byHub.values()) {
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        addNeighbor(adj, ids[i]!, ids[j]!, false);
+        addNeighbor(adj, ids[j]!, ids[i]!, false);
+      }
+    }
+  }
+
+  for (const bridge of diagram.hubBridges) {
+    const a = byHub.get(bridge.hubIdA) ?? [];
+    const b = byHub.get(bridge.hubIdB) ?? [];
+    for (const wa of a) {
+      for (const wb of b) {
+        addNeighbor(adj, wa, wb, false);
+        addNeighbor(adj, wb, wa, false);
+      }
+    }
   }
 
   const seedDir = new Map<string, WireDirection>();
@@ -30,8 +64,23 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
     seedIsBreaker.set(b.whiteWireId, true);
   }
 
+  for (const conduit of diagram.conduits) {
+    if (!isBreakerConduit(conduit)) continue;
+    for (const wireId of conduit.wireIds) {
+      const w = wireById.get(wireId);
+      if (!w) continue;
+      const dir = directionForBreakerWire(w.color);
+      if (dir == null) continue;
+      seedDir.set(wireId, dir);
+      seedIsBreaker.set(wireId, true);
+    }
+  }
+
   for (const w of diagram.wires) {
     if (w.breakerId != null) {
+      continue;
+    }
+    if (diagram.conduits.some((c) => c.id === w.conduitId && isBreakerConduit(c))) {
       continue;
     }
     if (w.manualDirection != null) {
@@ -62,7 +111,7 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
     while (stack.length) {
       const u = stack.pop()!;
       comp.push(u);
-      for (const v of adj.get(u) ?? []) {
+      for (const { wireId: v } of adj.get(u) ?? []) {
         if (!visited.has(v)) {
           visited.add(v);
           stack.push(v);
@@ -94,12 +143,13 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
     while (i < queue.length) {
       const u = queue[i++]!;
       const du = assignedDir.get(u)!;
-      for (const v of adj.get(u) ?? []) {
+      for (const { wireId: v, flip } of adj.get(u) ?? []) {
+        const dv = flip ? oppositeDirection(du) : du;
         if (!assignedDir.has(v)) {
-          assignedDir.set(v, du);
+          assignedDir.set(v, dv);
           assignedSource.set(v, 'propagated');
           queue.push(v);
-        } else if (assignedDir.get(v)! !== du) {
+        } else if (assignedDir.get(v)! !== dv) {
           conflict = true;
         }
       }

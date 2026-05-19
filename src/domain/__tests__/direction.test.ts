@@ -8,6 +8,8 @@ function wire(overrides: Partial<Wire> & Pick<Wire, 'id'>): Wire {
     label: '',
     conduitId: null,
     breakerId: null,
+    hubId: null,
+    deviceNodeId: null,
     manualDirection: null,
     ...overrides,
   };
@@ -19,8 +21,13 @@ function diagram(overrides: Partial<Diagram>): Diagram {
     breakers: [],
     conduits: [],
     wires: [],
+    hubs: [],
+    hubBridges: [],
+    lightBulbs: [],
+    switches: [],
+    deviceNodes: [],
     wireLinks: [],
-    layout: { conduitPaths: {}, wireLinkPaths: {} },
+    layout: { conduitPaths: {}, wireLinkPaths: {}, hubBridgePaths: {} },
     ...overrides,
   };
 }
@@ -80,9 +87,34 @@ describe('resolveDirections', () => {
       wireLinks: [link],
     });
     const resolved = resolveDirections(d);
-    expect(resolved.get(remoteId)?.resolvedDirection).toBe('toward');
+    expect(resolved.get(remoteId)?.resolvedDirection).toBe('away');
     expect(resolved.get(remoteId)?.directionSource).toBe('propagated');
     expect(resolved.get(remoteId)?.directionConflict).toBe(false);
+  });
+
+  it('inverts direction across a wire link from breaker black', () => {
+    const blackId = 'bw-b';
+    const remoteId = 'w-remote';
+    const d = diagram({
+      breakers: [
+        {
+          id: 'br1',
+          junctionBoxId: 'jb1',
+          label: '',
+          blackWireId: blackId,
+          whiteWireId: 'bw-w',
+        },
+      ],
+      wires: [
+        wire({ id: blackId, color: 'black', breakerId: 'br1' }),
+        wire({ id: 'bw-w', color: 'white', breakerId: 'br1' }),
+        wire({ id: remoteId, color: 'red', conduitId: 'c1' }),
+      ],
+      wireLinks: [{ id: 'l1', wireIdA: blackId, wireIdB: remoteId, whiteMismatchWarning: true }],
+    });
+    const resolved = resolveDirections(d);
+    expect(resolved.get(blackId)?.resolvedDirection).toBe('away');
+    expect(resolved.get(remoteId)?.resolvedDirection).toBe('toward');
   });
 
   it('sets directionConflict when linked wires have incompatible manual seeds', () => {
@@ -97,7 +129,7 @@ describe('resolveDirections', () => {
     const d = diagram({
       wires: [
         wire({ id: w1, color: 'red', conduitId: 'c1', manualDirection: 'toward' }),
-        wire({ id: w2, color: 'red', conduitId: 'c1', manualDirection: 'away' }),
+        wire({ id: w2, color: 'red', conduitId: 'c1', manualDirection: 'toward' }),
       ],
       wireLinks: [link],
     });

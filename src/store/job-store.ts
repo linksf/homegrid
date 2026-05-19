@@ -128,5 +128,13 @@ export const useJobStore = create<JobStore>((set, get) => ({
 /** Resolved wire directions derived from `activeJob.diagram` (breaker seeds + propagation). */
 export function useResolvedWireMap(): Map<string, ResolvedWire> {
   const diagram = useJobStore((s) => s.activeJob?.diagram);
-  return useMemo(() => (diagram ? resolveDirections(diagram) : new Map()), [diagram]);
+  return useMemo(() => {
+    if (!diagram?.wires) return new Map();
+    try {
+      return resolveDirections(diagram);
+    } catch (err) {
+      console.error('resolveDirections failed:', err);
+      return new Map();
+    }
+  }, [diagram]);
 }

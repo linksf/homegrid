@@ -92,20 +92,18 @@ export function HomeScreen({ onOpenEditor }: HomeScreenProps): JSX.Element {
         ) : (
           <ul className="job-list">
             {jobs.map((job) => (
-              <li key={job.id}>
-                <button type="button" className="job-row" onClick={() => void handleOpenRow(job)}>
+              <li key={job.id} className="job-row">
+                <button type="button" className="job-row__open" onClick={() => void handleOpenRow(job)}>
                   <span className="job-row__name">{job.name || 'Untitled job'}</span>
                   <span className="job-row__meta">{formatRelativeTime(job.updatedAt)}</span>
-                  <span className="job-row__actions">
-                    <button
-                      type="button"
-                      className="btn btn--danger btn--small"
-                      aria-label={`Delete ${job.name}`}
-                      onClick={(e) => void handleDelete(e, job)}
-                    >
-                      Delete
-                    </button>
-                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--danger btn--small job-row__delete"
+                  aria-label={`Delete ${job.name}`}
+                  onClick={(e) => void handleDelete(e, job)}
+                >
+                  Delete
                 </button>
               </li>
             ))}

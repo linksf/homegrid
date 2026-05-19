@@ -1,3 +1,4 @@
+import { normalizeJob } from '../domain/normalize';
 import type { Job } from '../domain/types';
 import { SCHEMA_VERSION } from './schema';
 
@@ -12,5 +13,5 @@ export function importJob(json: string): Job {
   if (parsed.schemaVersion !== SCHEMA_VERSION) {
     throw new Error('Unsupported schema');
   }
-  return parsed.job as Job;
+  return normalizeJob(parsed.job as Job);
 }

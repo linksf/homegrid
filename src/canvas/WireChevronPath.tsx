@@ -35,8 +35,8 @@ function pointAtLength(points: Pt79[], target: number): { x: number; y: number; 
   return { x: b.x, y: b.y, tx: dx / seg, ty: dy / seg };
 }
 
-const CHEVRON_EVERY = 38;
-const CHEVRON_SIZE = 7;
+const CHEVRON_EVERY = 56;
+const CHEVRON_SIZE = 14;
 
 function chevronPolygon(cx: number, cy: number, tx: number, ty: number, flip: boolean): string {
   const nx = flip ? -tx : tx;

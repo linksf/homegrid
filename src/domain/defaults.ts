@@ -7,7 +7,7 @@ export function createEmptyJob(name = 'Untitled job'): Job {
   const breakerBox: JunctionBox = {
     id: breakerBoxId,
     type: 'breaker',
-    label: 'Breaker panel',
+    label: '',
     x: 80,
     y: 80,
     width: 200,
@@ -24,8 +24,21 @@ export function createEmptyJob(name = 'Untitled job'): Job {
       breakers: [],
       conduits: [],
       wires: [],
+      hubs: [],
+      hubBridges: [],
+      lightBulbs: [],
+      switches: [],
+      deviceNodes: [],
       wireLinks: [],
-      layout: { conduitPaths: {}, wireLinkPaths: {} },
+      layout: {
+        conduitPaths: {},
+        conduitOffsets: {},
+        wireOffsets: {},
+        wirePaths: {},
+        wireLinkPaths: {},
+        wireLinkOffsets: {},
+        hubBridgePaths: {},
+      },
     },
   };
 }

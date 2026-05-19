@@ -1,4 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { normalizeJob } from '../domain/normalize';
 import type { Job } from '../domain/types';
 import { SCHEMA_VERSION } from './schema';
 
@@ -24,17 +25,19 @@ async function getDb(): Promise<IDBPDatabase<WirerDB>> {
 
 export async function listJobs(): Promise<Job[]> {
   const db = await getDb();
-  return db.getAll(STORE);
+  const jobs = await db.getAll(STORE);
+  return jobs.map(normalizeJob);
 }
 
 export async function getJob(id: string): Promise<Job | undefined> {
   const db = await getDb();
-  return db.get(STORE, id);
+  const job = await db.get(STORE, id);
+  return job ? normalizeJob(job) : undefined;
 }
 
 export async function putJob(job: Job): Promise<void> {
   const db = await getDb();
-  await db.put(STORE, job);
+  await db.put(STORE, normalizeJob(job));
 }
 
 export async function deleteJob(id: string): Promise<void> {

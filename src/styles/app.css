@@ -3,23 +3,60 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light dark;
-  color: CanvasText;
-  background-color: Canvas;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  --wirer-bg: #f0f1f3;
+  --wirer-fg: #525252;
+  --wirer-surface: #ffffff;
+  /** Diagram sheet — medium-bright blue for wire contrast. */
+  --wirer-canvas: #6ba8dc;
+  /** Junction boxes — muted dark green. */
+  --junction-box-fill: #3a4a3f;
+  --junction-box-fill-breaker: #354640;
   --wire-red: #c62828;
   --wire-black: #1a1a1a;
   --wire-white: #f5f5f5;
+  color: var(--wirer-fg);
+  background-color: var(--wirer-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --wirer-bg: #141416;
+    --wirer-fg: #e8e8e8;
+    --wirer-surface: #222226;
+    --wirer-canvas: #6ba8dc;
+    --wire-black: #1a1a1a;
+    --wire-white: #f0f0f0;
+  }
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--wirer-fg);
+  background-color: var(--wirer-bg);
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
 }
 
 #root {
+  min-height: 100vh;
+}
+
+.home-screen {
+  padding: 1.25rem 1.5rem 2rem;
+}
+
+.error-fallback {
+  color: var(--wirer-fg);
+  background: var(--wirer-bg);
   min-height: 100vh;
 }
 
@@ -54,9 +91,9 @@ body {
   padding: 0 1rem;
   font: inherit;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, CanvasText 35%, Canvas);
-  background: Canvas;
-  color: CanvasText;
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 35%, var(--wirer-surface));
+  background: var(--wirer-surface);
+  color: var(--wirer-fg);
   cursor: pointer;
 }
 
@@ -67,14 +104,96 @@ body {
 }
 
 .btn--primary {
-  background: CanvasText;
-  color: Canvas;
-  border-color: CanvasText;
+  background: var(--wirer-fg);
+  color: var(--wirer-surface);
+  border-color: var(--wirer-fg);
 }
 
 .btn--active {
-  background: color-mix(in srgb, CanvasText 12%, Canvas);
-  border-color: color-mix(in srgb, CanvasText 60%, Canvas);
+  background: color-mix(in srgb, var(--wirer-fg) 12%, var(--wirer-surface));
+  border-color: color-mix(in srgb, var(--wirer-fg) 60%, var(--wirer-surface));
+}
+
+.btn--danger {
+  background: #b91c1c;
+  color: #fff;
+  border-color: #991b1b;
+}
+
+.btn--danger:hover {
+  background: #991b1b;
+}
+
+.btn--danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn--block {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.inspector__hint--error {
+  color: #b91c1c;
+}
+
+.inspector__hint--warn {
+  color: #b45309;
+}
+
+.inspector kbd {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 25%, transparent);
+}
+
+.editor-label-settings {
+  padding: 0 0 0.85rem;
+  margin-bottom: 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--wirer-fg) 12%, var(--wirer-surface));
+}
+
+.editor-label-settings__title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.editor-label-settings__value {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.editor-label-settings__slider {
+  width: 100%;
+  margin-top: 0.35rem;
+  accent-color: var(--wirer-fg);
+}
+
+.inspector__field--row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.inspector__field--row .inspector__label {
+  margin-bottom: 0;
+}
+
+.conduit-bundle--breaker .wire-stroke {
+  stroke-width: 3px;
+}
+
+.conduit-bundle--selected .wire-stroke:not(.wire-stroke--selected) {
+  filter: drop-shadow(0 0 2px rgb(37 99 235 / 45%));
+}
+
+.wire-link-hit,
+.conduit-hit {
+  cursor: pointer;
 }
 
 .editor-toolbar {
@@ -91,7 +210,7 @@ body {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.25rem 1.5rem 1rem;
-  border-bottom: 1px solid color-mix(in srgb, CanvasText 14%, Canvas);
+  border-bottom: 1px solid color-mix(in srgb, var(--wirer-fg) 14%, var(--wirer-surface));
 }
 
 .home-screen__subtitle {
@@ -124,24 +243,40 @@ body {
 }
 
 .job-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
+  display: flex;
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  text-align: left;
-  padding: 0.9rem 1rem;
+  padding: 0.5rem 0.5rem 0.5rem 0;
   min-height: 52px;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
-  background: color-mix(in srgb, CanvasText 5%, Canvas);
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
+  background: color-mix(in srgb, var(--wirer-fg) 5%, var(--wirer-surface));
+}
+
+.job-row__open {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
   font: inherit;
   color: inherit;
   cursor: pointer;
+  text-align: left;
 }
 
-.job-row:active {
+.job-row__open:active {
   transform: translateY(1px);
+}
+
+.job-row__delete {
+  flex-shrink: 0;
+  margin-right: 0.35rem;
 }
 
 .job-row__name {
@@ -177,13 +312,13 @@ body {
   height: clamp(340px, 72vh, 900px);
   touch-action: none;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
-  background-color: Canvas;
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 22%, var(--wirer-surface));
+  background-color: var(--wirer-canvas);
 }
 
 .canvas-viewport__frame {
-  fill: color-mix(in srgb, CanvasText 6%, Canvas);
-  stroke: color-mix(in srgb, CanvasText 22%, Canvas);
+  fill: var(--wirer-canvas);
+  stroke: color-mix(in srgb, var(--wire-black) 18%, var(--wirer-canvas));
   stroke-width: 1;
 }
 
@@ -202,12 +337,14 @@ body {
 }
 
 .junction-box-frame {
-  fill: Canvas;
-  stroke: CanvasText;
+  fill: var(--junction-box-fill);
+  stroke: color-mix(in srgb, var(--junction-box-fill) 35%, #1a1a1a);
   stroke-width: 3;
 }
 
 .junction-box-frame--breaker {
+  fill: var(--junction-box-fill-breaker);
+  stroke: color-mix(in srgb, var(--junction-box-fill-breaker) 30%, #1a1a1a);
   stroke-width: 4;
 }
 
@@ -215,25 +352,43 @@ body {
   stroke: #2563eb;
 }
 
-.junction-box__label {
-  font-size: 14px;
+.diagram-labels-layer {
+  pointer-events: none;
+}
+
+.diagram-label {
   font-weight: 600;
-  fill: CanvasText;
+  fill: #ffffff;
+  paint-order: stroke fill;
+  stroke: #1a1a1a;
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 
 .junction-box__label--breaker {
-  font-weight: 650;
+  font-weight: 700;
+}
+
+.conduit-label {
+  font-weight: 500;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.wire-label {
+  font-weight: 500;
 }
 
 .junction-anchor {
-  fill: color-mix(in srgb, CanvasText 15%, transparent);
-  stroke: color-mix(in srgb, CanvasText 45%, transparent);
+  fill: color-mix(in srgb, var(--wirer-fg) 15%, transparent);
+  stroke: color-mix(in srgb, var(--wirer-fg) 45%, transparent);
   stroke-width: 1;
 }
 
 .junction-handle {
-  fill: color-mix(in srgb, Canvas 80%, CanvasText 20%);
-  stroke: CanvasText;
+  fill: color-mix(in srgb, var(--wirer-surface) 80%, var(--wirer-fg) 20%);
+  stroke: var(--wirer-fg);
   stroke-width: 1.5;
   cursor: nwse-resize;
 }
@@ -250,6 +405,151 @@ body {
 
 .junction-box__handles {
   pointer-events: auto;
+}
+
+.hub-slots {
+  pointer-events: none;
+}
+
+.hub-slot {
+  fill: color-mix(in srgb, var(--wirer-fg) 6%, transparent);
+  stroke: color-mix(in srgb, var(--wirer-fg) 18%, transparent);
+  stroke-width: 1.5px;
+  stroke-dasharray: 3 3;
+}
+
+.hub-slot--filled {
+  fill: transparent;
+  stroke: transparent;
+}
+
+.hub {
+  cursor: pointer;
+}
+
+.hub__ring {
+  fill: color-mix(in srgb, var(--wirer-accent, #c9a227) 35%, var(--wirer-surface));
+  stroke: color-mix(in srgb, var(--wirer-accent, #c9a227) 85%, var(--wirer-fg));
+  stroke-width: 2px;
+}
+
+.hub__core {
+  fill: color-mix(in srgb, var(--wirer-accent, #c9a227) 70%, var(--wirer-fg));
+  stroke: none;
+}
+
+.hub--selected .hub__ring {
+  stroke-width: 3px;
+  stroke: var(--wirer-fg);
+}
+
+.hub--pending .hub__ring {
+  stroke-dasharray: 4 3;
+  animation: hub-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes hub-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.hub-wire-link {
+  pointer-events: none;
+}
+
+.hub-bridge__path {
+  stroke: color-mix(in srgb, var(--wirer-accent, #c9a227) 90%, var(--wirer-fg));
+  stroke-width: 3px;
+  stroke-dasharray: 10 6;
+}
+
+.hub-bridge--selected .hub-bridge__path {
+  stroke-width: 4px;
+}
+
+.light-bulb__body {
+  fill: color-mix(in srgb, #f5e6a8 55%, var(--wirer-surface));
+  stroke: color-mix(in srgb, var(--wirer-fg) 70%, transparent);
+  stroke-width: 2px;
+  cursor: grab;
+}
+
+.light-bulb--selected .light-bulb__body {
+  stroke: var(--wirer-fg);
+  stroke-width: 3px;
+}
+
+.light-bulb__label,
+.switch-device__label,
+.hub-label,
+.wire-label {
+  pointer-events: none;
+}
+
+.light-bulb__label {
+  fill: var(--wirer-fg);
+}
+
+.switch-device__body {
+  fill: color-mix(in srgb, var(--wirer-fg) 8%, var(--wirer-surface));
+  stroke: color-mix(in srgb, var(--wirer-fg) 65%, transparent);
+  stroke-width: 2px;
+  cursor: grab;
+}
+
+.switch-device--selected .switch-device__body {
+  stroke: var(--wirer-fg);
+  stroke-width: 3px;
+}
+
+.switch-device__label {
+  fill: var(--wirer-fg);
+}
+
+.device-node__stub {
+  stroke: color-mix(in srgb, #6b9bd1 55%, var(--wirer-fg));
+  stroke-width: 2px;
+  pointer-events: none;
+}
+
+.device-node__ring {
+  fill: var(--wirer-surface);
+  stroke: color-mix(in srgb, #4a7eb8 90%, var(--wirer-fg));
+  stroke-width: 2.5px;
+}
+
+.device-node__core {
+  fill: color-mix(in srgb, #6b9bd1 70%, var(--wirer-fg));
+  stroke: none;
+}
+
+.device-node--conduit .device-node__ring {
+  stroke: color-mix(in srgb, #6b9bd1 95%, var(--wirer-fg));
+}
+
+.device-node--selected .device-node__ring {
+  stroke-width: 3px;
+  stroke: var(--wirer-fg);
+}
+
+.device-node--pending .device-node__ring {
+  stroke-dasharray: 4 3;
+  animation: hub-pulse 0.9s ease-in-out infinite;
+}
+
+.device-wire-link {
+  stroke: color-mix(in srgb, #6b9bd1 75%, var(--wirer-fg));
+  stroke-width: 2px;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+.inspector__wire-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.88rem;
+  opacity: 0.9;
 }
 
 .editor-screen__viewport {
@@ -298,9 +598,9 @@ body {
     max-height: min(46vh, 400px);
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-    background: Canvas;
+    background: var(--wirer-surface);
     border-radius: 14px 14px 0 0;
-    border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+    border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
     border-bottom: none;
     box-shadow: 0 -8px 32px rgb(0 0 0 / 16%);
   }
@@ -310,7 +610,7 @@ body {
     width: 36px;
     height: 5px;
     border-radius: 999px;
-    background: color-mix(in srgb, CanvasText 22%, transparent);
+    background: color-mix(in srgb, var(--wirer-fg) 22%, transparent);
     margin: 0 auto 0.55rem;
   }
 
@@ -347,14 +647,14 @@ body {
 }
 
 .wire-link__path--selected {
-  stroke-width: 3.5;
+  stroke-width: 5.5;
   filter: drop-shadow(0 0 3px rgb(37 99 235 / 60%));
 }
 
 .issues-panel {
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
-  background: color-mix(in srgb, CanvasText 4%, Canvas);
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
+  background: color-mix(in srgb, var(--wirer-fg) 4%, var(--wirer-surface));
   padding: 1rem 1.1rem;
 }
 
@@ -381,7 +681,7 @@ body {
 .issues-panel__block + .issues-panel__block {
   margin-top: 0.85rem;
   padding-top: 0.85rem;
-  border-top: 1px solid color-mix(in srgb, CanvasText 12%, Canvas);
+  border-top: 1px solid color-mix(in srgb, var(--wirer-fg) 12%, var(--wirer-surface));
 }
 
 .issues-panel__subtitle {
@@ -413,8 +713,8 @@ body {
   text-align: left;
   padding: 0.55rem 0.65rem;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, CanvasText 16%, Canvas);
-  background: Canvas;
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 16%, var(--wirer-surface));
+  background: var(--wirer-surface);
   font: inherit;
   color: inherit;
   cursor: pointer;
@@ -425,7 +725,7 @@ body {
 }
 
 .issues-panel__row:hover {
-  background: color-mix(in srgb, CanvasText 6%, Canvas);
+  background: color-mix(in srgb, var(--wirer-fg) 6%, var(--wirer-surface));
 }
 
 .issues-panel__row--selected {
@@ -446,8 +746,8 @@ body {
 
 .inspector {
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
-  background: color-mix(in srgb, CanvasText 4%, Canvas);
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
+  background: color-mix(in srgb, var(--wirer-fg) 4%, var(--wirer-surface));
   padding: 1rem 1.1rem;
 }
 
@@ -484,9 +784,9 @@ body {
   min-height: 40px;
   font: inherit;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, CanvasText 35%, Canvas);
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 35%, var(--wirer-surface));
   padding: 0 0.5rem;
-  background: Canvas;
+  background: var(--wirer-surface);
   color: inherit;
 }
 
@@ -498,11 +798,11 @@ body {
 }
 
 .conduit-dialog {
-  border: 1px solid color-mix(in srgb, CanvasText 20%, Canvas);
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 20%, var(--wirer-surface));
   border-radius: 12px;
   padding: 0;
-  color: CanvasText;
-  background-color: Canvas;
+  color: var(--wirer-fg);
+  background-color: var(--wirer-surface);
   max-width: min(420px, 92vw);
 }
 
@@ -547,9 +847,9 @@ body {
   min-height: 40px;
   font: inherit;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, CanvasText 35%, Canvas);
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 35%, var(--wirer-surface));
   padding: 0 0.5rem;
-  background: Canvas;
+  background: var(--wirer-surface);
   color: inherit;
 }
 
@@ -569,8 +869,9 @@ body {
 }
 
 .wire-stroke {
-  stroke-width: 3.5;
+  stroke-width: 5.5;
   fill: none;
+  pointer-events: none;
 }
 
 .wire-stroke--red {
@@ -583,29 +884,30 @@ body {
 
 .wire-stroke--white {
   stroke: var(--wire-white);
-  filter: drop-shadow(0 0 0.65px CanvasText);
 }
 
 .wire-chevron {
-  fill: color-mix(in srgb, CanvasText 52%, transparent);
-  stroke: none;
+  fill: #facc15;
+  stroke: #ca8a04;
+  stroke-width: 0.75;
+  paint-order: stroke fill;
   pointer-events: none;
 }
 
 .wire-chevron-group--conflict .wire-chevron {
-  fill: color-mix(in srgb, #b91c1c 75%, CanvasText);
+  fill: color-mix(in srgb, #b91c1c 75%, var(--wirer-fg));
   stroke: #ef4444;
   stroke-width: 1.35;
   paint-order: stroke fill;
 }
 
 .wire-stroke--selected {
-  stroke-width: 5;
+  stroke-width: 7.5;
   filter: drop-shadow(0 0 3px rgb(37 99 235 / 55%));
 }
 
 .wire-stroke--pending-link {
-  stroke-width: 5;
+  stroke-width: 7.5;
   filter: drop-shadow(0 0 3px rgb(202 138 4 / 55%));
 }
 
@@ -615,19 +917,14 @@ body {
 
 .wire-link__path {
   fill: none;
-  stroke: color-mix(in srgb, CanvasText 58%, Canvas);
-  stroke-width: 2.5;
+  stroke-width: 4.5;
   stroke-dasharray: 8 6;
   stroke-linecap: round;
   pointer-events: none;
 }
 
-.wire-link__path--warning {
-  stroke: #b45309;
-}
-
 .wire-link__warn-bg {
-  fill: color-mix(in srgb, #fef3c7 90%, Canvas);
+  fill: color-mix(in srgb, #fef3c7 90%, var(--wirer-surface));
   stroke: #b45309;
   stroke-width: 1.25;
 }
@@ -644,7 +941,7 @@ body {
   padding: 0.65rem 0.9rem;
   border-radius: 10px;
   border: 1px solid #b45309;
-  background: color-mix(in srgb, #fef3c7 35%, Canvas);
+  background: color-mix(in srgb, #fef3c7 35%, var(--wirer-surface));
   font-size: 0.9rem;
   display: flex;
   align-items: flex-start;
@@ -658,4 +955,55 @@ body {
 
 .editor-screen__banner button {
   flex-shrink: 0;
+}
+
+.path-nudge {
+  margin: 0.75rem 0;
+}
+
+.path-nudge__grid {
+  display: grid;
+  grid-template-columns: 2.25rem 2.25rem 2.25rem;
+  grid-template-rows: 2.25rem 2.25rem 2.25rem;
+  gap: 0.35rem;
+  justify-content: start;
+  margin-top: 0.35rem;
+}
+
+.path-nudge__btn {
+  min-width: 2.25rem;
+  padding: 0.2rem 0.35rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.path-nudge__center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, var(--wirer-fg) 55%, transparent);
+  font-size: 1.25rem;
+}
+
+.path-joint-handles {
+  pointer-events: none;
+}
+
+.path-joint-handle {
+  fill: var(--wirer-surface);
+  stroke: #2563eb;
+  stroke-width: 2.5;
+  cursor: grab;
+  pointer-events: all;
+}
+
+.path-joint-handle:active {
+  cursor: grabbing;
+  fill: #dbeafe;
+}
+
+.conduit-bundle--selected .path-joint-handle,
+.wire-link--selected .path-joint-handle {
+  stroke: #1d4ed8;
+  filter: drop-shadow(0 0 2px rgb(37 99 235 / 45%));
 }

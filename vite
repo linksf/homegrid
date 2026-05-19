@@ -1,0 +1,474 @@
+
+
+  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE v8.0.1  VITE vate /src/screens/EditorScreen.tsx, /src/canv
+1:30:12 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/HubShape.tsx,
+1:30:12 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/HubShape.tsx, /src/canvas/HubConnectionLayer.tsx
+1:30:42 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+1:30:42 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx
+1:30:43 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+1:30:43 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x2)
+1:30:45 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:30:45 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/HubShape.tsx
+1:30:52 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:30:52 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/HubShape.tsx
+1:30:52 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/HubShape.tsx (x2)
+1:30:56 AM [vite] (client) hmr update /src/canvas/HubShape.tsx
+1:31:10 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+1:31:10 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx
+1:31:11 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+1:31:11 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x2)
+1:31:12 AM [vite] (client) hmr update /src/canvas/JunctionBoxShape.tsx
+1:31:16 AM [vite] (client) hmr update /src/canvas/JunctionBoxShape.tsx (x2)
+1:31:17 AM [vite] (client) hmr update /src/canvas/HubSlotMarkers.tsx
+1:31:18 AM [vite] (client) hmr update /src/canvas/HubSlotMarkers.tsx (x2)
+1:31:18 AM [vite] (client) hmr update /src/editor/Inspector.tsx
+1:31:21 AM [vite] (client) hmr update /src/editor/Inspector.tsx (x2)
+1:31:23 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx
+1:31:25 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x2)
+1:31:30 AM [vite] (client) hmr update /src/styles/app.css
+1:46:52 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+1:46:52 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx
+1:46:52 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+1:46:52 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x2)
+1:46:53 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:46:53 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx
+1:46:56 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:46:56 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x2)
+1:47:08 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:47:08 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x3)
+1:47:09 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:47:09 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x4)
+1:47:10 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:47:10 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x5)
+1:47:11 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:47:11 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x6)
+1:47:16 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:47:16 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x7)
+1:47:18 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:47:18 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x8)
+1:47:27 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:47:27 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x9)
+1:47:28 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:47:28 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x10)
+1:47:30 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+1:47:30 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx
+1:47:32 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+1:47:32 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x2)
+1:47:32 AM [vite] (client) hmr update /src/canvas/HubConnectionLayer.tsx
+1:47:33 AM [vite] (client) hmr update /src/canvas/HubConnectionLayer.tsx (x2)
+1:48:13 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:48:13 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx
+1:48:14 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:48:14 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x2)
+1:48:15 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+1:48:15 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x3)
+2:32:49 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+2:32:49 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx
+2:32:49 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+2:32:49 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x2)
+2:32:49 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+2:32:49 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x3)
+2:32:50 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+2:32:50 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x4)
+2:32:50 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+2:32:50 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x5)
+2:32:54 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+2:32:54 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x6)
+2:32:54 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+2:32:54 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x7)
+2:32:54 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+2:32:54 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x8)
+2:33:01 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+2:33:01 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx
+2:33:04 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+2:33:04 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x2)
+2:33:08 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+2:33:08 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x3)
+2:33:09 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+2:33:09 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x4)
+2:33:09 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+2:33:09 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx (x5)
+2:33:53 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx
+2:33:55 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x2)
+2:33:56 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x3)
+2:33:57 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x4)
+2:33:59 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x5)
+2:34:02 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x6)
+2:34:04 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x7)
+2:34:07 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x8)
+2:34:09 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x9)
+2:34:21 AM [vite] (client) hmr update /src/editor/Toolbar.tsx
+2:34:23 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx
+2:34:24 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x2)
+2:34:25 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x3)
+2:34:27 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x4)
+2:34:28 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x5)
+2:34:28 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x6)
+2:34:30 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x7)
+2:34:33 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x8)
+2:34:34 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x9)
+2:34:36 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x10)
+2:34:37 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x11)
+2:34:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x12)
+2:34:41 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x13)
+2:34:42 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x14)
+2:34:43 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x15)
+2:34:47 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x16)
+2:34:51 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x17)
+2:34:58 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x18)
+2:35:01 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x19)
+2:35:04 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x20)
+2:35:06 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x21)
+2:35:06 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x22)
+2:35:08 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x23)
+2:35:10 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x24)
+2:35:12 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x25)
+2:35:16 AM [vite] (client) hmr update /src/editor/Inspector.tsx
+2:35:17 AM [vite] (client) hmr update /src/editor/Inspector.tsx (x2)
+2:35:19 AM [vite] (client) hmr update /src/editor/Inspector.tsx (x3)
+2:35:19 AM [vite] (client) hmr update /src/editor/Inspector.tsx (x4)
+2:35:21 AM [vite] (client) hmr update /src/editor/Inspector.tsx (x5)
+2:35:30 AM [vite] (client) hmr update /src/editor/Inspector.tsx (x6)
+2:35:32 AM [vite] (client) hmr update /src/editor/Inspector.tsx (x7)
+2:35:34 AM [vite] (client) hmr update /src/editor/Inspector.tsx (x8)
+2:35:40 AM [vite] (client) hmr update /src/styles/app.css
+2:36:22 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+2:36:22 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/Lig
+2:36:22 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx
+2:45:53 AM [vite] (client) hmr update /src/canvas/DeviceNodeMarker.tsx
+2:45:56 AM [vite] (client) hmr update /src/canvas/DeviceNodeMarker.tsx (x2)
+2:45:57 AM [vite] (client) hmr update /src/canvas/LightBulbShape.tsx
+2:45:59 AM [vite] (client) hmr update /src/canvas/LightBulbShape.tsx (x2)
+2:46:02 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx
+2:46:05 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx (x2)
+2:46:06 AM [vite] (client) hmr update /src/canvas/LightBulbShape.tsx
+2:46:06 AM [vite] Internal server error: Transform failed with 1 error:
+
+[PARSE_ERROR] Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+     ╭─[ src/canvas/LightBulbShape.tsx:123:7 ]
+     │
+ 123 │       })}
+     │       │ 
+     │       ╰─ 
+─────╯
+
+  Plugin: vite:oxc
+  File: /Users/shanealan/wirer/src/canvas/LightBulbShape.tsx
+      at transformWithOxc (file:///Users/shanealan/wirer/node_modules/vite/dis
+      at transformWithOxc (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:3339:19)
+      at TransformPluginContext.transform (file:///Users/shanealan/wirer/node_
+      at TransformPluginContext.transform (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:3410:26)
+      at EnvironmentPluginContainer.transform (file:///Users/shanealan/wirer/n
+      at EnvironmentPluginContainer.transform (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:30271:51)
+      at async loadAndTransform (file:///Users/shanealan/wirer/node_modules/vi
+      at async loadAndTransform (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:24532:26)
+      at async viteTransformMiddleware (file:///Users/shanealan/wirer/node_mod
+      at async viteTransformMiddleware (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:24326:20)
+2:46:08 AM [vite] (client) hmr update /src/canvas/LightBulbShape.tsx
+2:46:11 AM [vite] (client) hmr update /src/styles/app.css
+2:54:30 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+2:54:30 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+2:54:30 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /rc/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/
+2:54:30 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceCon
+2:54:30 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx
+2:54:33 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx
+2:54:34 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x2)
+2:54:36 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x3)
+2:54:37 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x4)
+2:54:40 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x5)
+2:54:42 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx
+2:54:43 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx (x2)
+2:54:46 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx (x3)
+2:54:47 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx (x4)
+2:54:48 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx (x5)
+2:54:49 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx (x6)
+2:54:51 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx (x7)
+2:55:11 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+2:55:11 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+2:55:11 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/
+2:55:11 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceCon
+2:55:11 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx, /src/canvas/WireLinkShape.tsx
+3:00:28 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+3:00:28 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+3:00:28 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/
+3:00:28 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceCon
+3:00:28 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx, /src/canvas/WireLinkShape.tsx (x2)
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wi
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wire-link-lanes" from "src/domain/wire-geometry.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/shanealan/wirer/src/domain/wire-geometry.ts:5:7
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-li
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-link-lanes";
+     |                                                               ^
+  2  |  function offsetPolyline(points, ox, oy) {
+  3  |          return points.map((pt) => ({
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wi
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wire-link-lanes" from "src/domain/wire-geometry.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/shanealan/wirer/src/domain/wire-geometry.ts:5:7
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-li
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-link-lanes";
+     |                                                               ^
+  2  |  function offsetPolyline(points, ox, oy) {
+  3  |          return points.map((pt) => ({ (x2)
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wi
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wire-link-lanes" from "src/domain/wire-geometry.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/shanealan/wirer/src/domain/wire-geometry.ts:5:7
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-li
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-link-lanes";
+     |                                                               ^
+  2  |  function offsetPolyline(points, ox, oy) {
+  3  |          return points.map((pt) => ({ (x3)
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wi
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wire-link-lanes" from "src/domain/wire-geometry.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/shanealan/wirer/src/domain/wire-geometry.ts:5:7
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-li
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-link-lanes";
+     |                                                               ^
+  2  |  function offsetPolyline(points, ox, oy) {
+  3  |          return points.map((pt) => ({ (x4)
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wi
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wire-link-lanes" from "src/domain/wire-geometry.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/shanealan/wirer/src/domain/wire-geometry.ts:5:7
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-li
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-link-lanes";
+     |                                                               ^
+  2  |  function offsetPolyline(points, ox, oy) {
+  3  |          return points.map((pt) => ({ (x5)
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wi
+3:00:28 AM [vite] (client) Pre-transform error: Failed to resolve import "./wire-link-lanes" from "src/domain/wire-geometry.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/shanealan/wirer/src/domain/wire-geometry.ts:5:7
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-li
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-link-lanes";
+     |                                                               ^
+  2  |  function offsetPolyline(points, ox, oy) {
+  3  |          return points.map((pt) => ({ (x6)
+3:00:28 AM [vite] Internal server error: Failed to resolve import "./wire-link
+3:00:28 AM [vite] Internal server error: Failed to resolve import "./wire-link-lanes" from "src/domain/wire-geometry.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/shanealan/wirer/src/domain/wire-geometry.ts:5:7
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-li
+  1  |  import { buildWireLinkLaneMap, offsetPolylineByLanes } from "./wire-link-lanes";
+     |                                                               ^
+  2  |  function offsetPolyline(points, ox, oy) {
+  3  |          return points.map((pt) => ({
+      at TransformPluginContext._formatLog (file:///Users/shanealan/wirer/node
+      at TransformPluginContext._formatLog (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:30486:39)
+      at TransformPluginContext.error (file:///Users/shanealan/wirer/node_modu
+      at TransformPluginContext.error (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:30483:14)
+      at normalizeUrl (file:///Users/shanealan/wirer/node_modules/vite/dist/no
+      at normalizeUrl (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:27725:18)
+      at async file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunk
+      at async file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:27788:30
+      at async Promise.all (index 0)
+      at async TransformPluginContext.transform (file:///Users/shanealan/wirer
+      at async TransformPluginContext.transform (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:27756:4)
+      at async EnvironmentPluginContainer.transform (file:///Users/shanealan/w
+      at async EnvironmentPluginContainer.transform (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:30271:14)
+      at async loadAndTransform (file:///Users/shanealan/wirer/node_modules/vi
+      at async loadAndTransform (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:24532:26)
+      at async viteTransformMiddleware (file:///Users/shanealan/wirer/node_mod
+      at async viteTransformMiddleware (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:24326:20)
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceCon
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx, /src/canvas/WireLinkShape.tsx
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceCon
+3:00:38 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx, /src/canvas/WireLinkShape.tsx (x2)
+3:00:38 AM [vite] (client) Pre-transform error: Failed to load url /src/domain
+3:00:38 AM [vite] (client) Pre-transform error: Failed to load url /src/domain/wire-lanes.ts (resolved id: /Users/shanealan/wirer/src/domain/wire-lanes.ts)
+3:00:38 AM [vite] (client) Pre-transform error: Failed to load url /src/domain/wire-lanes.ts (resolved id: /Users/shanealan/wirer/src/domain/wire-lanes.ts) in /Users/shanealan/wirer/src/domain/wire-geometry.ts. Does the file exist?
+3:00:46 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx
+3:00:47 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x2)
+3:00:48 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x3)
+3:00:49 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x4)
+3:00:52 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x5)
+3:10:13 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+3:10:13 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+3:10:13 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/
+3:10:13 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceCon
+3:10:13 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx, /src/canvas/WireLinkShape.tsx
+3:10:50 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+3:10:50 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+3:10:50 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/
+3:10:50 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceCon
+3:10:50 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx, /src/canvas/WireLinkShape.tsx (x2)
+3:10:52 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+3:10:52 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+3:10:52 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/
+3:10:52 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceCon
+3:10:52 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx, /src/canvas/WireLinkShape.tsx (x3)
+3:10:53 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+3:10:53 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx
+3:10:54 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+3:10:54 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x2)
+3:14:27 AM [vite] (client) hmr update /src/styles/app.css
+3:14:28 AM [vite] (client) hmr update /src/styles/app.css (x2)
+3:14:32 AM [vite] (client) hmr update /src/styles/app.css (x3)
+3:14:32 AM [vite] (client) hmr update /src/styles/app.css (x4)
+3:14:33 AM [vite] (client) hmr update /src/styles/app.css (x5)
+3:16:55 AM [vite] (client) hmr update /src/styles/app.css (x6)
+3:16:56 AM [vite] (client) hmr update /src/styles/app.css (x7)
+3:16:59 AM [vite] (client) hmr update /src/styles/app.css (x8)
+3:17:03 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx
+3:17:20 AM [vite] (client) hmr update /src/styles/app.css
+3:18:55 AM [vite] (client) hmr update /src/styles/app.css (x2)
+3:19:57 AM [vite] (client) hmr update /src/styles/app.css (x3)
+3:21:57 AM [vite] (client) hmr update /src/styles/app.css (x4)
+3:26:49 AM [vite] (client) hmr update /src/styles/app.css (x5)
+3:29:18 AM [vite] (client) hmr update /src/styles/app.css (x6)
+3:29:53 AM [vite] (client) hmr update /src/styles/app.css (x7)
+3:30:29 AM [vite] (client) hmr update /src/styles/app.css (x8)
+3:31:17 AM [vite] (client) hmr update /src/styles/app.css (x9)
+3:33:21 AM [vite] (client) hmr update /src/styles/app.css (x10)
+3:33:23 AM [vite] (client) hmr update /src/styles/app.css (x11)
+3:33:24 AM [vite] (client) hmr update /src/styles/app.css (x12)
+3:33:26 AM [vite] (client) hmr update /src/styles/app.css (x13)
+3:33:31 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx
+3:33:35 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx (x2)
+3:33:39 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx (x3)
+3:36:06 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+3:36:06 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+3:36:06 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/
+3:36:06 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceCon
+3:36:06 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx, /src/canvas/WireLinkShape.tsx, /src/App.tsx, /src/screens/Ho
+3:36:06 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/ConduitLayer.tsx, /src/canvas/HubConnectionLayer.tsx, /src/canvas/WireChevronPath.tsx, /src/canvas/DeviceConnectionLayer.tsx, /src/canvas/WireLinkShape.tsx, /src/App.tsx, /src/screens/HomeScreen.tsx
+3:36:06 AM [vite] (client) hmr update /src/canvas/WireChevronPath.tsx
+3:36:06 AM [vite] (client) hmr update /src/styles/app.css
+3:36:07 AM [vite] (client) hmr update /src/styles/app.css (x2)
+3:36:08 AM [vite] (client) hmr update /src/styles/app.css (x3)
+3:36:09 AM [vite] (client) hmr update /src/styles/app.css (x4)
+3:36:11 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx
+3:36:11 AM [vite] (client) hmr update /src/styles/app.css
+3:36:11 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx
+3:36:16 AM [vite] (client) hmr update /src/canvas/WireLinkShape.tsx
+3:40:32 AM [vite] (client) hmr update /src/canvas/LabelSizeContext.tsx
+3:40:32 AM [vite] (client) hmr invalidate /src/canvas/LabelSizeContext.tsx Cou
+3:40:32 AM [vite] (client) hmr invalidate /src/canvas/LabelSizeContext.tsx Could not Fast Refresh ("DEFAULT_LABEL_SCREEN_PX" export is incompatible). Learn
+3:40:32 AM [vite] (client) hmr invalidate /src/canvas/LabelSizeContext.tsx Could not Fast Refresh ("DEFAULT_LABEL_SCREEN_PX" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-
+3:40:32 AM [vite] (client) hmr invalidate /src/canvas/LabelSizeContext.tsx Could not Fast Refresh ("DEFAULT_LABEL_SCREEN_PX" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:40:32 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/edit
+3:40:32 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/editor/EditorLabelSettings.tsx, /src/canvas/ZoomLabel.tsx
+3:40:33 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx
+3:40:36 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x2)
+3:40:37 AM [vite] (client) hmr update /src/styles/app.css
+3:40:37 AM [vite] (client) hmr update /src/editor/ConduitDialog.tsx
+3:40:40 AM [vite] (client) hmr update /src/editor/ConduitDialog.tsx (x2)
+3:40:41 AM [vite] (client) hmr update /src/editor/ConduitDialog.tsx (x3)
+3:40:50 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx
+3:41:17 AM [vite] (client) hmr update /src/editor/ConduitDialog.tsx
+3:41:17 AM [vite] Internal server error: Transform failed with 1 error:
+
+[PARSE_ERROR] Expected corresponding JSX closing tag for 'div'.
+     ╭─[ src/editor/ConduitDialog.tsx:121:13 ]
+     │
+ 114 │           <div className="conduit-dialog__actions">
+     │            ─┬─  
+     │             ╰─── Opened here
+     │ 
+ 121 │           </motion.div>
+     │             ─────┬────  
+     │                  ╰────── Expected `</div>`
+─────╯
+
+  Plugin: vite:oxc
+  File: /Users/shanealan/wirer/src/editor/ConduitDialog.tsx
+      at transformWithOxc (file:///Users/shanealan/wirer/node_modules/vite/dis
+      at transformWithOxc (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:3339:19)
+      at TransformPluginContext.transform (file:///Users/shanealan/wirer/node_
+      at TransformPluginContext.transform (file:///Users/shanealan/wirer/node_modules/vitm (file:///Users/shanealan/wirer/n
+      at EnvironmentPluginContainer.transform (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:30271:51)
+      at async loadAndTransform (file:///Users/shanealan/wirer/node_modules/vi
+      at async loadAndTransform (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:24532:26)
+      at async viteTransformMiddleware (file:///Users/shanealan/wirer/node_mod
+      at async viteTransformMiddleware (file:///Users/shanealan/wirer/node_modules/vite/dist/node/chunks/node.js:24326:20)
+3:41:25 AM [vite] (client) hmr update /src/editor/ConduitDialog.tsx
+4:06:07 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+4:06:07 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+4:06:07 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx
+4:06:07 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas
+4:06:07 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx, /src/screens/EditorScreen.tsx
+4:06:08 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas
+4:06:08 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx, /src/screens/EditorScreen.tsx
+4:06:08 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx, /src/screens/EditorScreen.tsx (x2)
+4:06:12 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas
+4:06:12 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx, /src/screens/EditorScreen.tsx
+4:06:12 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx, /src/screens/EditorScreen.tsx (x3)
+4:06:16 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas
+4:06:16 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx, /src/screens/EditorScreen.tsx
+4:06:16 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx, /src/screens/EditorScreen.tsx (x4)
+4:06:19 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas
+4:06:19 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx, /src/screens/EditorScreen.tsx
+4:06:19 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx, /src/canvas/DiagramSvg.tsx, /src/screens/EditorScreen.tsx (x5)
+4:06:32 AM [vite] (client) hmr update /src/canvas/HubConnectionLayer.tsx
+4:06:32 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx
+4:06:35 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x2)
+4:06:41 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx (x3)
+4:06:45 AM [vite] (client) hmr update /src/styles/app.css
+4:06:45 AM [vite] (client) hmr update /src/styles/app.css (x2)
+4:10:29 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+4:10:29 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+4:10:29 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx
+4:10:34 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+4:10:34 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+4:10:34 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx (x2)
+4:10:36 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+4:10:36 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+4:10:36 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx (x3)
+4:10:40 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+4:10:40 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+4:10:40 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx (x4)
+4:10:45 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+4:10:45 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+4:10:45 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx (x5)
+4:11:27 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canv
+4:11:27 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.t
+4:11:27 AM [vite] (client) hmr update /src/screens/EditorScreen.tsx, /src/canvas/DiagramSvg.tsx, /src/canvas/JunctionBoxShape.tsx, /src/canvas/SwitchShape.tsx, /src/canvas/LightBulbShape.tsx (x6)
+4:11:27 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+4:11:27 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx
+4:11:29 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.ts
+4:11:29 AM [vite] (client) hmr update /src/App.tsx, /src/screens/HomeScreen.tsx, /src/screens/EditorScreen.tsx (x2)
+4:17:14 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx
+4:17:15 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x2)
+4:17:19 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x3)
+4:17:22 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx
+4:17:25 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x2)
+4:17:28 AM [vite] (client) hmr update /src/styles/app.css
+4:17:41 AM [vite] (client) hmr update /src/styles/app.css (x2)
+4:22:11 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx
+4:22:12 AM [vite] (client) hmr update /src/canvas/ConduitLayer.tsx (x2)
+4:22:12 AM [vite] (client) hmr update /src/canvas/JunctionBoxShape.tsx
+4:22:13 AM [vite] (client) hmr update /src/canvas/JunctionBoxShape.tsx (x2)
+4:22:19 AM [vite] (client) hmr update /src/canvas/JunctionBoxShape.tsx (x3)
+4:22:20 AM [vite] (client) hmr update /src/canvas/HubShape.tsx
+4:22:20 AM [vite] (client) hmr update /src/canvas/JunctionBoxShape.tsx
+4:22:20 AM [vite] (client) hmr update /src/canvas/JunctionBoxShape.tsx (x2)
+4:22:20 AM [vite] (client) hmr update /src/canvas/LightBulbShape.tsx
+4:22:21 AM [vite] (client) hmr update /src/canvas/HubShape.tsx
+4:22:21 AM [vite] (client) hmr update /src/canvas/JunctionBoxShape.tsx
+4:22:21 AM [vite] (client) hmr update /src/canvas/HubShape.tsx
+4:22:25 AM [vite] (client) hmr update /src/canvas/LightBulbShape.tsx
+4:22:25 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx
+4:22:26 AM [vite] (client) hmr update /src/canvas/HubShape.tsx
+4:22:26 AM [vite] (client) hmr update /src/canvas/HubShape.tsx (x2)
+4:22:26 AM [vite] (client) hmr update /src/canvas/LightBulbShape.tsx
+4:22:27 AM [vite] (client) hmr update /src/canvas/LightBulbShape.tsx (x2)
+4:22:27 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx
+4:22:28 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx (x2)
+4:22:28 AM [vite] (client) hmr update /src/canvas/SwitchShape.tsx (x3)
+4:22:34 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx
+4:22:34 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x2)
+4:22:35 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x3)
+4:22:35 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x4)
+4:22:35 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x5)
+4:22:36 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x6)
+4:22:41 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x7)
+4:22:41 AM [vite] (client) hmr update /src/canvas/DiagramSvg.tsx (x8)

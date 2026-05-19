@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import './styles/app.css';
 import { useJobStore } from './store/job-store';
 import { EditorScreen } from './screens/EditorScreen';
 import { HomeScreen } from './screens/HomeScreen';
