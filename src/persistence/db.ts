@@ -1,46 +1,47 @@
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import { normalizeJob } from '../domain/normalize';
+import { isFirebaseConfigured, getFirebaseStorage } from '../firebase/app';
 import type { Job } from '../domain/types';
-import { SCHEMA_VERSION } from './schema';
+import type { JobsBackend } from './backend';
+import { createFirebaseBackend } from './firebase-backend';
+import { indexedDbBackend } from './indexed-db-backend';
+import { memoryBackend } from './memory-backend';
 
-const DB_NAME = 'wirer-v1';
-const STORE = 'jobs';
+let backend: JobsBackend | null = null;
 
-interface WirerDB extends DBSchema {
-  jobs: {
-    key: string;
-    value: Job;
-  };
+function resolveBackend(): JobsBackend {
+  if (backend) return backend;
+
+  if (import.meta.env.MODE === 'test') {
+    backend = memoryBackend;
+    return backend;
+  }
+
+  if (isFirebaseConfigured()) {
+    backend = createFirebaseBackend(getFirebaseStorage());
+    return backend;
+  }
+
+  console.warn('Firebase is not configured; jobs will be saved to local IndexedDB only.');
+  backend = indexedDbBackend;
+  return backend;
 }
 
-async function getDb(): Promise<IDBPDatabase<WirerDB>> {
-  return openDB<WirerDB>(DB_NAME, SCHEMA_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: 'id' });
-      }
-    },
-  });
+/** Swap persistence backend in tests. */
+export function setJobsBackendForTests(next: JobsBackend | null): void {
+  backend = next;
 }
 
 export async function listJobs(): Promise<Job[]> {
-  const db = await getDb();
-  const jobs = await db.getAll(STORE);
-  return jobs.map(normalizeJob);
+  return resolveBackend().listJobs();
 }
 
 export async function getJob(id: string): Promise<Job | undefined> {
-  const db = await getDb();
-  const job = await db.get(STORE, id);
-  return job ? normalizeJob(job) : undefined;
+  return resolveBackend().getJob(id);
 }
 
 export async function putJob(job: Job): Promise<void> {
-  const db = await getDb();
-  await db.put(STORE, normalizeJob(job));
+  return resolveBackend().putJob(job);
 }
 
 export async function deleteJob(id: string): Promise<void> {
-  const db = await getDb();
-  await db.delete(STORE, id);
+  return resolveBackend().deleteJob(id);
 }

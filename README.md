@@ -1,3 +1,20 @@
+# Wirer
+
+Electrical wiring diagram editor. Jobs (maps) are saved to **Firebase Storage** and the app is deployed with **Firebase Hosting**.
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Local development server |
+| `npm run build` | Production build → `dist/` |
+| `npm run deploy` | Build + deploy Hosting and Storage rules |
+| `npm run deploy:hosting` | Build + deploy Hosting only |
+
+Firebase project: `home-grid-23c8b`. Run `npx firebase-tools@latest login` once if deploy fails with auth errors.
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

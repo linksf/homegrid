@@ -7,6 +7,8 @@ type DeviceNodeMarkerProps = {
   hasConduit: boolean;
   selected: boolean;
   connectPending: boolean;
+  /** Switch simulation: terminal is part of a closed internal path. */
+  active?: boolean;
   interactive: boolean;
   onSelect?: () => void;
   onPointerDown?: () => void;
@@ -18,6 +20,7 @@ export function DeviceNodeMarker({
   hasConduit,
   selected,
   connectPending,
+  active = false,
   interactive,
   onSelect,
   onPointerDown,
@@ -27,6 +30,7 @@ export function DeviceNodeMarker({
     selected ? 'device-node--selected' : '',
     connectPending ? 'device-node--pending' : '',
     hasConduit ? 'device-node--conduit' : '',
+    active ? 'device-node--active' : '',
   ]
     .filter(Boolean)
     .join(' ');

@@ -22,6 +22,11 @@ export function normalizeLayoutOffsets(layout: LayoutState): LayoutState {
     wireOffsets: layout.wireOffsets ?? {},
     wirePaths: layout.wirePaths ?? {},
     wireLinkOffsets: layout.wireLinkOffsets ?? {},
+    hubWirePaths: layout.hubWirePaths ?? {},
+    deviceWirePaths: layout.deviceWirePaths ?? {},
+    conduitRunPaths: layout.conduitRunPaths ?? {},
+    exposedPaths: layout.exposedPaths ?? {},
+    conduitStubPaths: layout.conduitStubPaths ?? {},
   };
 }
 
@@ -90,8 +95,48 @@ export function pruneLayoutOffsets(diagram: Diagram): Diagram {
     if (wireIds.has(id) && entry?.points?.length) wirePaths[id] = entry;
   }
 
+  const hubWirePaths: Record<string, { points: { x: number; y: number }[] }> = {};
+  for (const [id, entry] of Object.entries(layout.hubWirePaths ?? {})) {
+    const wire = diagram.wires.find((w) => w.id === id);
+    if (wire?.hubId && entry?.points?.length) hubWirePaths[id] = entry;
+  }
+
+  const deviceWirePaths: Record<string, { points: { x: number; y: number }[] }> = {};
+  for (const [id, entry] of Object.entries(layout.deviceWirePaths ?? {})) {
+    const wire = diagram.wires.find((w) => w.id === id);
+    if (wire?.deviceNodeId && entry?.points?.length) deviceWirePaths[id] = entry;
+  }
+
+  const conduitRunIds = new Set(diagram.conduitRuns.map((r) => r.id));
+  const conduitRunPaths: Record<string, { points: { x: number; y: number }[] }> = {};
+  for (const [id, entry] of Object.entries(layout.conduitRunPaths ?? {})) {
+    if (conduitRunIds.has(id) && entry?.points?.length) conduitRunPaths[id] = entry;
+  }
+
+  const cableIds = new Set(diagram.cables.map((c) => c.id));
+  const exposedPaths: Record<string, { points: { x: number; y: number }[] }> = {};
+  for (const [id, entry] of Object.entries(layout.exposedPaths ?? {})) {
+    if (cableIds.has(id) && entry?.points?.length) exposedPaths[id] = entry;
+  }
+
+  const conduitStubPaths: Record<string, { points: { x: number; y: number }[] }> = {};
+  for (const [id, entry] of Object.entries(layout.conduitStubPaths ?? {})) {
+    if (conduitIds.has(id) && entry?.points?.length) conduitStubPaths[id] = entry;
+  }
+
   return {
     ...diagram,
-    layout: { ...layout, conduitOffsets, wireOffsets, wireLinkOffsets, wirePaths },
+    layout: {
+      ...layout,
+      conduitOffsets,
+      wireOffsets,
+      wireLinkOffsets,
+      wirePaths,
+      hubWirePaths,
+      deviceWirePaths,
+      conduitRunPaths,
+      exposedPaths,
+      conduitStubPaths,
+    },
   };
 }

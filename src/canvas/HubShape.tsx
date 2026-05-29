@@ -11,6 +11,7 @@ type HubShapeProps = {
   connectPendingHubId: string | null;
   onSelect: () => void;
   onHubPointerDown?: (hubId: string) => void;
+  onHubConduitPick?: (hubId: string) => void;
 };
 
 export function HubShape({
@@ -22,6 +23,7 @@ export function HubShape({
   connectPendingHubId,
   onSelect,
   onHubPointerDown,
+  onHubConduitPick,
 }: HubShapeProps): JSX.Element {
   const pt = hubWorldPoint(box, hub);
   const pending = connectPendingHubId === hub.id;
@@ -32,6 +34,11 @@ export function HubShape({
 
     if (tool === 'connect-wires') {
       onHubPointerDown?.(hub.id);
+      return;
+    }
+
+    if (tool === 'cable') {
+      onHubConduitPick?.(hub.id);
       return;
     }
 

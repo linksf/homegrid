@@ -1,5 +1,73 @@
-import { directionForBreakerWire, isBreakerConduit } from './breaker-conduit';
-import type { Diagram, ResolvedWire, WireDirection } from './types';
+import {
+  breakerCableClosed,
+  directionForBreakerWire,
+  isBreakerCable,
+  isBreakerSeededWire,
+} from './breaker-cable';
+import {
+  hubWirePairAllowed,
+  switchConnectedSlots,
+  dimmerConnectedSlots,
+  outletConnectedSlots,
+} from './continuity';
+import { deviceNodesForDevice, wireIdsOnDeviceTerminal } from './device-node-geometry';
+import type { Diagram, ResolvedWire, WireColor, WireDirection } from './types';
+
+/** Matches `continuity.ts` conduit-run conductor pairing order. */
+const CONDUIT_RUN_COLOR_ORDER: readonly WireColor[] = ['black', 'white', 'red'];
+
+function conduitRunPairingAllowed(
+  diagram: Diagram,
+  run: Diagram['conduitRuns'][number],
+): boolean {
+  if (!run.cableIdB) return false;
+  const cableA = diagram.cables.find((c) => c.id === run.cableIdA);
+  const cableB = diagram.cables.find((c) => c.id === run.cableIdB);
+  if (!cableA || !cableB) return false;
+  if (isBreakerCable(cableA) && !breakerCableClosed(cableA)) return false;
+  if (isBreakerCable(cableB) && !breakerCableClosed(cableB)) return false;
+  return true;
+}
+
+function addConduitRunSameColorNeighbors(adj: Map<string, Neighbor[]>, diagram: Diagram): void {
+  const wireById = new Map(diagram.wires.map((w) => [w.id, w]));
+
+  for (const run of diagram.conduitRuns) {
+    if (!conduitRunPairingAllowed(diagram, run) || !run.cableIdB) continue;
+
+    const colorQueuesFromRun = (includeWire: (wire: Diagram['wires'][number]) => boolean): Map<
+      WireColor,
+      string[]
+    > => {
+      const qs = new Map<WireColor, string[]>();
+      for (const c of CONDUIT_RUN_COLOR_ORDER) qs.set(c, []);
+      for (const wid of run.wireIds) {
+        const w = wireById.get(wid);
+        if (!w || !includeWire(w)) continue;
+        const q = qs.get(w.color) ?? [];
+        q.push(wid);
+        qs.set(w.color, q);
+      }
+      return qs;
+    };
+
+    const cableA = diagram.cables.find((c) => c.id === run.cableIdA);
+    const cableB = diagram.cables.find((c) => c.id === run.cableIdB);
+    if (!cableA || !cableB) continue;
+
+    for (const color of CONDUIT_RUN_COLOR_ORDER) {
+      const aw = colorQueuesFromRun((w) => w.cableId === cableA.id).get(color) ?? [];
+      const bw = colorQueuesFromRun((w) => w.cableId === cableB.id).get(color) ?? [];
+      const n = Math.min(aw.length, bw.length);
+      for (let i = 0; i < n; i++) {
+        const a = aw[i]!;
+        const b = bw[i]!;
+        addNeighbor(adj, a, b, true);
+        addNeighbor(adj, b, a, true);
+      }
+    }
+  }
+}
 
 type DirectionSource = ResolvedWire['directionSource'];
 
@@ -28,6 +96,13 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
     addNeighbor(adj, link.wireIdB, link.wireIdA, true);
   }
 
+  /**
+   * Conduit-run same-conductor pairing inverts direction: each cable's exposed wire
+   * polyline runs wall→interior, and the run joins them at their wall ends, so flow
+   * leaves one box (toward) and enters the other (away).
+   */
+  addConduitRunSameColorNeighbors(adj, diagram);
+
   const byHub = new Map<string, string[]>();
   for (const w of diagram.wires) {
     if (!w.hubId) continue;
@@ -37,6 +112,7 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
   for (const ids of byHub.values()) {
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
+        if (!hubWirePairAllowed(diagram, ids[i]!, ids[j]!)) continue;
         addNeighbor(adj, ids[i]!, ids[j]!, false);
         addNeighbor(adj, ids[j]!, ids[i]!, false);
       }
@@ -54,6 +130,64 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
     }
   }
 
+  /** Switches invert direction between connected terminals (in at one stub, out at the other). */
+  for (const sw of diagram.switches) {
+    const nodes = deviceNodesForDevice(diagram, 'switch', sw.id);
+    const bySlot = new Map(nodes.map((n) => [n.slot, n]));
+    for (const [slotA, slotB] of switchConnectedSlots(sw)) {
+      const nodeA = bySlot.get(slotA);
+      const nodeB = bySlot.get(slotB);
+      if (!nodeA || !nodeB) continue;
+      const wiresA = wireIdsOnDeviceTerminal(diagram, nodeA.id);
+      const wiresB = wireIdsOnDeviceTerminal(diagram, nodeB.id);
+      for (const wa of wiresA) {
+        for (const wb of wiresB) {
+          addNeighbor(adj, wa, wb, true);
+          addNeighbor(adj, wb, wa, true);
+        }
+      }
+    }
+  }
+
+  /** Dimmers invert direction like single-pole switches when on. */
+  for (const dim of diagram.dimmerSwitches ?? []) {
+    const nodes = deviceNodesForDevice(diagram, 'dimmerSwitch', dim.id);
+    const bySlot = new Map(nodes.map((n) => [n.slot, n]));
+    for (const [slotA, slotB] of dimmerConnectedSlots(dim)) {
+      const nodeA = bySlot.get(slotA);
+      const nodeB = bySlot.get(slotB);
+      if (!nodeA || !nodeB) continue;
+      const wiresA = wireIdsOnDeviceTerminal(diagram, nodeA.id);
+      const wiresB = wireIdsOnDeviceTerminal(diagram, nodeB.id);
+      for (const wa of wiresA) {
+        for (const wb of wiresB) {
+          addNeighbor(adj, wa, wb, true);
+          addNeighbor(adj, wb, wa, true);
+        }
+      }
+    }
+  }
+
+  /** Passthrough outlets carry flow through hot and neutral pairs without inverting. */
+  for (const outlet of diagram.outlets ?? []) {
+    if (!outlet.passthrough) continue;
+    const nodes = deviceNodesForDevice(diagram, 'outlet', outlet.id);
+    const bySlot = new Map(nodes.map((n) => [n.slot, n]));
+    for (const [slotA, slotB] of outletConnectedSlots(outlet)) {
+      const nodeA = bySlot.get(slotA);
+      const nodeB = bySlot.get(slotB);
+      if (!nodeA || !nodeB) continue;
+      const wiresA = wireIdsOnDeviceTerminal(diagram, nodeA.id);
+      const wiresB = wireIdsOnDeviceTerminal(diagram, nodeB.id);
+      for (const wa of wiresA) {
+        for (const wb of wiresB) {
+          addNeighbor(adj, wa, wb, false);
+          addNeighbor(adj, wb, wa, false);
+        }
+      }
+    }
+  }
+
   const seedDir = new Map<string, WireDirection>();
   const seedIsBreaker = new Map<string, boolean>();
 
@@ -64,9 +198,9 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
     seedIsBreaker.set(b.whiteWireId, true);
   }
 
-  for (const conduit of diagram.conduits) {
-    if (!isBreakerConduit(conduit)) continue;
-    for (const wireId of conduit.wireIds) {
+  for (const cable of diagram.cables) {
+    if (!isBreakerCable(cable) || !breakerCableClosed(cable)) continue;
+    for (const wireId of cable.wireIds) {
       const w = wireById.get(wireId);
       if (!w) continue;
       const dir = directionForBreakerWire(w.color);
@@ -77,10 +211,7 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
   }
 
   for (const w of diagram.wires) {
-    if (w.breakerId != null) {
-      continue;
-    }
-    if (diagram.conduits.some((c) => c.id === w.conduitId && isBreakerConduit(c))) {
+    if (isBreakerSeededWire(diagram, w)) {
       continue;
     }
     if (w.manualDirection != null) {

@@ -1,51 +1,28 @@
 import {
   conduitUsesPerWirePaths,
   defaultFourPointPath,
+  defaultFivePointPath,
+  defaultWirePathBetween,
   dragFixedVertex,
   draggableWireVertexIndices,
-  FIXED_WIRE_VERTEX_COUNT,
   normalizeLinkPath,
   normalizeWirePath,
   pinPathEndpoints,
+  wirePathVertexCount,
+  type ConduitEndpointRoles,
 } from './path-editing';
+import { exposedCableWireEndpointPoint } from './exposed-wire-endpoints';
+import { defaultConduitPath } from './path-routing';
 import {
-  defaultConduitPath,
-  resolveConduitPath,
-} from './path-routing';
-import { wireLinkForWire } from './wire-link-utils';
-import {
-  chordPerpendicular,
-  offsetPolylineFixedEndpoints,
-  type Point,
-} from './orthogonal-path';
-import type { ConduitEndpointRoles } from './path-editing';
-import type { Conduit, Diagram, Wire } from './types';
+  wireEndpointIndex,
+  wireLinksForWire,
+} from './wire-link-utils';
+import { chordPerpendicular, type Point } from './orthogonal-path';
+import type { Conduit, Diagram, Wire, WireEndpoint } from './types';
 
 const BUNDLE_TIP_SPACING = 16;
 
 export { conduitUsesPerWirePaths };
-
-export function wireFarEndConnected(diagram: Diagram, wireId: string): boolean {
-  const wire = diagram.wires.find((w) => w.id === wireId);
-  if (!wire) return false;
-  if (wireLinkForWire(diagram, wireId)) return true;
-  if (wire.hubId) return true;
-  return false;
-}
-
-export function wireEndpointRoles(diagram: Diagram, wireId: string): ConduitEndpointRoles {
-  const wire = diagram.wires.find((w) => w.id === wireId);
-  const conduit = wire?.conduitId
-    ? diagram.conduits.find((c) => c.id === wire.conduitId)
-    : undefined;
-  if (!conduit || conduit.kind === 'span') {
-    return { start: 'fixed', end: 'fixed' };
-  }
-  return {
-    start: 'fixed',
-    end: wireFarEndConnected(diagram, wireId) ? 'fixed' : 'free',
-  };
-}
 
 function bundleWires(diagram: Diagram, conduit: Conduit): Wire[] {
   return conduit.wireIds
@@ -53,13 +30,63 @@ function bundleWires(diagram: Diagram, conduit: Conduit): Wire[] {
     .filter((w): w is Wire => Boolean(w));
 }
 
-function storedWireFarTip(diagram: Diagram, wireId: string): Point | null {
+function storedWireEndpoint(
+  diagram: Diagram,
+  wireId: string,
+  endpoint: WireEndpoint,
+): Point | null {
   const stored = diagram.layout.wirePaths?.[wireId]?.points;
   if (!stored || stored.length < 2) return null;
-  return { ...stored[stored.length - 1]! };
+  const index = wireEndpointIndex(stored.length, endpoint);
+  return { ...stored[index]! };
 }
 
-/** Default four-anchor run for one wire (anchor → separated stub tip). */
+/** Whether an endpoint is pinned to geometry, a link partner, or a hub/device. */
+export function wireEndpointRole(
+  diagram: Diagram,
+  wireId: string,
+  endpoint: WireEndpoint,
+): 'fixed' | 'free' {
+  const wire = diagram.wires.find((w) => w.id === wireId);
+  if (!wire) return 'free';
+
+  if (wire.cableId) {
+    return endpoint === 'start' ? 'fixed' : 'free';
+  }
+
+  if (wire.deviceNodeId && endpoint === 'end') return 'fixed';
+
+  const conduit = wire.conduitId ? diagram.conduits.find((c) => c.id === wire.conduitId) : undefined;
+  if (!conduit) return 'free';
+
+  if (conduit.kind === 'span') return 'fixed';
+  if (endpoint === 'start') return 'fixed';
+  return 'free';
+}
+
+export function wireEndpointRoles(diagram: Diagram, wireId: string): ConduitEndpointRoles {
+  return {
+    start: wireEndpointRole(diagram, wireId, 'start'),
+    end: wireEndpointRole(diagram, wireId, 'end'),
+  };
+}
+
+/** Endpoints the connect (J) tool may pick on a wire (exposed free tips, stub tips, etc.). */
+export function connectableWireEndpoints(diagram: Diagram, wireId: string): WireEndpoint[] {
+  const wire = diagram.wires.find((w) => w.id === wireId);
+  if (!wire) return [];
+
+  const out: WireEndpoint[] = [];
+  for (const endpoint of ['start', 'end'] as const) {
+    if (wire.cableId && endpoint !== 'end') continue;
+    if (wireEndpointRole(diagram, wireId, endpoint) !== 'free') continue;
+    if (!wireEndpointPoint(diagram, wireId, endpoint)) continue;
+    out.push(endpoint);
+  }
+  return out;
+}
+
+/** Default orthogonal run for one wire. */
 export function defaultWirePath(diagram: Diagram, wireId: string): Point[] | null {
   const wire = diagram.wires.find((w) => w.id === wireId);
   if (!wire?.conduitId) return null;
@@ -71,22 +98,58 @@ export function defaultWirePath(diagram: Diagram, wireId: string): Point[] | nul
   if (!center || center.length < 2) return null;
 
   const anchor = { ...center[0]! };
-  const stubEnd = { ...center[center.length - 1]! };
+  const farEnd = { ...center[center.length - 1]! };
   const wires = bundleWires(diagram, conduit);
   const idx = wires.findIndex((w) => w.id === wireId);
   if (idx < 0) return null;
 
+  const vertexCount = wirePathVertexCount(conduit);
+
   if (wires.length <= 1) {
-    return defaultFourPointPath(anchor, stubEnd);
+    return defaultWirePathBetween(anchor, farEnd, vertexCount);
   }
 
   const perp = chordPerpendicular(center);
   const scalar = (idx - (wires.length - 1) / 2) * BUNDLE_TIP_SPACING;
+
+  if (conduit.kind === 'span') {
+    const start = {
+      x: anchor.x + perp.x * scalar,
+      y: anchor.y + perp.y * scalar,
+    };
+    const end = {
+      x: farEnd.x + perp.x * scalar,
+      y: farEnd.y + perp.y * scalar,
+    };
+    return defaultWirePathBetween(start, end, vertexCount);
+  }
+
   const tip = {
-    x: stubEnd.x + perp.x * scalar,
-    y: stubEnd.y + perp.y * scalar,
+    x: farEnd.x + perp.x * scalar,
+    y: farEnd.y + perp.y * scalar,
   };
-  return defaultFourPointPath(anchor, tip);
+  return defaultWirePathBetween(anchor, tip, vertexCount);
+}
+
+/** World-space position of one wire end anchor (independent of link partners). */
+export function wireEndpointPoint(
+  diagram: Diagram,
+  wireId: string,
+  endpoint: WireEndpoint,
+): Point | null {
+  const wire = diagram.wires.find((w) => w.id === wireId);
+  if (wire?.cableId) {
+    return exposedCableWireEndpointPoint(diagram, wireId, endpoint);
+  }
+
+  const defaults = defaultWirePath(diagram, wireId);
+  if (!defaults || defaults.length < 2) return null;
+
+  const defaultPoint = endpoint === 'start' ? defaults[0]! : defaults[defaults.length - 1]!;
+  if (wireEndpointRole(diagram, wireId, endpoint) === 'free') {
+    return storedWireEndpoint(diagram, wireId, endpoint) ?? defaultPoint;
+  }
+  return defaultPoint;
 }
 
 function pinnedWireEndpoints(
@@ -94,36 +157,15 @@ function pinnedWireEndpoints(
   wireId: string,
   defaults: Point[],
 ): { start: Point; end: Point } {
-  const start = { ...defaults[0]! };
-  const defaultEnd = { ...defaults[defaults.length - 1]! };
-  const end = storedWireFarTip(diagram, wireId) ?? defaultEnd;
+  const start =
+    wireEndpointPoint(diagram, wireId, 'start') ??
+    storedWireEndpoint(diagram, wireId, 'start') ??
+    { ...defaults[0]! };
+  const end =
+    wireEndpointPoint(diagram, wireId, 'end') ??
+    storedWireEndpoint(diagram, wireId, 'end') ??
+    { ...defaults[defaults.length - 1]! };
   return { start, end };
-}
-
-/** Span/breaker bundle: offset from shared conduit centerline. */
-function resolveBundledWirePath(diagram: Diagram, wireId: string): Point[] | null {
-  const wire = diagram.wires.find((w) => w.id === wireId);
-  if (!wire?.conduitId) return null;
-
-  const conduit = diagram.conduits.find((c) => c.id === wire.conduitId);
-  if (!conduit) return null;
-
-  const center = resolveConduitPath(diagram, conduit);
-  if (!center || center.length < 2) return null;
-
-  const wires = bundleWires(diagram, conduit);
-  const idx = wires.findIndex((w) => w.id === wireId);
-  if (idx < 0) return null;
-
-  const perp = chordPerpendicular(center);
-  const spacing = 24;
-  const n = wires.length;
-  const bundleScalar = (idx - (n - 1) / 2) * spacing;
-  const wireOff = diagram.layout.wireOffsets?.[wireId] ?? { dx: 0, dy: 0 };
-  const extraScalar = wireOff.dx * perp.x + wireOff.dy * perp.y;
-  const totalScalar = bundleScalar + extraScalar;
-
-  return offsetPolylineFixedEndpoints(center, perp.x * totalScalar, perp.y * totalScalar);
 }
 
 /** World-space polyline for one wire. */
@@ -134,21 +176,45 @@ export function resolveWirePath(diagram: Diagram, wireId: string): Point[] | nul
   const conduit = diagram.conduits.find((c) => c.id === wire.conduitId);
   if (!conduit) return null;
 
-  if (!conduitUsesPerWirePaths(conduit)) {
-    return resolveBundledWirePath(diagram, wireId);
-  }
-
   const defaults = defaultWirePath(diagram, wireId);
   if (!defaults || defaults.length < 2) return null;
 
+  const vertexCount = wirePathVertexCount(conduit);
   const roles = wireEndpointRoles(diagram, wireId);
   const { start, end } = pinnedWireEndpoints(diagram, wireId, defaults);
   const stored = diagram.layout.wirePaths?.[wireId]?.points;
-  const points = normalizeWirePath(stored, start, end);
+  const points = normalizeWirePath(stored, start, end, vertexCount);
   return pinPathEndpoints(points, start, end, roles);
 }
 
-/** Drag a bend or free tip on a single wire path. */
+export function refreshLinksForWire(diagram: Diagram, wireId: string): Diagram {
+  let next = diagram;
+  for (const link of wireLinksForWire(next, wireId)) {
+    const wa = next.wires.find((w) => w.id === link.wireIdA);
+    const wb = next.wires.find((w) => w.id === link.wireIdB);
+    if (!wa || !wb) continue;
+
+    const pa = wireEndpointPoint(next, link.wireIdA, link.endpointA ?? 'end');
+    const pb = wireEndpointPoint(next, link.wireIdB, link.endpointB ?? 'end');
+    if (!pa || !pb) continue;
+
+    const linkStored = next.layout.wireLinkPaths[link.id]?.points;
+    const linkPoints = normalizeLinkPath(linkStored, pa, pb);
+    next = {
+      ...next,
+      layout: {
+        ...next.layout,
+        wireLinkPaths: {
+          ...next.layout.wireLinkPaths,
+          [link.id]: { points: linkPoints },
+        },
+      },
+    };
+  }
+  return next;
+}
+
+/** Drag a bend or free end on a single wire path. */
 export function moveWireJoint(
   diagram: Diagram,
   wireId: string,
@@ -165,24 +231,30 @@ export function moveWireJoint(
     return diagram;
   }
 
-  if (!draggableWireVertexIndices(Boolean(wire.hubId)).includes(vertexIndex)) {
+  const vertexCount = wirePathVertexCount(conduit);
+  const roles = wireEndpointRoles(diagram, wireId);
+  const indices = draggableWireVertexIndices(vertexCount, roles.start === 'fixed', roles.end === 'fixed');
+  if (!indices.includes(vertexIndex)) {
     return diagram;
   }
 
   const defaults = defaultWirePath(diagram, wireId);
   if (!defaults) return diagram;
 
-  const roles = wireEndpointRoles(diagram, wireId);
   const { start, end } = pinnedWireEndpoints(diagram, wireId, defaults);
-  const current = normalizeWirePath(resolveWirePath(diagram, wireId), start, end);
+  const current = normalizeWirePath(resolveWirePath(diagram, wireId), start, end, vertexCount);
   if (vertexIndex <= 0 || vertexIndex >= current.length) return diagram;
 
   let points = dragFixedVertex(current, vertexIndex, { x, y }, options);
   const last = points.length - 1;
   if (vertexIndex === last && roles.end === 'free') {
-    points[0] = { ...start };
+    if (roles.start === 'fixed') {
+      points[0] = { ...start };
+    }
+  } else if (vertexIndex === 0 && roles.start === 'free') {
+    points[last] = { ...end };
   } else {
-    points = normalizeWirePath(points, start, end);
+    points = normalizeWirePath(points, start, end, vertexCount);
   }
   points = pinPathEndpoints(points, start, end, roles);
 
@@ -197,34 +269,10 @@ export function moveWireJoint(
     },
   };
 
-  if (wireLinkForWire(next, wireId)) {
-    for (const link of next.wireLinks) {
-      if (link.wireIdA !== wireId && link.wireIdB !== wireId) continue;
-      const wa = next.wires.find((w) => w.id === link.wireIdA);
-      const wb = next.wires.find((w) => w.id === link.wireIdB);
-      if (!wa || !wb) continue;
-      const tipA = wireFarTip(next, wa);
-      const tipB = wireFarTip(next, wb);
-      if (!tipA || !tipB) continue;
-      const linkStored = next.layout.wireLinkPaths[link.id]?.points;
-      const linkPoints = normalizeLinkPath(linkStored, tipA, tipB);
-      next = {
-        ...next,
-        layout: {
-          ...next.layout,
-          wireLinkPaths: {
-            ...next.layout.wireLinkPaths,
-            [link.id]: { points: linkPoints },
-          },
-        },
-      };
-    }
-  }
-
-  return next;
+  return refreshLinksForWire(next, wireId);
 }
 
-/** Re-anchor wire paths when boxes move but keep each wire's far tip. */
+/** Re-anchor wire paths when boxes move but keep free endpoints and interior bends. */
 export function rebuildWirePathsPreservingTips(diagram: Diagram): Diagram {
   const wirePaths = { ...(diagram.layout.wirePaths ?? {}) };
 
@@ -233,8 +281,9 @@ export function rebuildWirePathsPreservingTips(diagram: Diagram): Diagram {
     const conduit = diagram.conduits.find((c) => c.id === wire.conduitId);
     if (!conduit || !conduitUsesPerWirePaths(conduit)) continue;
 
+    const expected = wirePathVertexCount(conduit);
     const resolved = resolveWirePath(diagram, wire.id);
-    if (resolved && resolved.length === FIXED_WIRE_VERTEX_COUNT) {
+    if (resolved && resolved.length === expected) {
       wirePaths[wire.id] = { points: resolved };
     }
   }
@@ -245,23 +294,12 @@ export function rebuildWirePathsPreservingTips(diagram: Diagram): Diagram {
   };
 }
 
-/** Far tip of a wire run for link placement. */
+/** Far tip of a wire run for legacy call sites. */
 export function wireFarTip(diagram: Diagram, wire: Wire): Point | null {
-  const poly = resolveWirePath(diagram, wire.id);
-  if (poly && poly.length >= 2) {
-    return poly[poly.length - 1]!;
-  }
-  if (wire.breakerId) {
-    const br = diagram.breakers.find((b) => b.id === wire.breakerId);
-    if (!br) return null;
-    const box = diagram.junctionBoxes.find((j) => j.id === br.junctionBoxId);
-    if (!box) return null;
-    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  }
-  return null;
+  return wireEndpointPoint(diagram, wire.id, 'end');
 }
 
-/** Nudge one wire's free tip (stub conduits) or sideways offset (span). */
+/** Nudge one wire's free end anchor. */
 export function nudgeWirePathGeometry(
   diagram: Diagram,
   wireId: string,
@@ -273,38 +311,21 @@ export function nudgeWirePathGeometry(
   if (!wire?.conduitId) return diagram;
 
   const conduit = diagram.conduits.find((c) => c.id === wire.conduitId);
-  if (!conduit) return diagram;
+  if (!conduit || !conduitUsesPerWirePaths(conduit)) return diagram;
 
-  if (conduitUsesPerWirePaths(conduit)) {
-    if (wire.hubId) return diagram;
-    const path = resolveWirePath(diagram, wireId);
-    if (!path || path.length !== FIXED_WIRE_VERTEX_COUNT) return diagram;
-    const tip = path[FIXED_WIRE_VERTEX_COUNT - 1]!;
-    return moveWireJoint(diagram, wireId, FIXED_WIRE_VERTEX_COUNT - 1, tip.x + dx, tip.y + dy, {
-      snap: false,
-    });
-  }
+  const vertexCount = wirePathVertexCount(conduit);
+  const roles = wireEndpointRoles(diagram, wireId);
+  if (roles.end !== 'free') return diagram;
 
-  const center = resolveConduitPath(diagram, conduit);
-  if (!center) return diagram;
-
-  const perp = chordPerpendicular(center);
-  const scalar = dx * perp.x + dy * perp.y;
-  const current = diagram.layout.wireOffsets?.[wireId] ?? { dx: 0, dy: 0 };
-  const projected = { x: perp.x * scalar, y: perp.y * scalar };
-  return {
-    ...diagram,
-    layout: {
-      ...diagram.layout,
-      wireOffsets: {
-        ...diagram.layout.wireOffsets,
-        [wireId]: { dx: current.dx + projected.x, dy: current.dy + projected.y },
-      },
-    },
-  };
+  const path = resolveWirePath(diagram, wireId);
+  if (!path || path.length !== vertexCount) return diagram;
+  const tip = path[vertexCount - 1]!;
+  return moveWireJoint(diagram, wireId, vertexCount - 1, tip.x + dx, tip.y + dy, {
+    snap: false,
+  });
 }
 
-/** Persist a wire's resolved shape as four anchors for joint editing. */
+/** Persist a wire's resolved shape for joint editing. */
 export function materializeWirePath(diagram: Diagram, wireId: string): Diagram {
   const wire = diagram.wires.find((w) => w.id === wireId);
   const conduit = wire?.conduitId
@@ -314,8 +335,9 @@ export function materializeWirePath(diagram: Diagram, wireId: string): Diagram {
     return diagram;
   }
 
+  const vertexCount = wirePathVertexCount(conduit);
   const stored = diagram.layout.wirePaths?.[wireId]?.points;
-  if (stored && stored.length === FIXED_WIRE_VERTEX_COUNT) {
+  if (stored && stored.length === vertexCount) {
     return diagram;
   }
 
@@ -326,7 +348,7 @@ export function materializeWirePath(diagram: Diagram, wireId: string): Diagram {
   if (!defaults) return diagram;
 
   const { start, end } = pinnedWireEndpoints(diagram, wireId, defaults);
-  const points = normalizeWirePath(stored ?? resolved, start, end);
+  const points = normalizeWirePath(stored ?? resolved, start, end, vertexCount);
 
   return {
     ...diagram,
@@ -348,8 +370,9 @@ export function ensureWirePaths(diagram: Diagram): Diagram {
     const conduit = next.conduits.find((c) => c.id === wire.conduitId);
     if (!conduit || !conduitUsesPerWirePaths(conduit)) continue;
 
+    const vertexCount = wirePathVertexCount(conduit);
     const stored = next.layout.wirePaths?.[wire.id]?.points;
-    if (stored && stored.length === FIXED_WIRE_VERTEX_COUNT) continue;
+    if (stored && stored.length === vertexCount) continue;
 
     const defaults = defaultWirePath(next, wire.id);
     if (!defaults) continue;
@@ -361,16 +384,18 @@ export function ensureWirePaths(diagram: Diagram): Diagram {
         ...next.layout,
         wirePaths: {
           ...next.layout.wirePaths,
-          [wire.id]: { points: normalizeWirePath(stored, start, end) },
+          [wire.id]: { points: normalizeWirePath(stored, start, end, vertexCount) },
         },
       },
     };
   }
 
   for (const wire of next.wires) {
-    if (!wireLinkForWire(next, wire.id)) continue;
+    if (wireLinksForWire(next, wire.id).length === 0) continue;
     next = materializeWirePath(next, wire.id);
   }
 
   return next;
 }
+
+export { defaultFourPointPath, defaultFivePointPath };

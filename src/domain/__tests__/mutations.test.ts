@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { resolveDirections } from '../direction';
 import { createEmptyJob } from '../defaults';
 import {
-  addBreaker,
   addJunctionBox,
   addLocalConduit,
   addSpanConduit,
@@ -13,43 +12,61 @@ import {
   resizeJunctionBox,
   updateWire,
 } from '../mutations';
+import { addCable } from '../cable-mutations';
+import { breakerPresetWireColors } from '../breaker-cable';
 import { anchorPoint } from '../anchors';
-import type { Diagram } from '../types';
+import { snapGridCoord, GRID_SIZE } from '../grid';
 
-describe('addBreaker', () => {
-  it('creates a breaker conduit with black and white wires that seed direction', () => {
+describe('addCable on breaker panel', () => {
+  it('creates a breaker cable with wires that seed direction', () => {
     const job = createEmptyJob('Test');
     const panelId = job.diagram.junctionBoxes[0]!.id;
-    const next = addBreaker(job.diagram, panelId);
+    const next = addCable(job.diagram, {
+      junctionBoxId: panelId,
+      anchor: 'middle-left',
+      wireColors: breakerPresetWireColors('twoWire'),
+    });
 
     expect(next.breakers).toHaveLength(0);
-    const conduit = next.conduits[0]!;
-    expect(conduit.kind).toBe('breaker');
-    if (conduit.kind === 'breaker') {
-      expect(conduit.junctionBoxId).toBe(panelId);
-    }
+    const cable = next.cables[0]!;
+    expect(cable.role).toBe('breaker');
+    expect(cable.junctionBoxId).toBe(panelId);
 
     expect(next.wires).toHaveLength(2);
-    const black = next.wires.find((w) => w.color === 'black');
-    const white = next.wires.find((w) => w.color === 'white');
-    expect(black!.conduitId).toBe(conduit.id);
-    expect(white!.conduitId).toBe(conduit.id);
-    expect(black!.breakerId).toBeNull();
+    const black = next.wires.find((w) => w.color === 'black')!;
+    const white = next.wires.find((w) => w.color === 'white')!;
+    expect(black.cableId).toBe(cable.id);
+    expect(white.cableId).toBe(cable.id);
+    expect(black.conduitId).toBeNull();
 
     const resolved = resolveDirections(next);
-    expect(resolved.get(black!.id)?.resolvedDirection).toBe('away');
-    expect(resolved.get(white!.id)?.resolvedDirection).toBe('toward');
-    expect(resolved.get(black!.id)?.directionSource).toBe('breaker');
+    expect(resolved.get(black.id)?.resolvedDirection).toBe('away');
+    expect(resolved.get(white.id)?.resolvedDirection).toBe('toward');
+    expect(resolved.get(black.id)?.directionSource).toBe('breaker');
   });
 
-  it('throws when breaker box id is missing or not a breaker panel', () => {
-    const job = createEmptyJob();
-    expect(() => addBreaker(job.diagram, 'no-such-box')).toThrow();
-    const d: Diagram = {
-      ...job.diagram,
-      junctionBoxes: [{ ...job.diagram.junctionBoxes[0]!, type: 'normal' }],
-    };
-    expect(() => addBreaker(d, d.junctionBoxes[0]!.id)).toThrow();
+  it('creates a three-wire breaker cable with both hots seeded away', () => {
+    const job = createEmptyJob('Test');
+    const panelId = job.diagram.junctionBoxes[0]!.id;
+    const next = addCable(job.diagram, {
+      junctionBoxId: panelId,
+      anchor: 'middle-left',
+      wireColors: breakerPresetWireColors('threeWire'),
+    });
+
+    expect(next.wires).toHaveLength(3);
+    const colors = next.wires.map((w) => w.color);
+    expect(colors).toEqual(['white', 'black', 'red']);
+
+    const resolved = resolveDirections(next);
+    const black = next.wires.find((w) => w.color === 'black')!;
+    const white = next.wires.find((w) => w.color === 'white')!;
+    const red = next.wires.find((w) => w.color === 'red')!;
+    expect(resolved.get(black.id)?.resolvedDirection).toBe('away');
+    expect(resolved.get(red.id)?.resolvedDirection).toBe('away');
+    expect(resolved.get(white.id)?.resolvedDirection).toBe('toward');
+    expect(resolved.get(black.id)?.directionSource).toBe('breaker');
+    expect(resolved.get(red.id)?.directionSource).toBe('breaker');
   });
 });
 
@@ -57,9 +74,13 @@ describe('updateWire', () => {
   it('sets label and manual direction only when not breaker-locked', () => {
     const job = createEmptyJob('U');
     const panelId = job.diagram.junctionBoxes[0]!.id;
-    let diagram = addBreaker(job.diagram, panelId);
-    const breakerConduit = diagram.conduits.find((c) => c.kind === 'breaker')!;
-    const blackId = breakerConduit.wireIds.find(
+    let diagram = addCable(job.diagram, {
+      junctionBoxId: panelId,
+      anchor: 'middle-left',
+      wireColors: breakerPresetWireColors('twoWire'),
+    });
+    const breakerCable = diagram.cables[0]!;
+    const blackId = breakerCable.wireIds.find(
       (id) => diagram.wires.find((w) => w.id === id)?.color === 'black',
     )!;
 
@@ -97,9 +118,11 @@ describe('junction geometry mutations', () => {
     const first = normals[0]!;
     expect(first.width).toBeGreaterThan(MIN_JUNCTION_SIZE.width);
 
-    /** Center anchoring expectation */
-    expect(first.x).toBeCloseTo(200 - first.width / 2);
-    expect(first.y).toBeCloseTo(200 - first.height / 2);
+    /** Center lands on a grid intersection after snapping. */
+    const cx = first.x + first.width / 2;
+    const cy = first.y + first.height / 2;
+    expect(cx % GRID_SIZE).toBe(0);
+    expect(cy % GRID_SIZE).toBe(0);
   });
 
   it('mutates junction position and clamps resize minimums', () => {
@@ -109,8 +132,8 @@ describe('junction geometry mutations', () => {
 
     diagram = moveJunctionBox(diagram, id, 111, 222);
     const moved = diagram.junctionBoxes.find((b) => b.id === id)!;
-    expect(moved.x).toBeCloseTo(111);
-    expect(moved.y).toBeCloseTo(222);
+    expect(moved.x).toBe(snapGridCoord(111));
+    expect(moved.y).toBe(snapGridCoord(222));
 
     diagram = resizeJunctionBox(diagram, id, { width: 10, height: MIN_JUNCTION_SIZE.height - 1 });
     const resized = diagram.junctionBoxes.find((b) => b.id === id)!;
@@ -141,7 +164,9 @@ describe('junction geometry mutations', () => {
       wireColors: ['red'],
     });
     const spanConduitId = diagram.conduits.find((c) => c.kind === 'span')!.id;
+    const spanWireId = diagram.conduits.find((c) => c.kind === 'span')!.wireIds[0]!;
     const spanPathBefore = diagram.layout.conduitPaths[spanConduitId]!.points;
+    const spanWireBefore = diagram.layout.wirePaths![spanWireId]!.points;
 
     diagram = addLocalConduit(diagram, {
       junctionBoxId: boxB.id,
@@ -150,36 +175,42 @@ describe('junction geometry mutations', () => {
     });
     const remoteWireId = diagram.conduits.find((c) => c.kind === 'local' && c.junctionBoxId === boxB.id)!.wireIds[0]!;
 
-    diagram = addWireLinkToDiagram(diagram, localWireId, remoteWireId);
+    diagram = addWireLinkToDiagram(diagram, localWireId, 'end', remoteWireId, 'end');
     const linkId = diagram.wireLinks[0]!.id;
-    const linkPathBefore = diagram.layout.wireLinkPaths[linkId]!.points;
 
     const dx = 50;
     const dy = -30;
-    diagram = moveJunctionBox(diagram, boxA.id, boxA.x + dx, boxA.y + dy);
+    const targetX = snapGridCoord(boxA.x + dx);
+    const targetY = snapGridCoord(boxA.y + dy);
+    diagram = moveJunctionBox(diagram, boxA.id, targetX, targetY);
+    const actualDx = targetX - boxA.x;
+    const actualDy = targetY - boxA.y;
 
     const localPathAfter = diagram.layout.conduitPaths[diagram.conduits.find((c) => c.kind === 'local' && c.junctionBoxId === boxA.id)!.id]!.points;
-    expect(localPathAfter[0]!.x).toBeCloseTo(localPathBefore[0]!.x + dx);
-    expect(localPathAfter[0]!.y).toBeCloseTo(localPathBefore[0]!.y + dy);
+    expect(localPathAfter[0]!.x).toBeCloseTo(localPathBefore[0]!.x + actualDx);
+    expect(localPathAfter[0]!.y).toBeCloseTo(localPathBefore[0]!.y + actualDy);
 
     const spanPathAfter = diagram.layout.conduitPaths[spanConduitId]!.points;
     expect(spanPathAfter.length).toBeGreaterThanOrEqual(2);
-    expect(spanPathAfter[0]!.x).toBeCloseTo(spanPathBefore[0]!.x + dx);
-    expect(spanPathAfter[0]!.y).toBeCloseTo(spanPathBefore[0]!.y + dy);
+    expect(spanPathAfter[0]!.x).toBeCloseTo(spanPathBefore[0]!.x + actualDx);
+    expect(spanPathAfter[0]!.y).toBeCloseTo(spanPathBefore[0]!.y + actualDy);
     for (let i = 1; i < spanPathAfter.length; i++) {
       const a = spanPathAfter[i - 1]!;
       const b = spanPathAfter[i]!;
       expect(a.x === b.x || a.y === b.y).toBe(true);
     }
 
-    const linkPathAfter = diagram.layout.wireLinkPaths[linkId]!.points;
-    expect(linkPathAfter.length).toBe(4);
-    expect(linkPathAfter[0]).toEqual(linkPathBefore[0]);
-    expect(linkPathAfter[linkPathAfter.length - 1]).toEqual(linkPathBefore[linkPathAfter.length - 1]);
+    const spanWireAfter = diagram.layout.wirePaths![spanWireId]!.points;
+    expect(spanWireAfter).toHaveLength(5);
+    expect(spanWireAfter[0]!.x).toBeCloseTo(spanWireBefore[0]!.x + actualDx);
+    expect(spanWireAfter[0]!.y).toBeCloseTo(spanWireBefore[0]!.y + actualDy);
 
-    const wirePathAfter = diagram.layout.wirePaths![localWireId]!.points;
-    expect(wirePathAfter[0]!.x).toBeCloseTo(localPathAfter[0]!.x);
-    expect(wirePathAfter[0]!.y).toBeCloseTo(localPathAfter[0]!.y);
+    const linkPathAfter = diagram.layout.wireLinkPaths[linkId]!.points;
+    expect(linkPathAfter.length).toBe(5);
+
+    const localWireAfter = diagram.layout.wirePaths![localWireId]!.points;
+    expect(localWireAfter[0]!.x).toBeCloseTo(localPathAfter[0]!.x);
+    expect(localWireAfter[0]!.y).toBeCloseTo(localPathAfter[0]!.y);
   });
 });
 
@@ -245,5 +276,36 @@ describe('conduit mutations', () => {
     expect(next.conduits[0]!.kind).toBe('span');
     const path = next.layout.conduitPaths[next.conduits[0]!.id]?.points;
     expect(path!.length).toBeGreaterThanOrEqual(2);
+    const wireId = next.conduits[0]!.wireIds[0]!;
+    expect(next.layout.wirePaths?.[wireId]?.points).toHaveLength(5);
+  });
+});
+
+describe('addWireLinkToDiagram cable endpoints', () => {
+  it('rejects linking the wall-side start of cable wires', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addJunctionBox(diagram, 400, 300);
+    const box1 = diagram.junctionBoxes.find((b) => b.type === 'normal')!;
+    diagram = addJunctionBox(diagram, 800, 300);
+    const box2 = diagram.junctionBoxes.filter((b) => b.type === 'normal').find((b) => b.id !== box1.id)!;
+
+    diagram = addCable(diagram, {
+      junctionBoxId: box1.id,
+      anchor: 'top-center',
+      wireColors: ['black', 'white'],
+    });
+    diagram = addCable(diagram, {
+      junctionBoxId: box2.id,
+      anchor: 'top-center',
+      wireColors: ['black', 'white'],
+    });
+
+    const w1 = diagram.cables[0]!.wireIds[0]!;
+    const w2 = diagram.cables[1]!.wireIds[0]!;
+
+    expect(() => addWireLinkToDiagram(diagram, w1, 'start', w2, 'end')).toThrow(/wall side/);
+
+    const linked = addWireLinkToDiagram(diagram, w1, 'end', w2, 'end');
+    expect(linked.wireLinks).toHaveLength(1);
   });
 });

@@ -129,6 +129,54 @@ export function DiagramLabelsLayer({
           </ZoomLabel>
         );
       })}
+
+      {(diagram.dimmerSwitches ?? []).map((dim) => {
+        const trimmed = (dim.label ?? '').trim();
+        if (trimmed.length === 0) return null;
+        return (
+          <ZoomLabel
+            key={`dimmer-${dim.id}`}
+            x={dim.x + dim.width / 2}
+            y={dim.y - 8}
+            className="dimmer-device__label"
+            textAnchor="middle"
+          >
+            {trimmed}
+          </ZoomLabel>
+        );
+      })}
+
+      {(diagram.outlets ?? []).map((outlet) => {
+        const trimmed = (outlet.label ?? '').trim();
+        if (trimmed.length === 0) return null;
+        return (
+          <ZoomLabel
+            key={`outlet-${outlet.id}`}
+            x={outlet.x + outlet.width / 2}
+            y={outlet.y - 8}
+            className="outlet-device__label"
+            textAnchor="middle"
+          >
+            {trimmed}
+          </ZoomLabel>
+        );
+      })}
+
+      {(diagram.rooms ?? []).map((room) => {
+        const trimmed = (room.label ?? '').trim();
+        if (trimmed.length === 0) return null;
+        return (
+          <ZoomLabel
+            key={`room-${room.id}`}
+            x={room.x + room.width / 2}
+            y={room.y + room.height / 2}
+            className="room__label"
+            textAnchor="middle"
+          >
+            {trimmed}
+          </ZoomLabel>
+        );
+      })}
     </g>
   );
 }

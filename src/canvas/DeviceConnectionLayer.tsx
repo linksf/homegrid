@@ -1,8 +1,6 @@
 import type { JSX } from 'react';
-import { deviceNodeById, deviceNodeWorldPoint } from '../domain/device-node-geometry';
-import { orthogonalRoute } from '../domain/orthogonal-path';
+import { deviceWireDisplayPath } from '../domain/device-wire-geometry';
 import type { Diagram } from '../domain/types';
-import { wireLinkEndpoint } from '../domain/wire-geometry';
 
 function pathD(points: { x: number; y: number }[]): string {
   return points.map((pt, idx) => `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ');
@@ -18,12 +16,9 @@ export function DeviceConnectionLayer({ diagram }: DeviceConnectionLayerProps): 
 
   for (const wire of diagram.wires) {
     if (!wire.deviceNodeId) continue;
-    const node = deviceNodeById(diagram, wire.deviceNodeId);
-    if (!node) continue;
-    const start = deviceNodeWorldPoint(diagram, node);
-    const end = wireLinkEndpoint(diagram, wire);
-    if (!start || !end) continue;
-    segments.push({ key: `dn-${wire.id}`, points: orthogonalRoute(start, end) });
+    const points = deviceWireDisplayPath(diagram, wire.id);
+    if (points.length < 2) continue;
+    segments.push({ key: `dn-${wire.id}`, points });
   }
 
   return (

@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import { GRID_SIZE } from './grid';
 import type { Job, JunctionBox } from './types';
 
 export function createEmptyJob(name = 'Untitled job'): Job {
@@ -8,10 +9,10 @@ export function createEmptyJob(name = 'Untitled job'): Job {
     id: breakerBoxId,
     type: 'breaker',
     label: '',
-    x: 80,
-    y: 80,
-    width: 200,
-    height: 320,
+    x: GRID_SIZE * 7,
+    y: GRID_SIZE * 7,
+    width: GRID_SIZE * 16,
+    height: GRID_SIZE * 26,
   };
   return {
     id: nanoid(),
@@ -20,24 +21,34 @@ export function createEmptyJob(name = 'Untitled job'): Job {
     createdAt: now,
     updatedAt: now,
     diagram: {
+      rooms: [],
       junctionBoxes: [breakerBox],
       breakers: [],
       conduits: [],
+      cables: [],
+      conduitRuns: [],
       wires: [],
       hubs: [],
       hubBridges: [],
       lightBulbs: [],
       switches: [],
+      dimmerSwitches: [],
+      outlets: [],
       deviceNodes: [],
       wireLinks: [],
       layout: {
         conduitPaths: {},
+        conduitRunPaths: {},
+        exposedPaths: {},
+        conduitStubPaths: {},
         conduitOffsets: {},
         wireOffsets: {},
         wirePaths: {},
         wireLinkPaths: {},
         wireLinkOffsets: {},
         hubBridgePaths: {},
+        hubWirePaths: {},
+        deviceWirePaths: {},
       },
     },
   };

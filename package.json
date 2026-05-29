@@ -7,12 +7,16 @@
     "dev": "vite",
     "dev:clean": "rm -rf node_modules/.vite && vite",
     "build": "tsc -b && vite build",
+    "deploy": "npm run build && npx -y firebase-tools@latest deploy --only hosting,storage",
+    "deploy:hosting": "npm run build && npx -y firebase-tools@latest deploy --only hosting",
+    "setup:storage-cors": "node scripts/apply-storage-cors.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run"
   },
   "dependencies": {
+    "firebase": "^12.13.0",
     "idb": "^8.0.3",
     "nanoid": "^5.1.11",
     "react": "^19.2.6",

@@ -24,13 +24,14 @@ describe('path editing', () => {
     expect(draggablePathVertexIndices(3, { start: 'fixed', end: 'free' })).toEqual([1, 2]);
   });
 
-  it('wire paths expose interior and tip anchors', () => {
-    expect(draggableWireVertexIndices(false)).toEqual([1, 2, 3]);
-    expect(draggableWireVertexIndices(true)).toEqual([1, 2]);
+  it('wire paths expose interior and free end anchors', () => {
+    expect(draggableWireVertexIndices(4, true, false)).toEqual([1, 2, 3]);
+    expect(draggableWireVertexIndices(4, true, true)).toEqual([1, 2]);
+    expect(draggableWireVertexIndices(5, true, true)).toEqual([1, 2, 3]);
   });
 
   it('wire links expose only interior anchors', () => {
-    expect(draggableLinkVertexIndices()).toEqual([1, 2]);
+    expect(draggableLinkVertexIndices()).toEqual([1, 2, 3]);
   });
 
   it('keeps segments orthogonal when dragging a bend', () => {
@@ -73,7 +74,7 @@ describe('path editing', () => {
     expect(simplified).toHaveLength(2);
   });
 
-  it('creates exactly four anchors for wires and links', () => {
+  it('creates exactly four anchors for wires and five for dashed links', () => {
     const start = { x: 0, y: 0 };
     const end = { x: 120, y: 80 };
     expect(defaultFourPointPath(start, end)).toHaveLength(FIXED_WIRE_VERTEX_COUNT);

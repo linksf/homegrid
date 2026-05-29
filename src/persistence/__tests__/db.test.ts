@@ -1,14 +1,12 @@
-import 'fake-indexeddb/auto';
-import { deleteDB } from 'idb';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createEmptyJob } from '../../domain/defaults';
+import { clearMemoryBackend, memoryBackend } from '../memory-backend';
 import * as jobsDb from '../db';
 
-const DB_NAME = 'wirer-v1';
-
-describe('IndexedDB jobs store', () => {
-  beforeEach(async () => {
-    await deleteDB(DB_NAME);
+describe('jobs persistence', () => {
+  beforeEach(() => {
+    clearMemoryBackend();
+    jobsDb.setJobsBackendForTests(memoryBackend);
   });
 
   it('putJob, listJobs, getJob, and deleteJob', async () => {

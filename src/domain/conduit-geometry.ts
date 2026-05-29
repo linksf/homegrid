@@ -1,18 +1,25 @@
 import { anchorPoint } from './anchors';
+import { hubById, hubWorldPoint } from './hub-geometry';
 import {
   deviceNodeById,
   deviceNodeOutwardNormal,
   deviceNodeWorldPoint,
 } from './device-node-geometry';
 import { conduitStubPath } from './orthogonal-path';
-import type { AnchorPosition, Diagram, JunctionBox } from './types';
+import type { AnchorPosition, DeviceNode, Diagram, Hub, JunctionBox } from './types';
 
-/** Local conduit runs from the anchor into the junction box (shorter than breaker stubs). */
-export const LOCAL_CONDUIT_STUB_LENGTH = 56;
+import { GRID_SIZE } from './grid';
 
-const BREAKER_CONDUIT_STUB_LENGTH = 140;
+/** Legacy `kind: local` junction-wall stub length (anchor inward toward box center — shorter than breaker stubs). */
+export const LOCAL_CONDUIT_STUB_LENGTH = GRID_SIZE * 4;
 
-function outwardNormal(box: JunctionBox, anchor: AnchorPosition): { x: number; y: number } {
+const BREAKER_CONDUIT_STUB_LENGTH = GRID_SIZE * 12;
+
+/** Unit normal from box center toward the anchor — stub leaves the box this way from the wall. */
+export function junctionBoxAnchorOutwardNormal(
+  box: JunctionBox,
+  anchor: AnchorPosition,
+): { x: number; y: number } {
   const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const pt = anchorPoint(box, anchor);
   const vx = pt.x - center.x;
@@ -21,14 +28,18 @@ function outwardNormal(box: JunctionBox, anchor: AnchorPosition): { x: number; y
   return { x: vx / len, y: vy / len };
 }
 
-function inwardNormal(box: JunctionBox, anchor: AnchorPosition): { x: number; y: number } {
-  const out = outwardNormal(box, anchor);
+/** Into the box from the anchor (matches `localConduitPathPoints`). */
+export function junctionBoxAnchorInwardNormal(
+  box: JunctionBox,
+  anchor: AnchorPosition,
+): { x: number; y: number } {
+  const out = junctionBoxAnchorOutwardNormal(box, anchor);
   return { x: -out.x, y: -out.y };
 }
 
 export function localConduitPathPoints(box: JunctionBox, anchor: AnchorPosition): { x: number; y: number }[] {
   const start = anchorPoint(box, anchor);
-  return conduitStubPath(start, inwardNormal(box, anchor), LOCAL_CONDUIT_STUB_LENGTH);
+  return conduitStubPath(start, junctionBoxAnchorInwardNormal(box, anchor), LOCAL_CONDUIT_STUB_LENGTH);
 }
 
 export function deviceConduitPathPoints(
@@ -43,14 +54,52 @@ export function deviceConduitPathPoints(
   return conduitStubPath(start, normal, LOCAL_CONDUIT_STUB_LENGTH);
 }
 
+function hubOutwardNormal(box: JunctionBox, hub: Hub): { x: number; y: number } {
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const pt = hubWorldPoint(box, hub);
+  const vx = pt.x - center.x;
+  const vy = pt.y - center.y;
+  const len = Math.hypot(vx, vy) || 1;
+  return { x: vx / len, y: vy / len };
+}
+
+export function hubConduitPathPoints(
+  diagram: Diagram,
+  hubId: string,
+): { x: number; y: number }[] | null {
+  const hub = hubById(diagram, hubId);
+  if (!hub) return null;
+  const box = diagram.junctionBoxes.find((j) => j.id === hub.junctionBoxId);
+  if (!box) return null;
+  const start = hubWorldPoint(box, hub);
+  return conduitStubPath(start, hubOutwardNormal(box, hub), LOCAL_CONDUIT_STUB_LENGTH);
+}
+
+export function rebuildHubConduitPathsForJunction(
+  diagram: Diagram,
+  junctionBoxId: string,
+): Diagram {
+  const conduitPaths = { ...diagram.layout.conduitPaths };
+  for (const conduit of diagram.conduits) {
+    if (conduit.kind !== 'hub') continue;
+    const hub = hubById(diagram, conduit.hubId);
+    if (!hub || hub.junctionBoxId !== junctionBoxId) continue;
+    const points = hubConduitPathPoints(diagram, conduit.hubId);
+    if (points) {
+      conduitPaths[conduit.id] = { points };
+    }
+  }
+  return { ...diagram, layout: { ...diagram.layout, conduitPaths } };
+}
+
 export function breakerConduitPathPoints(box: JunctionBox, anchor: AnchorPosition): { x: number; y: number }[] {
   const start = anchorPoint(box, anchor);
-  return conduitStubPath(start, outwardNormal(box, anchor), BREAKER_CONDUIT_STUB_LENGTH);
+  return conduitStubPath(start, junctionBoxAnchorOutwardNormal(box, anchor), BREAKER_CONDUIT_STUB_LENGTH);
 }
 
 export function rebuildDeviceConduitPathsForDevice(
   diagram: Diagram,
-  deviceKind: 'lightBulb' | 'switch',
+  deviceKind: DeviceNode['deviceKind'],
   deviceId: string,
 ): Diagram {
   const conduitPaths = { ...diagram.layout.conduitPaths };

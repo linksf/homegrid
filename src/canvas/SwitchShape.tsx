@@ -4,23 +4,34 @@ import {
   conduitsOnDeviceNode,
   deviceNodeWorldPoint,
   deviceNodesForDevice,
+  wireOnDeviceNode,
 } from '../domain/device-node-geometry';
-import { moveSwitch as moveSwitchMutation } from '../domain/device-mutations';
+import {
+  normalizeSwitchPosition,
+  switchConnectedSlots,
+} from '../domain/continuity';
+import { flipSwitchPosition } from '../domain/device-mutations';
 import type { Diagram, Switch } from '../domain/types';
+import type { ApplyDiagramFn } from '../editor/apply-diagram';
 import type { EditorMainTool } from '../editor/editor-tools';
+import { moveSwitchesByDelta, switchIdsForGroupMove } from '../editor/selection-move';
+import type { DiagramSelection } from '../editor/diagram-selection';
 import { useDiagramViewport } from './CanvasViewport';
 import { DeviceNodeMarker } from './DeviceNodeMarker';
+
 type SwitchShapeProps = {
   sw: Switch;
   diagram: Diagram;
   tool: EditorMainTool;
   selected: boolean;
-  selectedNodeId: string | null;
+  selectedNodeIds: Set<string>;
+  selection: DiagramSelection;
   connectPendingNodeId: string | null;
   onSelect: () => void;
   onSelectNode: (nodeId: string) => void;
   onNodePointerDown?: (nodeId: string) => void;
-  onApplyDiagram: (mutator: (diagram: Diagram) => Diagram) => void;
+  onApplyDiagram: ApplyDiagramFn;
+  onCommitHistory?: () => void;
 };
 
 export function SwitchShape({
@@ -28,18 +39,42 @@ export function SwitchShape({
   diagram,
   tool,
   selected,
-  selectedNodeId,
+  selectedNodeIds,
+  selection,
   connectPendingNodeId,
   onSelect,
   onSelectNode,
   onNodePointerDown,
   onApplyDiagram,
+  onCommitHistory,
 }: SwitchShapeProps): JSX.Element {
   const vp = useDiagramViewport();
-  const drag = useRef<{ pointerId: number; start: { x: number; y: number }; base: Switch } | null>(null);
+  const drag = useRef<{
+    pointerId: number;
+    start: { x: number; y: number };
+    switchIds: string[];
+    startSwitches: Map<string, { x: number; y: number }>;
+  } | null>(null);
   const nodes = deviceNodesForDevice(diagram, 'switch', sw.id);
   const connectInteractive = tool === 'connect-wires';
-  const conduitInteractive = tool === 'conduit-local';
+  const conduitInteractive = tool === 'cable';
+  const position = normalizeSwitchPosition(sw);
+  const connectedPairs = switchConnectedSlots(sw);
+  const connectedSlots = new Set(connectedPairs.flat());
+  const isFourWay = sw.terminalCount === 4;
+  const isClosed = sw.terminalCount === 2 ? position === 'closed' : true;
+  const statusLabel =
+    sw.terminalCount === 4
+      ? position === 'cross'
+        ? 'Cross'
+        : 'Straight'
+      : sw.terminalCount === 3
+        ? position === 'travelerB'
+          ? 'Common ↔ bottom'
+          : 'Common ↔ right'
+        : position === 'closed'
+          ? 'Closed'
+          : 'Open';
 
   function worldPoint(ev: ReactPointerEvent | PointerEvent) {
     return vp.clientPointToWorld(ev.clientX, ev.clientY);
@@ -48,10 +83,18 @@ export function SwitchShape({
   function beginMove(e: ReactPointerEvent) {
     if (e.button !== 0 || tool !== 'select') return;
     e.stopPropagation();
-    onSelect();
+    if (!selected) onSelect();
     const p = worldPoint(e);
     if (!p) return;
-    drag.current = { pointerId: e.pointerId, start: p, base: sw };
+
+    const switchIds = [...switchIdsForGroupMove(selection, sw.id)];
+    const startSwitches = new Map<string, { x: number; y: number }>();
+    for (const id of switchIds) {
+      const item = diagram.switches.find((s) => s.id === id);
+      if (item) startSwitches.set(id, { x: item.x, y: item.y });
+    }
+
+    drag.current = { pointerId: e.pointerId, start: p, switchIds, startSwitches };
     (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
   }
 
@@ -62,12 +105,15 @@ export function SwitchShape({
     if (!p) return;
     const dx = p.x - session.start.x;
     const dy = p.y - session.start.y;
-    onApplyDiagram((d) => moveSwitchMutation(d, sw.id, session.base.x + dx, session.base.y + dy));
+    onApplyDiagram((d) => moveSwitchesByDelta(d, session.switchIds, session.startSwitches, dx, dy), {
+      history: false,
+    });
   }
 
   function endDrag(e: ReactPointerEvent) {
     if (drag.current?.pointerId !== e.pointerId) return;
     drag.current = null;
+    onCommitHistory?.();
     try {
       (e.currentTarget as SVGElement).releasePointerCapture(e.pointerId);
     } catch {
@@ -75,9 +121,32 @@ export function SwitchShape({
     }
   }
 
+  const cx = sw.width / 2;
+  const cy = sw.height / 2;
+
+  const nodeLayout = nodes
+    .map((node) => {
+      const world = deviceNodeWorldPoint(diagram, node);
+      if (!world) return null;
+      return {
+        node,
+        lx: world.x - sw.x,
+        ly: world.y - sw.y,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry != null);
+
+  const slotPoint = new Map(nodeLayout.map(({ node, lx, ly }) => [node.slot, { lx, ly }]));
+
   return (
     <g
-      className={['switch-device', selected ? 'switch-device--selected' : ''].filter(Boolean).join(' ')}
+      className={[
+        'switch-device',
+        selected ? 'switch-device--selected' : '',
+        isClosed ? 'switch-device--closed' : 'switch-device--open',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       transform={`translate(${sw.x}, ${sw.y})`}
     >
       <rect
@@ -90,23 +159,57 @@ export function SwitchShape({
         onPointerMove={onMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onDoubleClick={(e) => {
+          if (tool !== 'select') return;
+          e.stopPropagation();
+          onApplyDiagram((d) => flipSwitchPosition(d, sw.id));
+        }}
       />
-      {nodes.map((node) => {
-        const world = deviceNodeWorldPoint(diagram, node);
-        if (!world) return null;
-        const lx = world.x - sw.x;
-        const ly = world.y - sw.y;
-        const cx = sw.width / 2;
-        const cy = sw.height / 2;
+      <text className="switch-device__state" x={cx} y={cy + 4} textAnchor="middle">
+        {statusLabel}
+      </text>
+      {isFourWay
+        ? connectedPairs.map(([slotA, slotB]) => {
+            const a = slotPoint.get(slotA);
+            const b = slotPoint.get(slotB);
+            if (!a || !b) return null;
+            return (
+              <line
+                key={`${slotA}-${slotB}`}
+                className="switch-device__path switch-device__path--closed"
+                x1={a.lx}
+                y1={a.ly}
+                x2={b.lx}
+                y2={b.ly}
+              />
+            );
+          })
+        : nodeLayout.map(({ node, lx, ly }) => {
+            const active = connectedSlots.has(node.slot);
+            return (
+              <line
+                key={`path-${node.id}-${position}`}
+                className={active ? 'switch-device__path switch-device__path--closed' : 'switch-device__path'}
+                x1={cx}
+                y1={cy}
+                x2={lx}
+                y2={ly}
+              />
+            );
+          })}
+      {nodeLayout.map(({ node, lx, ly }) => {
+        const active = connectedSlots.has(node.slot);
         return (
           <g key={node.id}>
-            <line className="device-node__stub" x1={cx} y1={cy} x2={lx} y2={ly} />
             <DeviceNodeMarker
               x={lx}
               y={ly}
-              hasConduit={conduitsOnDeviceNode(diagram, node.id).length > 0}
-              selected={selectedNodeId === node.id}
+              hasConduit={
+                conduitsOnDeviceNode(diagram, node.id).length > 0 || Boolean(wireOnDeviceNode(diagram, node.id))
+              }
+              selected={selectedNodeIds.has(node.id)}
               connectPending={connectPendingNodeId === node.id}
+              active={active}
               interactive={tool === 'select' || connectInteractive || conduitInteractive}
               onSelect={() => onSelectNode(node.id)}
               onPointerDown={() => onNodePointerDown?.(node.id)}

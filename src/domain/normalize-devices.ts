@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
-import type { DeviceNode, Diagram, LightBulb, Switch } from './types';
+import { normalizeDimmerLevel, normalizeDimmerPosition, normalizeSwitchPosition, switchTerminalCount } from './continuity';
+import type { DeviceNode, Diagram, DimmerSwitch, LightBulb, Outlet, Switch } from './types';
 
 function nodesForBulb(bulbId: string, existing: DeviceNode[]): DeviceNode[] {
   const bySlot = new Map(existing.filter((n) => n.deviceId === bulbId).map((n) => [n.slot, n]));
@@ -22,7 +23,7 @@ function nodesForSwitch(sw: Switch, existing: DeviceNode[]): DeviceNode[] {
   const bySlot = new Map(
     existing.filter((n) => n.deviceKind === 'switch' && n.deviceId === sw.id).map((n) => [n.slot, n]),
   );
-  const count = sw.terminalCount === 3 ? 3 : 2;
+  const count = switchTerminalCount(sw);
   const nodes: DeviceNode[] = [];
   for (let slot = 0; slot < count; slot++) {
     const found = bySlot.get(slot);
@@ -38,10 +39,51 @@ function nodesForSwitch(sw: Switch, existing: DeviceNode[]): DeviceNode[] {
   return nodes;
 }
 
-/** Ensures each bulb has two nodes and each switch has 2 or 3; drops orphan nodes. */
+function nodesForDimmer(dim: DimmerSwitch, existing: DeviceNode[]): DeviceNode[] {
+  const bySlot = new Map(
+    existing.filter((n) => n.deviceKind === 'dimmerSwitch' && n.deviceId === dim.id).map((n) => [n.slot, n]),
+  );
+  const nodes: DeviceNode[] = [];
+  for (let slot = 0; slot < 2; slot++) {
+    const found = bySlot.get(slot);
+    nodes.push(
+      found ?? {
+        id: nanoid(),
+        deviceKind: 'dimmerSwitch',
+        deviceId: dim.id,
+        slot,
+      },
+    );
+  }
+  return nodes;
+}
+
+function nodesForOutlet(outlet: Outlet, existing: DeviceNode[]): DeviceNode[] {
+  const bySlot = new Map(
+    existing.filter((n) => n.deviceKind === 'outlet' && n.deviceId === outlet.id).map((n) => [n.slot, n]),
+  );
+  const count = outlet.passthrough ? 4 : 2;
+  const nodes: DeviceNode[] = [];
+  for (let slot = 0; slot < count; slot++) {
+    const found = bySlot.get(slot);
+    nodes.push(
+      found ?? {
+        id: nanoid(),
+        deviceKind: 'outlet',
+        deviceId: outlet.id,
+        slot,
+      },
+    );
+  }
+  return nodes;
+}
+
+/** Ensures each device has the correct terminal nodes; drops orphan nodes. */
 export function normalizeDeviceNodes(diagram: Diagram): Diagram {
   const bulbs: LightBulb[] = Array.isArray(diagram.lightBulbs) ? diagram.lightBulbs : [];
   const switches: Switch[] = Array.isArray(diagram.switches) ? diagram.switches : [];
+  const dimmerSwitches: DimmerSwitch[] = Array.isArray(diagram.dimmerSwitches) ? diagram.dimmerSwitches : [];
+  const outlets: Outlet[] = Array.isArray(diagram.outlets) ? diagram.outlets : [];
   const existing = Array.isArray(diagram.deviceNodes) ? diagram.deviceNodes : [];
 
   const deviceNodes: DeviceNode[] = [];
@@ -49,8 +91,14 @@ export function normalizeDeviceNodes(diagram: Diagram): Diagram {
     deviceNodes.push(...nodesForBulb(bulb.id, existing));
   }
   for (const sw of switches) {
-    const terminalCount: 2 | 3 = sw.terminalCount === 3 ? 3 : 2;
+    const terminalCount = switchTerminalCount(sw);
     deviceNodes.push(...nodesForSwitch({ ...sw, terminalCount }, existing));
+  }
+  for (const dim of dimmerSwitches) {
+    deviceNodes.push(...nodesForDimmer(dim, existing));
+  }
+  for (const outlet of outlets) {
+    deviceNodes.push(...nodesForOutlet(outlet, existing));
   }
 
   const validNodeIds = new Set(deviceNodes.map((n) => n.id));
@@ -69,9 +117,22 @@ export function normalizeDeviceNodes(diagram: Diagram): Diagram {
   return {
     ...diagram,
     lightBulbs: bulbs,
-    switches: switches.map((s) => ({
-      ...s,
-      terminalCount: s.terminalCount === 3 ? 3 : 2,
+    switches: switches.map((s) => {
+      const terminalCount = switchTerminalCount(s);
+      return {
+        ...s,
+        terminalCount,
+        position: normalizeSwitchPosition({ ...s, terminalCount }),
+      };
+    }),
+    dimmerSwitches: dimmerSwitches.map((d) => ({
+      ...d,
+      level: normalizeDimmerLevel(d),
+      position: normalizeDimmerPosition(d),
+    })),
+    outlets: outlets.map((o) => ({
+      ...o,
+      passthrough: Boolean(o.passthrough),
     })),
     deviceNodes,
     conduits,

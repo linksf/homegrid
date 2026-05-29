@@ -50,6 +50,13 @@ body {
   min-height: 100vh;
 }
 
+html:has(.app--editor),
+html:has(.app--editor) body,
+html:has(.app--editor) #root {
+  height: 100%;
+  overflow: hidden;
+}
+
 .home-screen {
   padding: 1.25rem 1.5rem 2rem;
 }
@@ -69,6 +76,16 @@ body {
 .app--editor {
   max-width: none;
   margin: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app--editor .editor-screen--deck {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .visually-hidden {
@@ -191,16 +208,149 @@ body {
   filter: drop-shadow(0 0 2px rgb(37 99 235 / 45%));
 }
 
+.cable-bundle--selected .wire-stroke:not(.wire-stroke--selected) {
+  filter: drop-shadow(0 0 2px rgb(37 99 235 / 45%));
+}
+
 .wire-link-hit,
-.conduit-hit {
+.conduit-hit,
+.cable-footprint {
   cursor: pointer;
+}
+
+.cable-footprint.cable-footprint--inactive {
+  cursor: default;
+}
+
+.conduit-run .conduit-run__sheath-outline {
+  stroke: #c4a574;
+  stroke-width: 22px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  pointer-events: none;
+}
+
+.conduit-run .conduit-run__sheath {
+  stroke: #f5e6c8;
+  stroke-width: 20px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  pointer-events: none;
+}
+
+.conduit-run--selected .conduit-run__sheath-outline {
+  stroke: #edd8a8;
+}
+
+.conduit-run--selected .conduit-run__sheath {
+  stroke: #fdf6e6;
+}
+
+.conduit-run--stub.conduit-run--stub-connect-pending-source .conduit-run__sheath-outline {
+  stroke: #f59e0b;
+  stroke-width: 24px;
+}
+
+.conduit-run--stub.conduit-run--stub-connect-compat .conduit-run__sheath-outline {
+  stroke: #15803d;
+}
+
+.conduit-run--stub.conduit-run--stub-connect-first-target .conduit-run__sheath-outline {
+  stroke: #3b82f6;
+}
+
+.conduit-run--stub.conduit-run--stub-dimmed {
+  opacity: 0.38;
 }
 
 .editor-toolbar {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+  flex-shrink: 0;
+}
+
+.editor-toolbar--scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.15rem;
+}
+
+.editor-toolbar--scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.editor-toolbar__divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 2.75rem;
+  margin: 0 0.15rem;
+  background: color-mix(in srgb, var(--wirer-fg) 18%, transparent);
+}
+
+.toolbar-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 16%, transparent);
+  border-radius: 0.45rem;
+  background: var(--wirer-surface);
+  color: var(--wirer-fg);
+  cursor: pointer;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--wirer-fg) 8%, var(--wirer-surface));
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbar-btn--active {
+  border-color: color-mix(in srgb, var(--wirer-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--wirer-accent) 16%, var(--wirer-surface));
+  color: var(--wirer-accent);
+}
+
+.toolbar-btn__key {
+  position: absolute;
+  right: 0.2rem;
+  bottom: 0.1rem;
+  font-size: 0.55rem;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.toolbar-variant-select {
+  height: 2.75rem;
+  max-width: 6.5rem;
+  padding: 0 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 16%, transparent);
+  border-radius: 0.45rem;
+  background: var(--wirer-surface);
+  color: var(--wirer-fg);
+  font-size: 0.75rem;
 }
 
 .home-screen__header {
@@ -228,6 +378,37 @@ body {
   padding: 1rem 1.5rem 2rem;
 }
 
+.home-screen__library-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.job-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.home-screen__bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.home-screen__bulk-count {
+  font-size: 0.875rem;
+  opacity: 0.85;
+  margin-right: 0.25rem;
+}
+
 .home-screen__empty {
   margin: 2rem 0;
   opacity: 0.8;
@@ -247,11 +428,24 @@ body {
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.5rem 0.5rem 0.5rem 0;
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
   min-height: 52px;
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
   background: color-mix(in srgb, var(--wirer-fg) 5%, var(--wirer-surface));
+}
+
+.job-row--selected {
+  border-color: color-mix(in srgb, var(--wirer-fg) 45%, var(--wirer-surface));
+  background: color-mix(in srgb, var(--wirer-fg) 10%, var(--wirer-surface));
+}
+
+.job-row__checkbox {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  cursor: pointer;
 }
 
 .job-row__open {
@@ -277,6 +471,23 @@ body {
 .job-row__delete {
   flex-shrink: 0;
   margin-right: 0.35rem;
+}
+
+.job-row__rename {
+  flex-shrink: 0;
+}
+
+.job-row__rename-input {
+  flex: 1;
+  min-width: 0;
+  margin: 0.35rem 0.5rem 0.35rem 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--wirer-accent, #2563eb) 55%, var(--wirer-fg));
+  background: var(--wirer-surface);
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
 }
 
 .job-row__name {
@@ -306,10 +517,32 @@ body {
   font-size: 1.125rem;
 }
 
+.editor-screen__title-input {
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+}
+
+.editor-screen__title-input:hover {
+  border-color: color-mix(in srgb, var(--wirer-fg) 18%, transparent);
+}
+
+.editor-screen__title-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--wirer-accent, #2563eb) 55%, var(--wirer-fg));
+  background: var(--wirer-surface);
+}
+
 .canvas-viewport {
   display: block;
   width: 100%;
-  height: clamp(340px, 72vh, 900px);
+  flex: 1 1 0;
+  min-height: 0;
   touch-action: none;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--wirer-fg) 22%, var(--wirer-surface));
@@ -325,11 +558,150 @@ body {
 .canvas-viewport__sheet {
   fill: transparent;
   stroke: transparent;
+}
+
+/* Default canvas cursor per editor tool */
+.canvas-viewport--tool-select {
+  cursor: default;
+}
+
+.canvas-viewport--tool-pan {
   cursor: grab;
 }
 
-.canvas-viewport__sheet:active {
+.canvas-viewport--tool-place-junction {
+  cursor: cell;
+}
+
+.canvas-viewport--tool-place-light-bulb {
+  cursor: copy;
+}
+
+.canvas-viewport--tool-place-switch {
+  cursor: pointer;
+}
+
+.canvas-viewport--tool-place-outlet {
+  cursor: copy;
+}
+
+.canvas-viewport--tool-cable {
+  cursor: crosshair;
+}
+
+.canvas-viewport--tool-conduit-connect {
+  cursor: ew-resize;
+}
+
+.canvas-viewport--tool-conduit-breaker {
+  cursor: alias;
+}
+
+.canvas-viewport--tool-connect-wires {
+  cursor: nesw-resize;
+}
+
+.canvas-viewport--tool-pan .canvas-viewport__sheet,
+.canvas-viewport--tool-pan .canvas-pan-overlay {
+  cursor: grab;
+}
+
+.canvas-viewport--tool-pan .canvas-viewport__sheet:active,
+.canvas-viewport--tool-pan .canvas-pan-overlay:active {
   cursor: grabbing;
+}
+
+.canvas-pan-overlay {
+  fill: rgb(0 0 0 / 0.001);
+}
+
+/* Select tool — clickable vs draggable targets */
+.canvas-viewport--tool-select .wire-hit,
+.canvas-viewport--tool-select .wire-link-hit,
+.canvas-viewport--tool-select .conduit-hit,
+.canvas-viewport--tool-select .cable-footprint,
+.canvas-viewport--tool-select .conduit-run-hit,
+.canvas-viewport--tool-select .hub-bridge-hit,
+.canvas-viewport--tool-select .hub,
+.canvas-viewport--tool-select .device-node-hit {
+  cursor: pointer;
+}
+
+.canvas-viewport--tool-select .junction-box-frame,
+.canvas-viewport--tool-select .light-bulb__body,
+.canvas-viewport--tool-select .switch-device__body,
+.canvas-viewport--tool-select .dimmer-device__body,
+.canvas-viewport--tool-select .outlet-device__body,
+.canvas-viewport--tool-select .junction-anchor--selected,
+.canvas-viewport--tool-select .path-joint-handle {
+  cursor: grab;
+}
+
+.canvas-viewport--tool-select .junction-box-frame:active,
+.canvas-viewport--tool-select .light-bulb__body:active,
+.canvas-viewport--tool-select .switch-device__body:active,
+.canvas-viewport--tool-select .dimmer-device__body:active,
+.canvas-viewport--tool-select .outlet-device__body:active,
+.canvas-viewport--tool-select .junction-anchor--selected:active,
+.canvas-viewport--tool-select .path-joint-handle:active {
+  cursor: grabbing;
+}
+
+/* Cable tool — junction anchors, hubs, and device terminals */
+.canvas-viewport--tool-cable .junction-anchor,
+.canvas-viewport--tool-cable .hub,
+.canvas-viewport--tool-cable .device-node-hit {
+  cursor: crosshair;
+}
+
+.canvas-viewport--tool-conduit-connect .junction-anchor {
+  cursor: ew-resize;
+}
+
+.canvas-viewport--tool-conduit-connect .conduit-run--stub-hit {
+  cursor: crosshair;
+}
+
+.canvas-viewport--tool-conduit-breaker .junction-anchor {
+  cursor: alias;
+}
+
+/* Wire linking — endpoints, hubs, and terminals */
+.canvas-viewport--tool-connect-wires .wire-endpoint-hit,
+.canvas-viewport--tool-connect-wires .hub,
+.canvas-viewport--tool-connect-wires .device-node-hit {
+  cursor: crosshair;
+}
+
+.selection-marquee {
+  fill-opacity: 0.12;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.selection-marquee--crossing {
+  fill: rgba(59, 130, 246, 0.15);
+  stroke: #3b82f6;
+}
+
+.selection-marquee--window {
+  fill: rgba(34, 197, 94, 0.12);
+  stroke: #22c55e;
+  stroke-dasharray: 6 4;
+}
+
+.diagram-grid {
+  pointer-events: none;
+}
+
+.diagram-grid__line {
+  stroke: color-mix(in srgb, var(--wirer-fg) 10%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.diagram-grid__line--major {
+  stroke: color-mix(in srgb, var(--wirer-fg) 14%, transparent);
 }
 
 .diagram-svg {
@@ -350,6 +722,85 @@ body {
 
 .junction-box--selected .junction-box-frame {
   stroke: #2563eb;
+}
+
+.room__outline {
+  fill: none;
+  stroke: #6d4fb8;
+  stroke-width: 4px;
+  stroke-dasharray: 12 8;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.room--selected .room__outline {
+  stroke: #5536a3;
+  stroke-width: 5px;
+}
+
+.room__hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: stroke;
+}
+
+.room__label {
+  font-weight: 700;
+  fill: color-mix(in srgb, #5536a3 90%, var(--wirer-fg));
+  pointer-events: none;
+  user-select: none;
+}
+
+.room__handle {
+  fill: var(--wirer-surface);
+  stroke: #6d4fb8;
+  stroke-width: 2.5px;
+}
+
+.canvas-viewport--tool-select .room__hit {
+  cursor: grab;
+}
+
+.canvas-viewport--tool-select .room__hit:active,
+.canvas-viewport--tool-select .room__handle:active {
+  cursor: grabbing;
+}
+
+.canvas-viewport--tool-select .room__handle {
+  cursor: nwse-resize;
+}
+
+.canvas-viewport--tool-place-room {
+  cursor: cell;
+}
+
+.inspector__door-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.inspector__door-item {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 14%, transparent);
+  border-radius: 8px;
+}
+
+.inspector__door-field {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+}
+
+.inspector__door-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
 }
 
 .diagram-labels-layer {
@@ -386,6 +837,12 @@ body {
   stroke-width: 1;
 }
 
+.junction-anchor--selected {
+  fill: color-mix(in srgb, var(--wirer-accent) 35%, transparent);
+  stroke: var(--wirer-accent);
+  stroke-width: 2;
+}
+
 .junction-handle {
   fill: color-mix(in srgb, var(--wirer-surface) 80%, var(--wirer-fg) 20%);
   stroke: var(--wirer-fg);
@@ -398,9 +855,13 @@ body {
   cursor: nesw-resize;
 }
 
+.diagram-svg--placing > :not(.diagram-place-overlay) {
+  pointer-events: none;
+}
+
 .diagram-place-overlay {
-  fill: transparent;
-  cursor: crosshair;
+  fill: rgb(0 0 0 / 0.001);
+  pointer-events: all;
 }
 
 .junction-box__handles {
@@ -421,10 +882,6 @@ body {
 .hub-slot--filled {
   fill: transparent;
   stroke: transparent;
-}
-
-.hub {
-  cursor: pointer;
 }
 
 .hub__ring {
@@ -472,7 +929,6 @@ body {
   fill: color-mix(in srgb, #f5e6a8 55%, var(--wirer-surface));
   stroke: color-mix(in srgb, var(--wirer-fg) 70%, transparent);
   stroke-width: 2px;
-  cursor: grab;
 }
 
 .light-bulb--selected .light-bulb__body {
@@ -495,7 +951,6 @@ body {
   fill: color-mix(in srgb, var(--wirer-fg) 8%, var(--wirer-surface));
   stroke: color-mix(in srgb, var(--wirer-fg) 65%, transparent);
   stroke-width: 2px;
-  cursor: grab;
 }
 
 .switch-device--selected .switch-device__body {
@@ -503,7 +958,157 @@ body {
   stroke-width: 3px;
 }
 
+.light-bulb--lit .light-bulb__body {
+  fill: color-mix(
+    in srgb,
+    #ffe566 calc(var(--bulb-brightness, 1) * 100%),
+    color-mix(in srgb, #f5e6a8 55%, var(--wirer-surface))
+  );
+  filter: drop-shadow(
+    0 0 calc(4px + var(--bulb-brightness, 1) * 10px)
+      rgba(255, 220, 80, calc(var(--bulb-brightness, 1) * 0.75))
+  );
+}
+
+.switch-device__state {
+  font-size: 10px;
+  fill: color-mix(in srgb, var(--wirer-fg) 75%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+
+.switch-device__path {
+  stroke: color-mix(in srgb, var(--wirer-fg) 35%, transparent);
+  stroke-width: 2px;
+  pointer-events: none;
+}
+
+.switch-device__path--closed {
+  stroke: #5cb85c;
+  stroke-width: 3px;
+}
+
+.switch-device--closed .switch-device__body {
+  fill: color-mix(in srgb, #5cb85c 12%, var(--wirer-surface));
+}
+
+.breaker-toggle__body {
+  fill: color-mix(in srgb, var(--wirer-fg) 8%, var(--wirer-surface));
+  stroke: color-mix(in srgb, var(--wirer-fg) 35%, var(--wirer-border));
+  stroke-width: 2px;
+}
+
+.breaker-toggle--selected .breaker-toggle__body {
+  stroke: var(--wirer-accent);
+  stroke-width: 2.5px;
+}
+
+.breaker-toggle--closed .breaker-toggle__body {
+  fill: color-mix(in srgb, #5cb85c 14%, var(--wirer-surface));
+  stroke: color-mix(in srgb, #5cb85c 50%, var(--wirer-fg));
+}
+
+.breaker-toggle--open .breaker-toggle__body {
+  fill: color-mix(in srgb, #d9534f 10%, var(--wirer-surface));
+  stroke: color-mix(in srgb, #d9534f 45%, var(--wirer-fg));
+}
+
+.breaker-toggle__state {
+  fill: var(--wirer-fg);
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+}
+
+.canvas-viewport--tool-select .breaker-toggle__body {
+  cursor: pointer;
+}
+
+.device-node--active .device-node__core {
+  fill: #5cb85c;
+}
+
+.device-node--active .device-node__ring {
+  stroke: #5cb85c;
+}
+
 .switch-device__label {
+  fill: var(--wirer-fg);
+}
+
+.dimmer-device__body {
+  fill: color-mix(in srgb, #e6a700 10%, var(--wirer-surface));
+  stroke: color-mix(in srgb, #e6a700 55%, var(--wirer-fg));
+  stroke-width: 2px;
+}
+
+.dimmer-device--selected .dimmer-device__body {
+  stroke: #e6a700;
+  stroke-width: 3px;
+}
+
+.dimmer-device--on .dimmer-device__body {
+  fill: color-mix(in srgb, #5cb85c 14%, var(--wirer-surface));
+  stroke: #5cb85c;
+}
+
+.dimmer-device__icon {
+  font-size: 14px;
+  fill: color-mix(in srgb, #e6a700 85%, var(--wirer-fg));
+  pointer-events: none;
+  user-select: none;
+}
+
+.dimmer-device__state {
+  font-size: 10px;
+  fill: color-mix(in srgb, var(--wirer-fg) 75%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+
+.dimmer-device__level-track {
+  fill: color-mix(in srgb, var(--wirer-fg) 12%, transparent);
+  pointer-events: none;
+}
+
+.dimmer-device__level-fill {
+  fill: color-mix(in srgb, #e6a700 80%, var(--wirer-fg));
+  pointer-events: none;
+}
+
+.dimmer-device__label {
+  fill: var(--wirer-fg);
+}
+
+.outlet-device__body {
+  fill: color-mix(in srgb, var(--wirer-fg) 8%, var(--wirer-surface));
+  stroke: color-mix(in srgb, var(--wirer-fg) 65%, transparent);
+  stroke-width: 2px;
+}
+
+.outlet-device--selected .outlet-device__body {
+  stroke: var(--wirer-fg);
+  stroke-width: 3px;
+}
+
+.outlet-device--energized .outlet-device__body {
+  fill: color-mix(in srgb, #5cb85c 12%, var(--wirer-surface));
+  stroke: #5cb85c;
+}
+
+.outlet-device__face {
+  fill: color-mix(in srgb, var(--wirer-fg) 6%, var(--wirer-surface));
+  stroke: color-mix(in srgb, var(--wirer-fg) 35%, transparent);
+  stroke-width: 1.5px;
+}
+
+.outlet-device__slot-divider {
+  stroke: color-mix(in srgb, var(--wirer-fg) 30%, transparent);
+  stroke-width: 1.5px;
+}
+
+.outlet-device__label {
   fill: var(--wirer-fg);
 }
 
@@ -552,8 +1157,19 @@ body {
   opacity: 0.9;
 }
 
-.editor-screen__viewport {
-  width: 100%;
+.editor-screen {
+  padding: 1rem 1.25rem;
+}
+
+.editor-screen--deck {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.editor-screen--deck .editor-screen__header,
+.editor-screen--deck .editor-toolbar {
+  flex-shrink: 0;
 }
 
 .editor-screen--deck .editor-screen__header {
@@ -564,85 +1180,342 @@ body {
   margin-top: 0.75rem;
   font-size: 0.85rem;
   opacity: 0.75;
+  flex-shrink: 0;
 }
 
 .editor-screen__main {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.editor-screen__sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .editor-screen__canvas-col {
   width: 100%;
   min-width: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.inspector-sheet__grip {
-  display: none;
+.editor-screen__viewport {
+  width: 100%;
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
+.editor-screen__viewport > * {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-viewport-shell {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-viewport-shell .canvas-viewport {
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.canvas-zoom-controls {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  z-index: 6;
+  display: flex;
+  align-items: stretch;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 22%, var(--wirer-surface));
+  background: color-mix(in srgb, var(--wirer-surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 14%);
+}
+
+.canvas-zoom-controls__btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.65rem;
+  border: none;
+  background: transparent;
+  color: var(--wirer-fg);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.canvas-zoom-controls__btn + .canvas-zoom-controls__btn {
+  border-left: 1px solid color-mix(in srgb, var(--wirer-fg) 14%, var(--wirer-surface));
+}
+
+.canvas-zoom-controls__btn--label {
+  min-width: 3.6rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.canvas-zoom-controls__btn:active {
+  background: color-mix(in srgb, var(--wirer-fg) 10%, var(--wirer-surface));
+}
+
+/* Collapsible info / inspector panel */
+.editor-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.editor-panel__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--wirer-fg) 22%, var(--wirer-surface));
+  background: var(--wirer-surface);
+  color: var(--wirer-fg);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.editor-panel__toggle-icon {
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-135deg);
+  transition: transform 0.18s ease;
+}
+
+.editor-panel--open .editor-panel__toggle-icon {
+  transform: rotate(45deg);
+}
+
+.editor-panel__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+.editor-panel__content[hidden] {
+  display: none !important;
+}
+
+.editor-panel__inspector-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
 @media (max-width: 767px) {
-  .editor-screen__inspector-sheet {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app--editor .editor-screen--deck {
+    flex: 1;
+    min-height: 0;
+    padding: 0.55rem 0.65rem 0;
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .editor-screen--deck .editor-screen__header {
+    margin-bottom: 0.45rem;
+    gap: 0.45rem;
+  }
+
+  .editor-screen--deck .editor-screen__title {
+    font-size: 1rem;
+  }
+
+  .editor-screen--deck .editor-screen__header .btn {
+    min-height: 40px;
+    padding: 0 0.65rem;
+    font-size: 0.875rem;
+  }
+
+  .editor-toolbar {
+    margin-bottom: 0.45rem;
+  }
+
+  .toolbar-btn__key {
+    display: none;
+  }
+
+  .toolbar-variant-select {
+    max-width: 6.5rem;
+    font-size: 0.78rem;
+  }
+
+  .editor-screen__main {
+    position: relative;
+    gap: 0;
+  }
+
+  .canvas-viewport {
+    height: 100%;
+    max-height: none;
+    border-radius: 10px;
+  }
+
+  .editor-panel {
     position: fixed;
-    bottom: 0;
     left: 0;
     right: 0;
-    z-index: 40;
-    padding: 0.4rem 1rem max(0.75rem, env(safe-area-inset-bottom, 0px));
-    max-height: min(46vh, 400px);
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-    background: var(--wirer-surface);
+    bottom: 0;
+    z-index: 30;
+    pointer-events: none;
+    padding: 0 0.65rem max(0.55rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .editor-panel__toggle {
+    pointer-events: auto;
+    margin: 0 auto;
+  }
+
+  .editor-panel--collapsed .editor-panel__toggle {
+    margin-bottom: 0;
+  }
+
+  .editor-panel--open .editor-panel__content {
+    pointer-events: auto;
+    margin-top: 0.45rem;
+    max-height: min(52vh, 460px);
+    padding: 0.65rem 0.75rem 0.85rem;
     border-radius: 14px 14px 0 0;
     border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
-    border-bottom: none;
-    box-shadow: 0 -8px 32px rgb(0 0 0 / 16%);
+    background: var(--wirer-surface);
+    box-shadow: 0 -10px 36px rgb(0 0 0 / 18%);
   }
 
-  .inspector-sheet__grip {
-    display: block;
-    width: 36px;
-    height: 5px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--wirer-fg) 22%, transparent);
-    margin: 0 auto 0.55rem;
+  .editor-panel--open .editor-panel__inspector-scroll {
+    max-height: calc(min(52vh, 460px) - 1rem);
   }
 
-  .editor-screen__inspector-sheet .inspector {
+  .editor-panel--open .inspector {
     border: none;
     background: transparent;
-    padding: 0.35rem 0 0;
+    padding: 0;
   }
 
-  .editor-screen--deck {
-    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  .editor-screen__helper {
+    display: none;
+  }
+
+  .canvas-zoom-controls {
+    right: 0.5rem;
+    bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .editor-panel--open .canvas-zoom-controls {
+    bottom: calc(min(52vh, 460px) + 1rem + env(safe-area-inset-bottom, 0px));
   }
 }
+
 @media (min-width: 768px) {
-  .editor-screen__main {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 1.25rem;
-  }
-
-  .editor-screen__canvas-col {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .editor-screen__sidebar {
-    width: min(320px, 34vw);
+  .editor-screen--deck .editor-screen__banner {
     flex-shrink: 0;
   }
 
-  .editor-screen__inspector-sheet {
-    display: contents;
+  .editor-screen__main {
+    flex: 1 1 0;
+    min-height: 0;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 1.25rem;
+  }
+
+  .editor-screen__viewport {
+    min-height: clamp(420px, calc(100dvh - 11rem), 900px);
+  }
+
+  .editor-screen__canvas-col {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .editor-panel {
+    width: min(320px, 34vw);
+    flex-shrink: 0;
+    min-height: 0;
+    max-height: 100%;
+  }
+
+  .editor-panel--collapsed {
+    width: auto;
+    align-items: flex-end;
+  }
+
+  .editor-panel--collapsed .editor-panel__content {
+    display: none !important;
+  }
+
+  .editor-panel--open .editor-panel__content {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .editor-panel--open .editor-panel__inspector-scroll {
+    flex: 1;
+    padding-right: 0.15rem;
+  }
+
+  .editor-panel__toggle {
+    align-self: flex-end;
+    border-radius: 10px;
+    box-shadow: none;
+  }
+
+  .editor-panel--collapsed .editor-panel__toggle {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    min-height: 7rem;
+    border-radius: 10px 0 0 10px;
+    padding: 0.75rem 0.55rem;
+  }
+
+  .editor-panel--collapsed .editor-panel__toggle-icon {
+    transform: rotate(-45deg);
+  }
+
+  .editor-panel > .issues-panel {
+    flex-shrink: 0;
+  }
+
+  .editor-screen--deck .editor-screen__helper {
+    flex-shrink: 0;
+    margin-top: 0.35rem;
   }
 }
 
@@ -790,6 +1663,11 @@ body {
   color: inherit;
 }
 
+.inspector__range {
+  width: 100%;
+  accent-color: #e6a700;
+}
+
 .inspector__hint {
   margin: 0;
   font-size: 0.82rem;
@@ -911,8 +1789,22 @@ body {
   filter: drop-shadow(0 0 3px rgb(202 138 4 / 55%));
 }
 
-.wire-hit {
-  cursor: pointer;
+.wire-endpoint-hit {
+  fill: rgb(37 99 235 / 25%);
+  stroke: #2563eb;
+  stroke-width: 2;
+  pointer-events: all;
+}
+
+.wire-endpoint-hit--linked {
+  fill: rgb(22 163 74 / 30%);
+  stroke: #16a34a;
+}
+
+.wire-endpoint-hit--pending {
+  fill: rgb(202 138 4 / 35%);
+  stroke: #ca8a04;
+  stroke-width: 3;
 }
 
 .wire-link__path {
@@ -993,13 +1885,17 @@ body {
   fill: var(--wirer-surface);
   stroke: #2563eb;
   stroke-width: 2.5;
-  cursor: grab;
   pointer-events: all;
 }
 
 .path-joint-handle:active {
-  cursor: grabbing;
   fill: #dbeafe;
+}
+
+.path-joint-handle--selected {
+  fill: #dbeafe;
+  stroke: #1d4ed8;
+  filter: drop-shadow(0 0 2px rgb(37 99 235 / 45%));
 }
 
 .conduit-bundle--selected .path-joint-handle,

@@ -1,10 +1,19 @@
-import type { DeviceNode, Diagram, LightBulb, Switch } from './types';
+import type { DeviceNode, Diagram, DimmerSwitch, LightBulb, Outlet, Switch, Wire } from './types';
+import { GRID_SIZE } from './grid';
 
-export const LIGHT_BULB_RADIUS = 28;
+/** Two grid cells; terminals sit on grid lines when the bulb center is snapped. */
+export const LIGHT_BULB_RADIUS = GRID_SIZE * 2;
 
 export const DEFAULT_SWITCH_SIZE = Object.freeze({
-  width: 80,
-  height: 44,
+  width: GRID_SIZE * 8,
+  height: GRID_SIZE * 4,
+});
+
+export const DEFAULT_DIMMER_SIZE = DEFAULT_SWITCH_SIZE;
+
+export const DEFAULT_OUTLET_SIZE = Object.freeze({
+  width: GRID_SIZE * 6,
+  height: GRID_SIZE * 5,
 });
 
 export function lightBulbById(diagram: Diagram, id: string): LightBulb | undefined {
@@ -13,6 +22,14 @@ export function lightBulbById(diagram: Diagram, id: string): LightBulb | undefin
 
 export function switchById(diagram: Diagram, id: string): Switch | undefined {
   return diagram.switches.find((s) => s.id === id);
+}
+
+export function dimmerById(diagram: Diagram, id: string): DimmerSwitch | undefined {
+  return (diagram.dimmerSwitches ?? []).find((d) => d.id === id);
+}
+
+export function outletById(diagram: Diagram, id: string): Outlet | undefined {
+  return (diagram.outlets ?? []).find((o) => o.id === id);
 }
 
 export function deviceNodeById(diagram: Diagram, nodeId: string): DeviceNode | undefined {
@@ -34,7 +51,7 @@ export function lightBulbCenter(bulb: LightBulb): { x: number; y: number } {
   return { x: bulb.x + r, y: bulb.y + r };
 }
 
-/** World position for a device terminal (slot 0 = left, 1 = right, 2 = bottom on 3-way switches). */
+/** World position for a device terminal (2-way: left/right; 3-way: +bottom; 4-way: corners). */
 export function deviceNodeWorldPoint(diagram: Diagram, node: DeviceNode): { x: number; y: number } | null {
   if (node.deviceKind === 'lightBulb') {
     const bulb = lightBulbById(diagram, node.deviceId);
@@ -47,21 +64,70 @@ export function deviceNodeWorldPoint(diagram: Diagram, node: DeviceNode): { x: n
   }
 
   const sw = switchById(diagram, node.deviceId);
-  if (!sw) return null;
-  const cx = sw.x + sw.width / 2;
-  const cy = sw.y + sw.height / 2;
-  if (node.slot === 0) return { x: sw.x, y: cy };
-  if (node.slot === 1) return { x: sw.x + sw.width, y: cy };
-  if (node.slot === 2 && sw.terminalCount >= 3) return { x: cx, y: sw.y + sw.height };
+  if (sw) {
+    const cx = sw.x + sw.width / 2;
+    const cy = sw.y + sw.height / 2;
+    if (sw.terminalCount === 4) {
+      if (node.slot === 0) return { x: sw.x, y: sw.y };
+      if (node.slot === 1) return { x: sw.x + sw.width, y: sw.y };
+      if (node.slot === 2) return { x: sw.x, y: sw.y + sw.height };
+      if (node.slot === 3) return { x: sw.x + sw.width, y: sw.y + sw.height };
+      return null;
+    }
+    if (node.slot === 0) return { x: sw.x, y: cy };
+    if (node.slot === 1) return { x: sw.x + sw.width, y: cy };
+    if (node.slot === 2 && sw.terminalCount >= 3) return { x: cx, y: sw.y + sw.height };
+    return null;
+  }
+
+  const dim = dimmerById(diagram, node.deviceId);
+  if (dim) {
+    const cy = dim.y + dim.height / 2;
+    if (node.slot === 0) return { x: dim.x, y: cy };
+    if (node.slot === 1) return { x: dim.x + dim.width, y: cy };
+    return null;
+  }
+
+  const outlet = outletById(diagram, node.deviceId);
+  if (outlet) {
+    if (!outlet.passthrough) {
+      const cy = outlet.y + outlet.height / 2;
+      if (node.slot === 0) return { x: outlet.x, y: cy };
+      if (node.slot === 1) return { x: outlet.x + outlet.width, y: cy };
+      return null;
+    }
+    if (node.slot === 0) return { x: outlet.x, y: outlet.y + outlet.height * 0.25 };
+    if (node.slot === 1) return { x: outlet.x + outlet.width, y: outlet.y + outlet.height * 0.25 };
+    if (node.slot === 2) return { x: outlet.x, y: outlet.y + outlet.height * 0.75 };
+    if (node.slot === 3) return { x: outlet.x + outlet.width, y: outlet.y + outlet.height * 0.75 };
+    return null;
+  }
+
   return null;
 }
 
+export function wiresOnDeviceNode(diagram: Diagram, nodeId: string): Wire[] {
+  return diagram.wires.filter((w) => w.deviceNodeId === nodeId);
+}
+
 export function wireOnDeviceNode(diagram: Diagram, nodeId: string) {
-  return diagram.wires.find((w) => w.deviceNodeId === nodeId);
+  return wiresOnDeviceNode(diagram, nodeId)[0];
 }
 
 export function conduitsOnDeviceNode(diagram: Diagram, nodeId: string) {
   return diagram.conduits.filter((c) => c.kind === 'device' && c.deviceNodeId === nodeId);
+}
+
+/** Wire ids directly attached or on a terminal conduit stub. */
+export function wireIdsOnDeviceTerminal(diagram: Diagram, nodeId: string): string[] {
+  const ids = new Set<string>();
+  for (const wire of diagram.wires) {
+    if (wire.deviceNodeId === nodeId) ids.add(wire.id);
+  }
+  for (const conduit of conduitsOnDeviceNode(diagram, nodeId)) {
+    for (const wireId of conduit.wireIds) ids.add(wireId);
+  }
+  return [...ids];
 }
 
 /** Unit vector from device center through the terminal (stub runs outward). */
@@ -83,10 +149,31 @@ export function deviceNodeOutwardNormal(
   }
 
   const sw = switchById(diagram, node.deviceId);
-  if (!sw) return null;
-  const center = { x: sw.x + sw.width / 2, y: sw.y + sw.height / 2 };
-  const vx = pt.x - center.x;
-  const vy = pt.y - center.y;
-  const len = Math.hypot(vx, vy) || 1;
-  return { x: vx / len, y: vy / len };
+  if (sw) {
+    const center = { x: sw.x + sw.width / 2, y: sw.y + sw.height / 2 };
+    const vx = pt.x - center.x;
+    const vy = pt.y - center.y;
+    const len = Math.hypot(vx, vy) || 1;
+    return { x: vx / len, y: vy / len };
+  }
+
+  const dim = dimmerById(diagram, node.deviceId);
+  if (dim) {
+    const center = { x: dim.x + dim.width / 2, y: dim.y + dim.height / 2 };
+    const vx = pt.x - center.x;
+    const vy = pt.y - center.y;
+    const len = Math.hypot(vx, vy) || 1;
+    return { x: vx / len, y: vy / len };
+  }
+
+  const outlet = outletById(diagram, node.deviceId);
+  if (outlet) {
+    const center = { x: outlet.x + outlet.width / 2, y: outlet.y + outlet.height / 2 };
+    const vx = pt.x - center.x;
+    const vy = pt.y - center.y;
+    const len = Math.hypot(vx, vy) || 1;
+    return { x: vx / len, y: vy / len };
+  }
+
+  return null;
 }

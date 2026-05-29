@@ -10,20 +10,26 @@ function diagramWithOverlappingLinks(): Diagram {
     { x: 120, y: 150 },
   ];
   return {
+    rooms: [],
     junctionBoxes: [],
     breakers: [],
     hubs: [],
     hubBridges: [],
     lightBulbs: [],
     switches: [],
+    dimmerSwitches: [],
+    outlets: [],
     deviceNodes: [],
     conduits: [],
+    cables: [],
+    conduitRuns: [],
     wires: [
       {
         id: 'w1',
         color: 'black',
         label: '',
         conduitId: null,
+        cableId: null,
         breakerId: null,
         hubId: null,
         deviceNodeId: null,
@@ -34,6 +40,7 @@ function diagramWithOverlappingLinks(): Diagram {
         color: 'white',
         label: '',
         conduitId: null,
+        cableId: null,
         breakerId: null,
         hubId: null,
         deviceNodeId: null,
@@ -41,11 +48,12 @@ function diagramWithOverlappingLinks(): Diagram {
       },
     ],
     wireLinks: [
-      { id: 'l1', wireIdA: 'w1', wireIdB: 'w2', whiteMismatchWarning: false },
-      { id: 'l2', wireIdA: 'w1', wireIdB: 'w2', whiteMismatchWarning: false },
+      { id: 'l1', wireIdA: 'w1', endpointA: 'end', wireIdB: 'w2', endpointB: 'end' },
+      { id: 'l2', wireIdA: 'w1', endpointA: 'end', wireIdB: 'w2', endpointB: 'end' },
     ],
     layout: {
       conduitPaths: {},
+      conduitRunPaths: {},
       wireLinkPaths: {
         l1: { points: path.map((p) => ({ ...p })) },
         l2: { points: path.map((p) => ({ ...p })) },

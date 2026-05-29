@@ -2,6 +2,14 @@ export type Point = { x: number; y: number };
 
 const EPS = 1e-6;
 
+function coerceFivePointPath(start: Point, end: Point): Point[] {
+  const four = coerceFourPointPath(start, end);
+  if (four.length !== 4) return four;
+  const [a, b, c, d] = four;
+  const mid = { x: (b.x + c.x) / 2, y: (b.y + c.y) / 2 };
+  return [a, b, mid, c, d];
+}
+
 function coerceFourPointPath(start: Point, end: Point): Point[] {
   const route = orthogonalRoute(start, end);
   if (route.length >= 4) {
@@ -181,9 +189,16 @@ export function offsetPolylineFixedEndpoints(
 }
 
 /** Rebuild every stored path as horizontal/vertical segments only. */
-export function orthogonalizeLayoutPaths<T extends { layout: { conduitPaths: Record<string, { points: Point[] }>; wireLinkPaths: Record<string, { points: Point[] }>; hubBridgePaths: Record<string, { points: Point[] }> } }>(
-  diagram: T,
-): T {
+export function orthogonalizeLayoutPaths<
+  T extends {
+    layout: {
+      conduitPaths: Record<string, { points: Point[] }>;
+      wireLinkPaths: Record<string, { points: Point[] }>;
+      hubBridgePaths: Record<string, { points: Point[] }>;
+      conduitRunPaths?: Record<string, { points: Point[] }>;
+    };
+  },
+>(diagram: T): T {
   const conduitPaths: Record<string, { points: Point[] }> = {};
   for (const [id, entry] of Object.entries(diagram.layout.conduitPaths)) {
     const pts = entry?.points;
@@ -205,11 +220,11 @@ export function orthogonalizeLayoutPaths<T extends { layout: { conduitPaths: Rec
       if (pts) wireLinkPaths[id] = entry;
       continue;
     }
-    if (pts.length === 4) {
+    if (pts.length === 5) {
       wireLinkPaths[id] = entry;
       continue;
     }
-    wireLinkPaths[id] = { points: coerceFourPointPath(pts[0]!, pts[pts.length - 1]!) };
+    wireLinkPaths[id] = { points: coerceFivePointPath(pts[0]!, pts[pts.length - 1]!) };
   }
 
   const wirePathsLayout: Record<string, { points: Point[] }> = {};
@@ -234,11 +249,104 @@ export function orthogonalizeLayoutPaths<T extends { layout: { conduitPaths: Rec
       if (pts) hubBridgePaths[id] = entry;
       continue;
     }
-    hubBridgePaths[id] = { points: orthogonalRoute(pts[0]!, pts[pts.length - 1]!) };
+    if (pts.length === 5) {
+      hubBridgePaths[id] = entry;
+      continue;
+    }
+    hubBridgePaths[id] = { points: coerceFivePointPath(pts[0]!, pts[pts.length - 1]!) };
+  }
+
+  const layoutExtra = diagram.layout as {
+    hubWirePaths?: Record<string, { points: Point[] }>;
+    deviceWirePaths?: Record<string, { points: Point[] }>;
+    conduitRunPaths?: Record<string, { points: Point[] }>;
+    exposedPaths?: Record<string, { points: Point[] }>;
+    conduitStubPaths?: Record<string, { points: Point[] }>;
+  };
+
+  const hubWirePaths: Record<string, { points: Point[] }> = {};
+  for (const [id, entry] of Object.entries(layoutExtra.hubWirePaths ?? {})) {
+    const pts = entry?.points;
+    if (!pts || pts.length < 2) {
+      if (pts) hubWirePaths[id] = entry;
+      continue;
+    }
+    if (pts.length === 5) {
+      hubWirePaths[id] = entry;
+      continue;
+    }
+    hubWirePaths[id] = { points: coerceFivePointPath(pts[0]!, pts[pts.length - 1]!) };
+  }
+
+  const deviceWirePaths: Record<string, { points: Point[] }> = {};
+  for (const [id, entry] of Object.entries(layoutExtra.deviceWirePaths ?? {})) {
+    const pts = entry?.points;
+    if (!pts || pts.length < 2) {
+      if (pts) deviceWirePaths[id] = entry;
+      continue;
+    }
+    if (pts.length === 5) {
+      deviceWirePaths[id] = entry;
+      continue;
+    }
+    deviceWirePaths[id] = { points: coerceFivePointPath(pts[0]!, pts[pts.length - 1]!) };
+  }
+
+  const conduitRunPaths: Record<string, { points: Point[] }> = {};
+  for (const [id, entry] of Object.entries(layoutExtra.conduitRunPaths ?? {})) {
+    const pts = entry?.points;
+    if (!pts || pts.length < 2) {
+      if (pts) conduitRunPaths[id] = entry;
+      continue;
+    }
+    if (pts.length === 5) {
+      conduitRunPaths[id] = entry;
+      continue;
+    }
+    conduitRunPaths[id] = { points: coerceFivePointPath(pts[0]!, pts[pts.length - 1]!) };
+  }
+
+  const exposedPaths: Record<string, { points: Point[] }> = {};
+  for (const [id, entry] of Object.entries(layoutExtra.exposedPaths ?? {})) {
+    const pts = entry?.points;
+    if (!pts || pts.length < 2) {
+      if (pts) exposedPaths[id] = entry;
+      continue;
+    }
+    if (pts.length === 4) {
+      exposedPaths[id] = entry;
+      continue;
+    }
+    exposedPaths[id] = { points: coerceFourPointPath(pts[0]!, pts[pts.length - 1]!) };
+  }
+
+  const conduitStubPaths: Record<string, { points: Point[] }> = {};
+  for (const [id, entry] of Object.entries(layoutExtra.conduitStubPaths ?? {})) {
+    const pts = entry?.points;
+    if (!pts || pts.length < 2) {
+      if (pts) conduitStubPaths[id] = entry;
+      continue;
+    }
+    if (pts.length >= 3) {
+      conduitStubPaths[id] = entry;
+      continue;
+    }
+    conduitStubPaths[id] = { points: orthogonalRoute(pts[0]!, pts[pts.length - 1]!) };
   }
 
   return {
     ...diagram,
-    layout: { ...diagram.layout, conduitPaths, wireLinkPaths, hubBridgePaths, wirePaths: wirePathsLayout },
+    layout: {
+      ...diagram.layout,
+      conduitPaths,
+      wireLinkPaths,
+      hubBridgePaths,
+      wirePaths: wirePathsLayout,
+      hubWirePaths,
+      deviceWirePaths,
+      conduitRunPaths,
+      exposedPaths,
+      conduitStubPaths,
+    },
   };
 }

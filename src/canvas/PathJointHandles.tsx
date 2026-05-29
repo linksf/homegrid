@@ -7,12 +7,14 @@ type PathJointHandlesProps = {
   path: { x: number; y: number }[];
   vertexIndices: number[];
   onMoveVertex: (index: number, x: number, y: number) => void;
+  onCommitHistory?: () => void;
 };
 
 export function PathJointHandles({
   path,
   vertexIndices,
   onMoveVertex,
+  onCommitHistory,
 }: PathJointHandlesProps): JSX.Element | null {
   const vp = useDiagramViewport();
   const dragRef = useRef<{ pointerId: number; index: number } | null>(null);
@@ -45,6 +47,7 @@ export function PathJointHandles({
   function endDrag(e: ReactPointerEvent) {
     if (dragRef.current?.pointerId !== e.pointerId) return;
     dragRef.current = null;
+    onCommitHistory?.();
     try {
       (e.currentTarget as SVGElement).releasePointerCapture(e.pointerId);
     } catch {

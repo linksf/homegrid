@@ -59,28 +59,43 @@ export type WireChevronPathProps = {
   points: Pt79[];
   resolvedDirection: WireDirection | null;
   directionConflict: boolean;
+  /** Tighter spacing for short wire-to-wire links. */
+  compact?: boolean;
 };
 
 /** Flow markers along a wire stroke; reversed for `toward` vs `away`. */
-export function WireChevronPath({ points, resolvedDirection, directionConflict }: WireChevronPathProps): JSX.Element | null {
+export function WireChevronPath({
+  points,
+  resolvedDirection,
+  directionConflict,
+  compact = false,
+}: WireChevronPathProps): JSX.Element | null {
   if (resolvedDirection == null || points.length < 2) {
     return null;
   }
 
   const total = polylineLength(points);
-  if (total < CHEVRON_EVERY * 0.75) {
+  const spacing = compact ? 28 : CHEVRON_EVERY;
+  const minTotal = compact ? 12 : spacing * 0.75;
+  if (total < minTotal) {
     return null;
   }
 
   const flip = resolvedDirection === 'toward';
   const polys: string[] = [];
-  let d = CHEVRON_EVERY * 0.5;
-  while (d < total - CHEVRON_EVERY * 0.35) {
-    const p = pointAtLength(points, d);
-    if (p) {
-      polys.push(chevronPolygon(p.x, p.y, p.tx, p.ty, flip));
+
+  if (total < spacing * 0.75) {
+    const p = pointAtLength(points, total / 2);
+    if (p) polys.push(chevronPolygon(p.x, p.y, p.tx, p.ty, flip));
+  } else {
+    let d = spacing * 0.5;
+    while (d < total - spacing * 0.35) {
+      const p = pointAtLength(points, d);
+      if (p) {
+        polys.push(chevronPolygon(p.x, p.y, p.tx, p.ty, flip));
+      }
+      d += spacing;
     }
-    d += CHEVRON_EVERY;
   }
 
   if (polys.length === 0) {

@@ -1,41 +1,61 @@
 import type { JSX } from 'react';
-import { useEffect, useState } from 'react';
-import type { AnchorPosition, WireColor } from '../domain/types';
-import { isBreakerSeededWire } from '../domain/breaker-conduit';
+import { useEffect, useRef, useState } from 'react';
+import type { AnchorPosition, WireColor, WireEndpoint } from '../domain/types';
+import type { BreakerCircuitPreset } from '../domain/breaker-cable';
+import { breakerPresetWireColors, isBreakerSeededWire } from '../domain/breaker-cable';
 import {
-  addBreaker,
+  addCable,
+  deleteCable,
+  moveCableAnchor,
+  toggleBreakerCable,
+  updateCable,
+  updateCableWires,
+} from '../domain/cable-mutations';
+import { cableAnchorTaken } from '../domain/cable-slots';
+import {
   addHub,
   addHubBridge,
-  addBreakerConduit,
   addDeviceConduit,
-  addLocalConduit,
-  addSpanConduit,
+  addHubConduit,
   addWireLinkToDiagram,
   attachWireToHub,
-  deleteConduit,
-  deleteHub,
-  deleteHubBridge,
   deleteWire,
-  deleteWireLink,
   detachWireFromHub,
   updateConduit,
   updateHub,
   updateJunctionBox,
   updateWire,
-  wireLinkForWire,
 } from '../domain/mutations';
 import {
+  conduitConnectCompatibleCableIds,
+  connectConduitRun,
+  connectConduitRunToBreakerAnchor,
+  conduitStubAvailableCableIds,
+} from '../domain/conduit-run-mutations';
+import {
+  isDirectionOpposedLink,
+  wireLinkAtEndpoint,
+  wireLinksForWire,
+} from '../domain/wire-link-utils';
+import { resolveDirections } from '../domain/direction';
+import {
   attachHubToDeviceNode,
-  deleteLightBulb,
-  deleteSwitch,
+  attachWireToDeviceNode,
   detachWireFromDeviceNode,
   updateLightBulb,
+  flipSwitchPosition,
   updateSwitch,
+  flipDimmerPosition,
+  adjustDimmerLevel,
+  updateDimmerSwitch,
+  updateOutlet,
 } from '../domain/device-mutations';
+import { addRoomDoor, removeRoomDoor, updateRoom } from '../domain/room-mutations';
 import { deviceNodeById } from '../domain/device-node-geometry';
-import type { Diagram } from '../domain/types';
-import { isWhiteMismatch } from '../domain/warnings';
+import type { Diagram, RoomWall } from '../domain/types';
 import { CanvasViewport } from '../canvas/CanvasViewport';
+import { CanvasZoomControls } from '../canvas/CanvasZoomControls';
+import { JobNameField } from '../components/JobNameField';
 import {
   DEFAULT_LABEL_SCREEN_PX,
   LabelSizeProvider,
@@ -44,12 +64,40 @@ import {
 } from '../canvas/LabelSizeContext';
 import { DiagramSvg } from '../canvas/DiagramSvg';
 import { useJobStore, useResolvedWireMap } from '../store/job-store';
+import { viewportCursorClass } from '../editor/editor-cursor';
 import type { EditorMainTool } from '../editor/editor-tools';
+import { toolForShortcutKey } from '../editor/editor-shortcuts';
+import { EditorInspectorPanel } from '../editor/EditorInspectorPanel';
 import { Toolbar } from '../editor/Toolbar';
+import type { SwitchPlacementKind } from '../editor/placement-options';
 import { Inspector, type InspectorSelection } from '../editor/Inspector';
 import { IssuesPanel } from '../editor/IssuesPanel';
 import { ConduitDialog, type ConduitDialogState } from '../editor/ConduitDialog';
 import { EditorLabelSettings } from '../editor/EditorLabelSettings';
+import {
+  emptySelection,
+  isAnythingSelected,
+  selectionTotalCount,
+  setSingleCable,
+  setSingleConduit,
+  setSingleConduitRun,
+  setSingleDeviceNode,
+  setSingleHub,
+  setSingleHubBridge,
+  setSingleJunctionBox,
+  setSingleLightBulb,
+  setSingleLink,
+  setSingleSwitch,
+  setSingleDimmerSwitch,
+  setSingleOutlet,
+  setSingleRoom,
+  setSingleWire,
+  soleSelectedId,
+  type DiagramSelection,
+} from '../editor/diagram-selection';
+import { encodeJunctionAnchor } from '../editor/anchor-selection';
+import { collectMarqueeSelection } from '../editor/marquee-selection';
+import { deleteAllSelected } from '../editor/selection-actions';
 
 const WORLD_BOUNDS = {
   minX: -800,
@@ -58,12 +106,12 @@ const WORLD_BOUNDS = {
   height: 4000,
 } as const;
 
-const WHITE_MISMATCH_SESSION_KEY = 'wirer:white-mismatch-toast';
+const OPPOSED_FLOW_SESSION_KEY = 'wirer:opposed-flow-toast';
 const SHOW_LABELS_KEY = 'wirer:show-labels';
 const LABEL_SIZE_KEY = 'wirer:label-size-px';
 
 type ConnectPending =
-  | { kind: 'wire'; id: string }
+  | { kind: 'wire-end'; wireId: string; endpoint: import('../domain/types').WireEndpoint }
   | { kind: 'hub'; id: string }
   | { kind: 'node'; id: string }
   | null;
@@ -99,62 +147,119 @@ type EditorScreenProps = {
 export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   const job = useJobStore((s) => s.activeJob);
   const updateDiagram = useJobStore((s) => s.updateDiagram);
+  const commitDiagramHistory = useJobStore((s) => s.commitDiagramHistory);
+  const undoDiagram = useJobStore((s) => s.undoDiagram);
+  const redoDiagram = useJobStore((s) => s.redoDiagram);
+  const canUndo = useJobStore((s) => {
+    void s.historyTick;
+    return s.canUndo();
+  });
+  const canRedo = useJobStore((s) => {
+    void s.historyTick;
+    return s.canRedo();
+  });
   const exportActive = useJobStore((s) => s.exportActive);
   const resolvedByWireId = useResolvedWireMap();
 
   const [tool, setTool] = useState<EditorMainTool>('select');
-  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
-  const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
-  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
-  const [selectedConduitId, setSelectedConduitId] = useState<string | null>(null);
-  const [selectedHubId, setSelectedHubId] = useState<string | null>(null);
-  const [selectedHubBridgeId, setSelectedHubBridgeId] = useState<string | null>(null);
-  const [selectedLightBulbId, setSelectedLightBulbId] = useState<string | null>(null);
-  const [selectedSwitchId, setSelectedSwitchId] = useState<string | null>(null);
-  const [selectedDeviceNodeId, setSelectedDeviceNodeId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<DiagramSelection>(() => emptySelection());
+  const [marquee, setMarquee] = useState<{ ax: number; ay: number; bx: number; by: number } | null>(null);
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [connectPending, setConnectPending] = useState<ConnectPending>(null);
-  const [whiteMismatchBanner, setWhiteMismatchBanner] = useState(false);
+  const [opposedFlowBanner, setOpposedFlowBanner] = useState(false);
   const [conduitDialog, setConduitDialog] = useState<ConduitDialogState>(null);
-  const [spanAnchorA, setSpanAnchorA] = useState<{ boxId: string; anchor: AnchorPosition } | null>(null);
+  const [conduitConnectPending, setConduitConnectPending] = useState<{ cableIdA: string } | null>(null);
   const [showLabels, setShowLabels] = useState(readShowLabelsPreference);
   const [labelSizePx, setLabelSizePx] = useState(readLabelSizePreference);
+  const [shiftPanActive, setShiftPanActive] = useState(false);
+  const [switchPlacementKind, setSwitchPlacementKind] = useState<SwitchPlacementKind>('single-pole');
+  const [outletPassthrough, setOutletPassthrough] = useState(false);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true,
+  );
+
+  const panActive = tool === 'pan' || shiftPanActive;
 
   useEffect(() => {
-    setSpanAnchorA(null);
+    function isEditableTarget(target: EventTarget | null): boolean {
+      const tag = (target as HTMLElement | null)?.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Shift' || isEditableTarget(e.target)) return;
+      setShiftPanActive(true);
+    }
+
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.key === 'Shift') setShiftPanActive(false);
+    }
+
+    function clearShiftPan() {
+      setShiftPanActive(false);
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', clearShiftPan);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', clearShiftPan);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!shiftPanActive) return;
+    setMarquee(null);
+    marqueeStartRef.current = null;
+  }, [shiftPanActive]);
+
+  useEffect(() => {
+    setConduitConnectPending(null);
     setConduitDialog(null);
     setConnectPending(null);
+    setMarquee(null);
+    marqueeStartRef.current = null;
   }, [tool]);
 
   useEffect(() => {
     setDeleteError(null);
-  }, [
-    selectedWireId,
-    selectedLinkId,
-    selectedConduitId,
-    selectedBoxId,
-    selectedHubId,
-    selectedHubBridgeId,
-    selectedLightBulbId,
-    selectedSwitchId,
-    selectedDeviceNodeId,
-  ]);
+  }, [selection]);
 
   function clearSelection() {
-    setSelectedWireId(null);
-    setSelectedBoxId(null);
-    setSelectedLinkId(null);
-    setSelectedConduitId(null);
-    setSelectedHubId(null);
-    setSelectedHubBridgeId(null);
-    setSelectedLightBulbId(null);
-    setSelectedSwitchId(null);
-    setSelectedDeviceNodeId(null);
+    setSelection(emptySelection());
+  }
+
+  function handleMarqueeStart(world: { x: number; y: number }) {
+    marqueeStartRef.current = world;
+    setMarquee({ ax: world.x, ay: world.y, bx: world.x, by: world.y });
+  }
+
+  function handleMarqueeMove(world: { x: number; y: number }) {
+    const start = marqueeStartRef.current;
+    if (!start) return;
+    setMarquee({ ax: start.x, ay: start.y, bx: world.x, by: world.y });
+  }
+
+  function handleMarqueeEnd(world: { x: number; y: number }) {
+    const start = marqueeStartRef.current;
+    if (!start || !job) {
+      setMarquee(null);
+      marqueeStartRef.current = null;
+      return;
+    }
+
+    const picked = collectMarqueeSelection(job.diagram, start.x, start.y, world.x, world.y);
+    setSelection(selectionTotalCount(picked) > 0 ? picked : emptySelection());
+    setMarquee(null);
+    marqueeStartRef.current = null;
   }
 
   function returnToSelectTool() {
     setConduitDialog(null);
-    setSpanAnchorA(null);
+    setConduitConnectPending(null);
     setConnectPending(null);
     setTool('select');
   }
@@ -175,54 +280,37 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
 
   function handleDeleteSelection() {
     if (tool !== 'select' || !job) return;
+    if (!isAnythingSelected(selection)) return;
 
     setDeleteError(null);
 
-    if (selectedLinkId) {
-      updateDiagram((d) => deleteWireLink(d, selectedLinkId));
-      setSelectedLinkId(null);
-      return;
-    }
-
-    if (selectedHubBridgeId) {
-      updateDiagram((d) => deleteHubBridge(d, selectedHubBridgeId));
-      setSelectedHubBridgeId(null);
-      return;
-    }
-
-    if (selectedHubId) {
-      updateDiagram((d) => deleteHub(d, selectedHubId));
-      setSelectedHubId(null);
-      return;
-    }
-
-    if (selectedLightBulbId) {
-      updateDiagram((d) => deleteLightBulb(d, selectedLightBulbId));
-      setSelectedLightBulbId(null);
-      setSelectedDeviceNodeId(null);
-      return;
-    }
-
-    if (selectedSwitchId) {
-      updateDiagram((d) => deleteSwitch(d, selectedSwitchId));
-      setSelectedSwitchId(null);
-      setSelectedDeviceNodeId(null);
-      return;
-    }
-
-    if (selectedConduitId) {
-      updateDiagram((d) => deleteConduit(d, selectedConduitId));
-      setSelectedConduitId(null);
-      return;
-    }
-
-    if (selectedWireId) {
+    if (selectionTotalCount(selection) === 1 && selection.cables.size === 1) {
+      const cableId = soleSelectedId(selection.cables)!;
       try {
-        updateDiagram((d) => deleteWire(d, selectedWireId));
-        setSelectedWireId(null);
+        updateDiagram((d) => deleteCable(d, cableId));
+        clearSelection();
+      } catch (err) {
+        setDeleteError(err instanceof Error ? err.message : 'Could not delete cable.');
+      }
+      return;
+    }
+
+    if (selectionTotalCount(selection) === 1 && selection.wires.size === 1) {
+      const wireId = soleSelectedId(selection.wires)!;
+      try {
+        updateDiagram((d) => deleteWire(d, wireId));
+        clearSelection();
       } catch (err) {
         setDeleteError(err instanceof Error ? err.message : 'Could not delete wire.');
       }
+      return;
+    }
+
+    try {
+      updateDiagram((d) => deleteAllSelected(d, selection));
+      clearSelection();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete selection.');
     }
   }
 
@@ -232,27 +320,63 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
       if (e.key === 'Escape') {
-        if (tool !== 'select' || conduitDialog || connectPending || spanAnchorA) {
+        if (tool !== 'select' || conduitDialog || connectPending || conduitConnectPending) {
           e.preventDefault();
           returnToSelectTool();
         }
         return;
       }
 
-      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-      if (tool !== 'select') return;
-      if (
-        !selectedWireId &&
-        !selectedLinkId &&
-        !selectedConduitId &&
-        !selectedBoxId &&
-        !selectedHubId &&
-        !selectedHubBridgeId &&
-        !selectedLightBulbId &&
-        !selectedSwitchId
-      ) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redoDiagram();
+        } else {
+          undoDiagram();
+        }
         return;
       }
+      if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redoDiagram();
+        return;
+      }
+
+      if (!mod && !e.altKey && e.key.length === 1) {
+        if (e.key.toLowerCase() === 't') {
+          e.preventDefault();
+          setShowLabels((prev) => {
+            const next = !prev;
+            try {
+              sessionStorage.setItem(SHOW_LABELS_KEY, next ? '1' : '0');
+            } catch {
+              /* ignore */
+            }
+            return next;
+          });
+          return;
+        }
+
+        const nextTool = toolForShortcutKey(e.key);
+        if (nextTool) {
+          e.preventDefault();
+          setTool(nextTool);
+          return;
+        }
+      }
+
+      const dimmerId = soleSelectedId(selection.dimmerSwitches);
+      if (dimmerId && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        const delta = e.key === 'ArrowUp' ? 5 : -5;
+        updateDiagram((d) => adjustDimmerLevel(d, dimmerId, delta));
+        return;
+      }
+
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      if (tool !== 'select') return;
+      if (!isAnythingSelected(selection)) return;
       e.preventDefault();
       handleDeleteSelection();
     }
@@ -263,17 +387,12 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     tool,
     conduitDialog,
     connectPending,
-    spanAnchorA,
-    selectedWireId,
-    selectedLinkId,
-    selectedConduitId,
-    selectedBoxId,
-    selectedHubId,
-    selectedHubBridgeId,
-    selectedLightBulbId,
-    selectedSwitchId,
+    conduitConnectPending,
+    selection,
     job,
     updateDiagram,
+    undoDiagram,
+    redoDiagram,
   ]);
 
   function finishConnect(target: ConnectPending) {
@@ -284,15 +403,30 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       return;
     }
 
-    if (connectPending.kind === target.kind && connectPending.id === target.id) {
+    if (
+      connectPending.kind === 'wire-end' &&
+      target.kind === 'wire-end' &&
+      connectPending.wireId === target.wireId &&
+      connectPending.endpoint === target.endpoint
+    ) {
+      setConnectPending(null);
+      return;
+    }
+    if (
+      connectPending.kind !== 'wire-end' &&
+      target.kind !== 'wire-end' &&
+      'id' in connectPending &&
+      'id' in target &&
+      connectPending.id === target.id
+    ) {
       setConnectPending(null);
       return;
     }
 
     try {
-      if (connectPending.kind === 'wire' && target.kind === 'wire') {
-        const wa = job.diagram.wires.find((w) => w.id === connectPending.id);
-        const wb = job.diagram.wires.find((w) => w.id === target.id);
+      if (connectPending.kind === 'wire-end' && target.kind === 'wire-end') {
+        const wa = job.diagram.wires.find((w) => w.id === connectPending.wireId);
+        const wb = job.diagram.wires.find((w) => w.id === target.wireId);
         if (!wa || !wb) {
           setConnectPending(null);
           return;
@@ -304,29 +438,53 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
           return;
         }
 
-        if (wireLinkForWire(job.diagram, connectPending.id) || wireLinkForWire(job.diagram, target.id)) {
-          setDeleteError('Each wire can have only one wire-to-wire connection.');
+        if (
+          wireLinkAtEndpoint(job.diagram, connectPending.wireId, connectPending.endpoint) ||
+          wireLinkAtEndpoint(job.diagram, target.wireId, target.endpoint)
+        ) {
+          setDeleteError('That wire end is already linked.');
           setConnectPending(null);
           return;
         }
 
-        const willWarn = isWhiteMismatch(wa, wb);
-        updateDiagram((d) => addWireLinkToDiagram(d, connectPending.id, target.id));
+        const preview = addWireLinkToDiagram(
+          job.diagram,
+          connectPending.wireId,
+          connectPending.endpoint,
+          target.wireId,
+          target.endpoint,
+        );
+        const newLink = preview.wireLinks[preview.wireLinks.length - 1]!;
+        const resolved = resolveDirections(preview);
+        const willWarn = isDirectionOpposedLink(
+          newLink,
+          resolved.get(wa.id),
+          resolved.get(wb.id),
+        );
+        updateDiagram(() => preview);
 
-        if (willWarn && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(WHITE_MISMATCH_SESSION_KEY)) {
-          sessionStorage.setItem(WHITE_MISMATCH_SESSION_KEY, '1');
-          setWhiteMismatchBanner(true);
+        if (willWarn && typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(OPPOSED_FLOW_SESSION_KEY)) {
+          sessionStorage.setItem(OPPOSED_FLOW_SESSION_KEY, '1');
+          setOpposedFlowBanner(true);
         }
-      } else if (connectPending.kind === 'wire' && target.kind === 'hub') {
-        updateDiagram((d) => attachWireToHub(d, target.id, connectPending.id));
-      } else if (connectPending.kind === 'hub' && target.kind === 'wire') {
-        updateDiagram((d) => attachWireToHub(d, connectPending.id, target.id));
+      } else if (connectPending.kind === 'wire-end' && target.kind === 'hub') {
+        updateDiagram((d) => attachWireToHub(d, target.id, connectPending.wireId));
+      } else if (connectPending.kind === 'hub' && target.kind === 'wire-end') {
+        updateDiagram((d) => attachWireToHub(d, connectPending.id, target.wireId));
       } else if (connectPending.kind === 'hub' && target.kind === 'hub') {
         updateDiagram((d) => addHubBridge(d, connectPending.id, target.id));
       } else if (connectPending.kind === 'hub' && target.kind === 'node') {
         updateDiagram((d) => attachHubToDeviceNode(d, connectPending.id, target.id));
       } else if (connectPending.kind === 'node' && target.kind === 'hub') {
         updateDiagram((d) => attachHubToDeviceNode(d, target.id, connectPending.id));
+      } else if (connectPending.kind === 'wire-end' && target.kind === 'node') {
+        updateDiagram((d) =>
+          attachWireToDeviceNode(d, target.id, connectPending.wireId, connectPending.endpoint),
+        );
+      } else if (connectPending.kind === 'node' && target.kind === 'wire-end') {
+        updateDiagram((d) =>
+          attachWireToDeviceNode(d, connectPending.id, target.wireId, target.endpoint),
+        );
       }
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Could not connect.');
@@ -335,40 +493,97 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     setConnectPending(null);
   }
 
-  function handleAnchorPick(payload: { boxId: string; anchor: AnchorPosition }) {
-    if (tool === 'conduit-local') {
-      const box = job?.diagram.junctionBoxes.find((b) => b.id === payload.boxId);
-      if (box?.type === 'breaker') {
-        setDeleteError('Use the Breaker tool for circuits inside the breaker panel.');
-        return;
+  function handleJunctionAnchorPointerDown(boxId: string, anchor: AnchorPosition) {
+    const key = encodeJunctionAnchor(boxId, anchor);
+    setSelection((prev) => {
+      if (prev.junctionAnchors.has(key) && prev.junctionAnchors.size > 1) {
+        return prev;
       }
-      setConduitDialog({ kind: 'local', junctionBoxId: payload.boxId, anchor: payload.anchor });
-    } else if (tool === 'conduit-breaker') {
-      const box = job?.diagram.junctionBoxes.find((b) => b.id === payload.boxId);
-      if (!box || box.type !== 'breaker') {
-        setDeleteError('Breaker circuits can only be placed on the breaker panel.');
+      const next = emptySelection();
+      next.junctionAnchors.add(key);
+      return next;
+    });
+  }
+
+  function handleHubConduitPick(hubId: string) {
+    setConduitDialog({ kind: 'hub', hubId });
+  }
+
+  function handleAnchorPick(payload: { boxId: string; anchor: AnchorPosition }) {
+    if (!job) return;
+
+    if (tool === 'cable') {
+      if (cableAnchorTaken(job.diagram, payload.boxId, payload.anchor)) {
+        setDeleteError('That junction anchor already has a cable.');
         return;
       }
       setDeleteError(null);
-      setConduitDialog({ kind: 'breaker', junctionBoxId: payload.boxId, anchor: payload.anchor });
-    } else if (tool === 'conduit-span') {
-      if (!spanAnchorA) {
-        setSpanAnchorA({ boxId: payload.boxId, anchor: payload.anchor });
-        return;
+      const box = job.diagram.junctionBoxes.find((b) => b.id === payload.boxId);
+      if (box?.type === 'breaker') {
+        setConduitDialog({ kind: 'breaker', junctionBoxId: payload.boxId, anchor: payload.anchor });
+      } else {
+        setConduitDialog({ kind: 'cable', junctionBoxId: payload.boxId, anchor: payload.anchor });
       }
+    } else if (tool === 'conduit-connect') {
+      if (!conduitConnectPending) return;
 
-      if (spanAnchorA.boxId === payload.boxId) {
-        return;
+      const box = job.diagram.junctionBoxes.find((b) => b.id === payload.boxId);
+      setDeleteError(null);
+      try {
+        if (box?.type === 'breaker') {
+          updateDiagram((d) =>
+            connectConduitRunToBreakerAnchor(
+              d,
+              conduitConnectPending.cableIdA,
+              payload.boxId,
+              payload.anchor,
+            ),
+          );
+        } else {
+          updateDiagram((d) =>
+            connectConduitRun(d, conduitConnectPending.cableIdA, {
+              kind: 'anchor',
+              junctionBoxId: payload.boxId,
+              anchor: payload.anchor,
+            }),
+          );
+        }
+        setConduitConnectPending(null);
+      } catch (err) {
+        setDeleteError(err instanceof Error ? err.message : 'Could not connect conduit run.');
       }
+    }
+  }
 
-      setConduitDialog({
-        kind: 'span',
-        junctionBoxIdA: spanAnchorA.boxId,
-        anchorA: spanAnchorA.anchor,
-        junctionBoxIdB: payload.boxId,
-        anchorB: payload.anchor,
-      });
-      setSpanAnchorA(null);
+  function handleConduitConnectStubPick(cableId: string) {
+    if (!job || tool !== 'conduit-connect') return;
+
+    const available = conduitStubAvailableCableIds(job.diagram);
+    if (!available.has(cableId)) {
+      setDeleteError('That cable conduit stub is already connected by a conduit run.');
+      return;
+    }
+
+    if (!conduitConnectPending) {
+      setDeleteError(null);
+      setConduitConnectPending({ cableIdA: cableId });
+      return;
+    }
+
+    if (conduitConnectPending.cableIdA === cableId) {
+      setDeleteError(null);
+      setConduitConnectPending(null);
+      return;
+    }
+
+    setDeleteError(null);
+    try {
+      updateDiagram((d) =>
+        connectConduitRun(d, conduitConnectPending.cableIdA, { kind: 'cable', cableId }),
+      );
+      setConduitConnectPending(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not connect conduit run.');
     }
   }
 
@@ -376,21 +591,18 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     if (!job) return;
 
     if (tool === 'select') {
-      setSelectedWireId(wireId);
-      setSelectedBoxId(null);
-      setSelectedLinkId(null);
-      setSelectedConduitId(null);
-      setSelectedHubId(null);
-      setSelectedHubBridgeId(null);
-      setSelectedLightBulbId(null);
-      setSelectedSwitchId(null);
-      setSelectedDeviceNodeId(null);
+      setSelection(setSingleWire(wireId));
       return;
     }
 
     if (tool === 'connect-wires') {
-      finishConnect({ kind: 'wire', id: wireId });
+      return;
     }
+  }
+
+  function handleWireEndpointPointerDown(wireId: string, endpoint: WireEndpoint) {
+    if (tool !== 'connect-wires') return;
+    finishConnect({ kind: 'wire-end', wireId, endpoint });
   }
 
   function handleHubPointerDown(hubId: string) {
@@ -399,7 +611,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   }
 
   function handleDeviceNodePointerDown(nodeId: string) {
-    if (tool === 'conduit-local') {
+    if (tool === 'cable') {
       setDeleteError(null);
       setConduitDialog({ kind: 'device', deviceNodeId: nodeId });
       return;
@@ -409,66 +621,84 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       return;
     }
     if (tool === 'select') {
-      setSelectedDeviceNodeId(nodeId);
+      setSelection(setSingleDeviceNode(nodeId));
       const node = deviceNodeById(job!.diagram, nodeId);
       if (node?.deviceKind === 'lightBulb') {
-        setSelectedLightBulbId(node.deviceId);
-        setSelectedSwitchId(null);
+        const next = setSingleLightBulb(node.deviceId);
+        next.deviceNodes.add(nodeId);
+        setSelection(next);
       } else if (node?.deviceKind === 'switch') {
-        setSelectedSwitchId(node.deviceId);
-        setSelectedLightBulbId(null);
+        const next = setSingleSwitch(node.deviceId);
+        next.deviceNodes.add(nodeId);
+        setSelection(next);
+      } else if (node?.deviceKind === 'dimmerSwitch') {
+        const next = setSingleDimmerSwitch(node.deviceId);
+        next.deviceNodes.add(nodeId);
+        setSelection(next);
+      } else if (node?.deviceKind === 'outlet') {
+        const next = setSingleOutlet(node.deviceId);
+        next.deviceNodes.add(nodeId);
+        setSelection(next);
       }
-      setSelectedWireId(null);
-      setSelectedBoxId(null);
-      setSelectedLinkId(null);
-      setSelectedConduitId(null);
-      setSelectedHubId(null);
-      setSelectedHubBridgeId(null);
     }
   }
 
   function handleConduitConfirm(wireColors: WireColor[]) {
     if (!conduitDialog) return;
 
-    if (conduitDialog.kind === 'local') {
-      updateDiagram((d) =>
-        addLocalConduit(d, {
-          junctionBoxId: conduitDialog.junctionBoxId,
-          anchor: conduitDialog.anchor,
-          wireColors,
-        }),
-      );
-    } else if (conduitDialog.kind === 'device') {
-      updateDiagram((d) =>
-        addDeviceConduit(d, {
-          deviceNodeId: conduitDialog.deviceNodeId,
-          wireColors,
-        }),
-      );
-    } else if (conduitDialog.kind === 'span') {
-      updateDiagram((d) =>
-        addSpanConduit(d, {
-          junctionBoxIdA: conduitDialog.junctionBoxIdA,
-          anchorA: conduitDialog.anchorA,
-          junctionBoxIdB: conduitDialog.junctionBoxIdB,
-          anchorB: conduitDialog.anchorB,
-          wireColors,
-        }),
-      );
-    }
+    try {
+      if (conduitDialog.kind === 'cable') {
+        if (!job || cableAnchorTaken(job.diagram, conduitDialog.junctionBoxId, conduitDialog.anchor)) {
+          setDeleteError('That junction anchor already has a cable.');
+          return;
+        }
+        updateDiagram((d) =>
+          addCable(d, {
+            junctionBoxId: conduitDialog.junctionBoxId,
+            anchor: conduitDialog.anchor,
+            wireColors,
+          }),
+        );
+      } else if (conduitDialog.kind === 'device') {
+        updateDiagram((d) =>
+          addDeviceConduit(d, {
+            deviceNodeId: conduitDialog.deviceNodeId,
+            wireColors,
+          }),
+        );
+      } else if (conduitDialog.kind === 'hub') {
+        updateDiagram((d) =>
+          addHubConduit(d, {
+            hubId: conduitDialog.hubId,
+            wireColors,
+          }),
+        );
+      }
 
-    setConduitDialog(null);
+      setConduitDialog(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not apply conduit.');
+    }
   }
 
-  function handleBreakerConduitConfirm(label: string) {
+  function handleBreakerConduitConfirm(label: string, preset: BreakerCircuitPreset) {
     if (!conduitDialog || conduitDialog.kind !== 'breaker') return;
-    updateDiagram((d) =>
-      addBreakerConduit(d, {
+    updateDiagram((d) => {
+      let next = addCable(d, {
         junctionBoxId: conduitDialog.junctionBoxId,
         anchor: conduitDialog.anchor,
-        label,
-      }),
-    );
+        wireColors: breakerPresetWireColors(preset),
+      });
+      const cable = next.cables.find(
+        (c) =>
+          c.junctionBoxId === conduitDialog.junctionBoxId &&
+          c.anchor === conduitDialog.anchor,
+      );
+      if (cable && label.trim()) {
+        next = updateCable(next, cable.id, { label: label.trim() });
+      }
+      return next;
+    });
     setConduitDialog(null);
   }
 
@@ -483,8 +713,43 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     );
   }
 
+  const selectedLinkId = soleSelectedId(selection.links);
+  const selectedHubBridgeId = soleSelectedId(selection.hubBridges);
+  const selectedHubId = soleSelectedId(selection.hubs);
+  const selectedConduitId = soleSelectedId(selection.conduits);
+  const selectedCableId = soleSelectedId(selection.cables);
+  const selectedWireId = soleSelectedId(selection.wires);
+  const selectedLightBulbId = soleSelectedId(selection.lightBulbs);
+  const selectedSwitchId = soleSelectedId(selection.switches);
+  const selectedDimmerId = soleSelectedId(selection.dimmerSwitches);
+  const selectedOutletId = soleSelectedId(selection.outlets);
+  const selectedRoomId = soleSelectedId(selection.rooms);
+  const selectedBoxId = soleSelectedId(selection.junctionBoxes);
+  const multiCount = selectionTotalCount(selection);
+
   let inspectorSelection: InspectorSelection = null;
-  if (selectedLinkId) {
+  if (multiCount > 1) {
+    inspectorSelection = {
+      kind: 'multi',
+      counts: {
+        junctionBoxes: selection.junctionBoxes.size,
+        wires: selection.wires.size,
+        conduits: selection.conduits.size,
+        cables: selection.cables.size,
+        hubs: selection.hubs.size,
+        hubBridges: selection.hubBridges.size,
+        links: selection.links.size,
+        lightBulbs: selection.lightBulbs.size,
+        switches: selection.switches.size,
+        dimmerSwitches: selection.dimmerSwitches.size,
+        outlets: selection.outlets.size,
+        rooms: selection.rooms.size,
+        deviceNodes: selection.deviceNodes.size,
+        junctionAnchors: selection.junctionAnchors.size,
+        pathAnchors: selection.pathAnchors.size,
+      },
+    };
+  } else if (selectedLinkId) {
     const link = job.diagram.wireLinks.find((l) => l.id === selectedLinkId);
     if (link) {
       inspectorSelection = {
@@ -512,6 +777,11 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         .map((w) => wireDisplayLabel(job.diagram, w.id));
       inspectorSelection = { kind: 'hub', hub, wireLabels };
     }
+  } else if (selectedCableId) {
+    const cable = job.diagram.cables.find((c) => c.id === selectedCableId);
+    if (cable) {
+      inspectorSelection = { kind: 'cable', cable };
+    }
   } else if (selectedConduitId) {
     const conduit = job.diagram.conduits.find((c) => c.id === selectedConduitId);
     if (conduit) {
@@ -524,7 +794,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   } else if (selectedWireId) {
     const wire = job.diagram.wires.find((w) => w.id === selectedWireId);
     if (wire) {
-      const link = wireLinkForWire(job.diagram, wire.id);
+      const links = wireLinksForWire(job.diagram, wire.id);
+      const link = links[0];
       const peerId = link ? (link.wireIdA === wire.id ? link.wireIdB : link.wireIdA) : null;
       inspectorSelection = {
         kind: 'wire',
@@ -539,9 +810,23 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 const name = (bulb?.label ?? '').trim() || 'Light';
                 return `${name} · terminal ${node.slot + 1}`;
               }
-              const sw = job.diagram.switches.find((s) => s.id === node.deviceId);
-              const name = (sw?.label ?? '').trim() || 'Switch';
-              return `${name} · terminal ${node.slot + 1}`;
+              if (node.deviceKind === 'switch') {
+                const sw = job.diagram.switches.find((s) => s.id === node.deviceId);
+                const name = (sw?.label ?? '').trim() || 'Switch';
+                return `${name} · terminal ${node.slot + 1}`;
+              }
+              if (node.deviceKind === 'dimmerSwitch') {
+                const dim = job.diagram.dimmerSwitches.find((d) => d.id === node.deviceId);
+                const name = (dim?.label ?? '').trim() || 'Dimmer';
+                return `${name} · terminal ${node.slot + 1}`;
+              }
+              const outlet = job.diagram.outlets.find((o) => o.id === node.deviceId);
+              const outletName = (outlet?.label ?? '').trim() || 'Outlet';
+              const slotNames = outlet?.passthrough
+                ? ['hot in', 'hot out', 'neutral in', 'neutral out']
+                : ['hot', 'neutral'];
+              const slotLabel = slotNames[node.slot] ?? `terminal ${node.slot + 1}`;
+              return `${outletName} · ${slotLabel}`;
             })()
           : null,
         wireLinkPeer: peerId ? wireDisplayLabel(job.diagram, peerId) : null,
@@ -574,6 +859,37 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         .flatMap((c) => c.wireIds.map((wireId) => wireDisplayLabel(job.diagram, wireId)));
       inspectorSelection = { kind: 'switch', sw, wireLabels };
     }
+  } else if (selectedDimmerId) {
+    const dim = job.diagram.dimmerSwitches.find((d) => d.id === selectedDimmerId);
+    if (dim) {
+      const nodeIds = new Set(
+        job.diagram.deviceNodes
+          .filter((n) => n.deviceKind === 'dimmerSwitch' && n.deviceId === dim.id)
+          .map((n) => n.id),
+      );
+      const wireLabels = job.diagram.conduits
+        .filter((c) => c.kind === 'device' && nodeIds.has(c.deviceNodeId))
+        .flatMap((c) => c.wireIds.map((wireId) => wireDisplayLabel(job.diagram, wireId)));
+      inspectorSelection = { kind: 'dimmerSwitch', dim, wireLabels };
+    }
+  } else if (selectedOutletId) {
+    const outlet = job.diagram.outlets.find((o) => o.id === selectedOutletId);
+    if (outlet) {
+      const nodeIds = new Set(
+        job.diagram.deviceNodes
+          .filter((n) => n.deviceKind === 'outlet' && n.deviceId === outlet.id)
+          .map((n) => n.id),
+      );
+      const wireLabels = job.diagram.conduits
+        .filter((c) => c.kind === 'device' && nodeIds.has(c.deviceNodeId))
+        .flatMap((c) => c.wireIds.map((wireId) => wireDisplayLabel(job.diagram, wireId)));
+      inspectorSelection = { kind: 'outlet', outlet, wireLabels };
+    }
+  } else if (selectedRoomId) {
+    const room = (job.diagram.rooms ?? []).find((r) => r.id === selectedRoomId);
+    if (room) {
+      inspectorSelection = { kind: 'room', room };
+    }
   } else if (selectedBoxId) {
     const box = job.diagram.junctionBoxes.find((b) => b.id === selectedBoxId);
     if (box) {
@@ -582,26 +898,55 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     }
   }
 
-  let helper = 'Scroll to zoom, drag empty canvas to pan. Select items and press Delete to remove.';
+  let conduitConnectHighlightCableIds: Set<string> | null = null;
+  let conduitConnectDimStubNonTargets = false;
+  let conduitConnectPendingCableIdForCanvas: string | null = null;
+  if (tool === 'conduit-connect') {
+    conduitConnectPendingCableIdForCanvas = conduitConnectPending?.cableIdA ?? null;
+    if (conduitConnectPending) {
+      conduitConnectHighlightCableIds = new Set<string>([
+        conduitConnectPending.cableIdA,
+        ...conduitConnectCompatibleCableIds(job.diagram, conduitConnectPending.cableIdA),
+      ]);
+      conduitConnectDimStubNonTargets = true;
+    } else {
+      conduitConnectHighlightCableIds = conduitStubAvailableCableIds(job.diagram);
+    }
+  }
+
+  let helper =
+    'Scroll to zoom. Drag empty canvas with middle mouse to pan. Drag on empty canvas to window-select (left→right touches, right→left fully inside).';
   if (tool === 'place-junction') {
     helper = 'Tap the canvas to place junction boxes. Press Escape to return to Select.';
-  } else if (tool === 'conduit-local') {
+  } else if (tool === 'place-room') {
+    helper = 'Tap the canvas to place rooms. Click the outline to select; interior clicks pass through. Press Escape to return to Select.';
+  } else if (tool === 'cable') {
     helper =
-      'Tap a junction box anchor or a light/switch terminal to add a conduit bundle. Press Escape to return to Select.';
-  } else if (tool === 'conduit-span') {
-    helper = spanAnchorA
-      ? 'Tap an anchor on a second junction box to complete the span run. Press Escape to cancel.'
-      : 'Tap an anchor on the starting junction box, then a second box. Press Escape to return to Select.';
-  } else if (tool === 'conduit-breaker') {
-    helper = 'Tap an anchor on the breaker panel to add a circuit (black away, white toward). Press Escape to return to Select.';
+      'Cable tool (C): tap a junction anchor for cables (1–3 wires); tap a breaker panel anchor for a breaker circuit; tap a hub or device terminal for stubs. Press Escape for Select.';
+  } else if (tool === 'conduit-connect') {
+    helper = conduitConnectPending
+      ? 'Conduit connect (E): tap a compatible cable stub, then a junction anchor or breaker panel anchor (creates a matching breaker circuit if needed). Tap the starting stub again to cancel.'
+      : 'Conduit connect (E): tap a cable conduit stub that is not yet in a conduit run; then tap a compatible stub, junction anchor, or breaker panel anchor. Escape cancels.';
   } else if (tool === 'place-light-bulb') {
     helper = 'Tap the canvas to place lights. Press Escape to return to Select.';
   } else if (tool === 'place-switch') {
-    helper = 'Tap the canvas to place switches. Press Escape to return to Select.';
+    helper =
+      switchPlacementKind === 'dimmer'
+        ? 'Tap the canvas to place dimmer switches. Choose type in the toolbar. Press Escape to return to Select.'
+        : `Tap the canvas to place ${switchPlacementKind.replace('-', ' ')} switches. Choose type in the toolbar. Press Escape to return to Select.`;
+  } else if (tool === 'place-outlet') {
+    helper = outletPassthrough
+      ? 'Tap the canvas to place pass-through outlets. Choose type in the toolbar. Press Escape to return to Select.'
+      : 'Tap the canvas to place outlets. Choose type in the toolbar. Press Escape to return to Select.';
   } else if (tool === 'connect-wires') {
     helper = connectPending
-      ? 'Tap a wire, hub, or device terminal to complete the connection. Press Escape to cancel.'
-      : 'Tap wires or hubs to link them. Terminals with conduits can link to a hub. Press Escape to return to Select.';
+      ? 'Link wires (J): tap a second wire end anchor, hub, or device terminal to complete the connection. Press Escape to cancel.'
+      : 'Link wires (J): tap wire end anchors (circles at each wire tip) to link them. Hubs and device terminals work too. Press Escape to return to Select.';
+  } else if (tool === 'pan') {
+    helper = 'Drag anywhere to pan the diagram. Scroll to zoom. Press Escape to return to Select.';
+  } else if (tool === 'select') {
+    helper =
+      'Click to select one item. Drag on empty canvas: left→right selects anything touched; right→left selects only items fully inside. Hold Shift and drag to pan. Drag selected junction anchors or path bends together. Middle-drag to pan. Tools: V select, H pan, B box, M room, L light, S switch, O outlet, C cable, E conduit connect, J link, T labels. ⌘Z undo, ⇧⌘Z redo. Press Delete to remove selection.';
   }
 
   return (
@@ -610,7 +955,11 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         <button type="button" className="btn" onClick={onBack}>
           ← Library
         </button>
-        <h2 className="editor-screen__title">{job.name || 'Untitled job'}</h2>
+        <JobNameField
+          jobId={job.id}
+          name={job.name || 'Untitled job'}
+          className="editor-screen__title editor-screen__title-input"
+        />
       </header>
 
       <Toolbar
@@ -625,15 +974,23 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
             /* ignore */
           }
         }}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undoDiagram}
+        onRedo={redoDiagram}
+        switchPlacementKind={switchPlacementKind}
+        onSwitchPlacementKindChange={setSwitchPlacementKind}
+        outletPassthrough={outletPassthrough}
+        onOutletPassthroughChange={setOutletPassthrough}
       />
 
-      {whiteMismatchBanner && (
+      {opposedFlowBanner && (
         <div className="editor-screen__banner" role="status">
           <p>
-            You linked a white conductor to a non-white one. That often means a neutral is tied to a hot — double-check
+            These wires both flow into this connection. That can mean two hots meeting at a splice — double-check
             before energizing.
           </p>
-          <button type="button" className="btn btn--small" onClick={() => setWhiteMismatchBanner(false)}>
+          <button type="button" className="btn btn--small" onClick={() => setOpposedFlowBanner(false)}>
             Dismiss
           </button>
         </div>
@@ -643,90 +1000,130 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         <div className="editor-screen__canvas-col">
           <div className="editor-screen__viewport">
             <LabelSizeProvider labelScreenPx={labelSizePx}>
-              <CanvasViewport viewBox="-800 -600 5200 4000">
+              <CanvasViewport
+                viewBox="-800 -600 5200 4000"
+                overlay={<CanvasZoomControls />}
+                placementToolActive={
+                  tool === 'place-junction' ||
+                  tool === 'place-room' ||
+                  tool === 'place-light-bulb' ||
+                  tool === 'place-switch' ||
+                  tool === 'place-outlet'
+                }
+                marqueeSelectActive={tool === 'select' && !shiftPanActive}
+                panToolActive={panActive}
+                toolCursorClass={viewportCursorClass(tool, panActive)}
+                onMarqueeStart={(world) => handleMarqueeStart(world)}
+                onMarqueeMove={(world) => handleMarqueeMove(world)}
+                onMarqueeEnd={(world) => handleMarqueeEnd(world)}
+              >
                 <DiagramSvg
                 diagram={job.diagram}
                 resolvedByWireId={resolvedByWireId}
                 tool={tool}
-                selectedBoxId={selectedBoxId}
-                selectedWireId={selectedWireId}
-                connectPendingWireId={connectPending?.kind === 'wire' ? connectPending.id : null}
+                selection={selection}
+                marquee={marquee}
+                connectPendingWireId={
+                  connectPending?.kind === 'wire-end' ? connectPending.wireId : null
+                }
+                connectPendingWireEndpoint={
+                  connectPending?.kind === 'wire-end' ? connectPending.endpoint : null
+                }
                 connectPendingHubId={connectPending?.kind === 'hub' ? connectPending.id : null}
                 connectPendingNodeId={connectPending?.kind === 'node' ? connectPending.id : null}
-                selectedLightBulbId={selectedLightBulbId}
-                selectedSwitchId={selectedSwitchId}
-                selectedDeviceNodeId={selectedDeviceNodeId}
-                selectedLinkId={selectedLinkId}
-                selectedConduitId={selectedConduitId}
-                selectedHubId={selectedHubId}
-                selectedHubBridgeId={selectedHubBridgeId}
                 onWirePointerDown={handleWirePointerDown}
+                onWireEndpointPointerDown={handleWireEndpointPointerDown}
                 onHubPointerDown={handleHubPointerDown}
+                onHubConduitPick={handleHubConduitPick}
                 onDeviceNodePointerDown={handleDeviceNodePointerDown}
-                onApplyDiagram={(mutator) => updateDiagram(mutator)}
+                onApplyDiagram={(mutator, options) => updateDiagram(mutator, options)}
+                onCommitHistory={commitDiagramHistory}
                 onAnchorPick={handleAnchorPick}
-                onSelectLink={(id) => {
-                  clearSelection();
-                  setSelectedLinkId(id);
+                onJunctionAnchorPointerDown={handleJunctionAnchorPointerDown}
+                onSelectLink={(id) => setSelection(setSingleLink(id))}
+                onSelectHubBridge={(id) => setSelection(setSingleHubBridge(id))}
+                onSelectConduit={(id) => setSelection(setSingleConduit(id))}
+                onSelectCable={(id) => setSelection(setSingleCable(id))}
+                onToggleBreakerCable={(cableId) => {
+                  updateDiagram((d) => toggleBreakerCable(d, cableId));
                 }}
-                onSelectHubBridge={(id) => {
-                  clearSelection();
-                  setSelectedHubBridgeId(id);
-                }}
-                onSelectConduit={(id) => {
-                  clearSelection();
-                  setSelectedConduitId(id);
-                }}
-                onSelectHub={(id) => {
-                  clearSelection();
-                  setSelectedHubId(id);
-                }}
+                onSelectCableConduit={(id) => setSelection(setSingleCable(id))}
+                onSelectConduitRun={(runId) => setSelection(setSingleConduitRun(runId))}
+                conduitConnectHighlightCableIds={conduitConnectHighlightCableIds}
+                conduitConnectDimStubNonTargets={conduitConnectDimStubNonTargets}
+                conduitConnectPendingCableId={conduitConnectPendingCableIdForCanvas}
+                onConduitConnectStubPick={handleConduitConnectStubPick}
+                onSelectHub={(id) => setSelection(setSingleHub(id))}
                 onSelectBox={(id) => {
-                  clearSelection();
-                  setSelectedBoxId(id);
+                  if (!id) {
+                    clearSelection();
+                    return;
+                  }
+                  setSelection((prev) => {
+                    if (prev.junctionBoxes.has(id) && prev.junctionBoxes.size > 1) return prev;
+                    return setSingleJunctionBox(id);
+                  });
+                }}
+                onSelectRoom={(id) => {
+                  if (!id) return;
+                  setSelection((prev) => {
+                    if (prev.rooms.has(id) && prev.rooms.size > 1) return prev;
+                    return setSingleRoom(id);
+                  });
                 }}
                 onSelectLightBulb={(id) => {
-                  clearSelection();
-                  setSelectedLightBulbId(id);
+                  if (!id) return;
+                  setSelection((prev) => {
+                    if (prev.lightBulbs.has(id) && prev.lightBulbs.size > 1) return prev;
+                    return setSingleLightBulb(id);
+                  });
                 }}
                 onSelectSwitch={(id) => {
-                  clearSelection();
-                  setSelectedSwitchId(id);
+                  if (!id) return;
+                  setSelection((prev) => {
+                    if (prev.switches.has(id) && prev.switches.size > 1) return prev;
+                    return setSingleSwitch(id);
+                  });
+                }}
+                onSelectDimmerSwitch={(id) => {
+                  if (!id) return;
+                  setSelection((prev) => {
+                    if (prev.dimmerSwitches.has(id) && prev.dimmerSwitches.size > 1) return prev;
+                    return setSingleDimmerSwitch(id);
+                  });
+                }}
+                onSelectOutlet={(id) => {
+                  if (!id) return;
+                  setSelection((prev) => {
+                    if (prev.outlets.has(id) && prev.outlets.size > 1) return prev;
+                    return setSingleOutlet(id);
+                  });
                 }}
                 onSelectDeviceNode={(nodeId) => {
                   handleDeviceNodePointerDown(nodeId);
                 }}
                 worldRect={WORLD_BOUNDS}
                 showLabels={showLabels}
+                switchPlacementKind={switchPlacementKind}
+                outletPassthrough={outletPassthrough}
                 />
               </CanvasViewport>
             </LabelSizeProvider>
           </div>
         </div>
 
-        <aside className="editor-screen__sidebar">
+        <EditorInspectorPanel open={infoPanelOpen} onOpenChange={setInfoPanelOpen}>
           <IssuesPanel
             diagram={job.diagram}
             resolvedByWireId={resolvedByWireId}
             selectedWireId={selectedWireId}
             selectedLinkId={selectedLinkId}
-            onSelectWire={(id) => {
-              setSelectedWireId(id);
-              setSelectedBoxId(null);
-              setSelectedLinkId(null);
-              setSelectedConduitId(null);
-            }}
-            onSelectLink={(id) => {
-              setSelectedLinkId(id);
-              setSelectedWireId(null);
-              setSelectedBoxId(null);
-              setSelectedConduitId(null);
-            }}
+            onSelectWire={(id) => setSelection(setSingleWire(id))}
+            onSelectLink={(id) => setSelection(setSingleLink(id))}
             onExport={exportActive}
             onBack={onBack}
           />
-          <div className="editor-screen__inspector-sheet">
-            <div className="inspector-sheet__grip" aria-hidden />
+          <div className="editor-panel__inspector-scroll">
             <EditorLabelSettings
               showLabels={showLabels}
               onShowLabelsChange={(next) => {
@@ -748,12 +1145,43 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
               }}
             />
             <Inspector
+              diagram={job.diagram}
               selection={inspectorSelection}
+              resolvedByWireId={resolvedByWireId}
               deleteError={deleteError}
               onUpdateWire={(patch) => {
                 if (!selectedWireId) return;
                 updateDiagram((d) => updateWire(d, selectedWireId, patch));
               }}
+              onUpdateCable={(patch) => {
+                if (!selectedCableId) return;
+                updateDiagram((d) => updateCable(d, selectedCableId, patch));
+              }}
+              onUpdateCableWires={(wireColors) => {
+                if (!selectedCableId) return;
+                try {
+                  updateDiagram((d) => updateCableWires(d, selectedCableId, wireColors));
+                  setDeleteError(null);
+                } catch (err) {
+                  setDeleteError(err instanceof Error ? err.message : 'Could not update cable wires.');
+                }
+              }}
+              onMoveCableAnchor={(anchor) => {
+                if (!selectedCableId) return;
+                try {
+                  updateDiagram((d) => moveCableAnchor(d, selectedCableId, anchor));
+                  setDeleteError(null);
+                } catch (err) {
+                  setDeleteError(err instanceof Error ? err.message : 'Could not move cable anchor.');
+                }
+              }}
+              onToggleBreakerCable={
+                selectedCableId
+                  ? () => {
+                      updateDiagram((d) => toggleBreakerCable(d, selectedCableId));
+                    }
+                  : undefined
+              }
               onUpdateConduit={(label) => {
                 if (!selectedConduitId) return;
                 updateDiagram((d) => updateConduit(d, selectedConduitId, { label }));
@@ -782,7 +1210,24 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 selectedBoxId &&
                 job.diagram.junctionBoxes.find((b) => b.id === selectedBoxId)?.type === 'breaker'
                   ? () => {
-                      updateDiagram((d) => addBreaker(d, selectedBoxId));
+                      const panelAnchors: AnchorPosition[] = [
+                        'middle-left',
+                        'center',
+                        'middle-right',
+                        'top-center',
+                        'bottom-center',
+                      ];
+                      updateDiagram((d) => {
+                        const count = d.cables.filter(
+                          (c) => c.junctionBoxId === selectedBoxId && c.role === 'breaker',
+                        ).length;
+                        const anchor = panelAnchors[count % panelAnchors.length]!;
+                        return addCable(d, {
+                          junctionBoxId: selectedBoxId,
+                          anchor,
+                          wireColors: breakerPresetWireColors('twoWire'),
+                        });
+                      });
                     }
                   : undefined
               }
@@ -800,10 +1245,40 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 if (!selectedSwitchId) return;
                 updateDiagram((d) => updateSwitch(d, selectedSwitchId, patch));
               }}
+              onToggleSwitch={
+                selectedSwitchId
+                  ? () => updateDiagram((d) => flipSwitchPosition(d, selectedSwitchId))
+                  : undefined
+              }
+              onUpdateDimmerSwitch={(patch) => {
+                if (!selectedDimmerId) return;
+                updateDiagram((d) => updateDimmerSwitch(d, selectedDimmerId, patch));
+              }}
+              onToggleDimmer={
+                selectedDimmerId
+                  ? () => updateDiagram((d) => flipDimmerPosition(d, selectedDimmerId))
+                  : undefined
+              }
+              onUpdateOutlet={(patch) => {
+                if (!selectedOutletId) return;
+                updateDiagram((d) => updateOutlet(d, selectedOutletId, patch));
+              }}
+              onUpdateRoom={(patch) => {
+                if (!selectedRoomId) return;
+                updateDiagram((d) => updateRoom(d, selectedRoomId, patch));
+              }}
+              onAddRoomDoor={(wall: RoomWall) => {
+                if (!selectedRoomId) return;
+                updateDiagram((d) => addRoomDoor(d, selectedRoomId, wall));
+              }}
+              onRemoveRoomDoor={(doorId) => {
+                if (!selectedRoomId) return;
+                updateDiagram((d) => removeRoomDoor(d, selectedRoomId, doorId));
+              }}
               onDelete={handleDeleteSelection}
             />
           </div>
-        </aside>
+        </EditorInspectorPanel>
       </div>
 
       <footer className="editor-screen__helper">{helper}</footer>
@@ -812,7 +1287,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         state={conduitDialog}
         onDismiss={() => {
           setConduitDialog(null);
-          setSpanAnchorA(null);
+          setConduitConnectPending(null);
         }}
         onConfirm={handleConduitConfirm}
         onConfirmBreaker={handleBreakerConduitConfirm}

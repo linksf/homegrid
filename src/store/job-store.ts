@@ -5,6 +5,21 @@ import { resolveDirections } from '../domain/direction';
 import type { Diagram, Job, ResolvedWire } from '../domain/types';
 import * as jobsDb from '../persistence/db';
 import { exportJob, importJob } from '../persistence/file-io';
+import {
+  beginTransientDiagramHistory,
+  canRedoDiagram,
+  canUndoDiagram,
+  clearDiagramHistory,
+  commitTransientDiagramHistory,
+  popRedoDiagram,
+  popUndoDiagram,
+  recordDiagramHistory,
+  resetDiagramHistory,
+} from './diagram-history';
+
+export type UpdateDiagramOptions = {
+  history?: boolean;
+};
 
 export type JobSummary = Pick<Job, 'id' | 'name' | 'updatedAt' | 'createdAt'>;
 
@@ -19,20 +34,49 @@ function toSummaries(jobs: Job[]): JobSummary[] {
     }));
 }
 
+function downloadJobFile(job: Job): void {
+  const blob = exportJob(job);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safe = job.name.replace(/[^\w\-]+/g, '_').slice(0, 80) || 'job';
+  a.download = `${safe}.wirer`;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export interface JobStore {
   jobs: JobSummary[];
   activeJob: Job | null;
+  /** Bumped when undo/redo availability changes. */
+  historyTick: number;
   loadLibrary: () => Promise<void>;
   createJob: () => Promise<void>;
   openJob: (id: string) => Promise<void>;
   deleteJob: (id: string) => Promise<void>;
-  updateDiagram: (updater: (d: Diagram) => Diagram) => void;
+  deleteJobs: (ids: string[]) => Promise<void>;
+  renameJob: (id: string, name: string) => Promise<void>;
+  updateDiagram: (updater: (d: Diagram) => Diagram, options?: UpdateDiagramOptions) => void;
+  commitDiagramHistory: () => void;
+  undoDiagram: () => void;
+  redoDiagram: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
   exportActive: () => void;
+  exportJobs: (ids: string[]) => Promise<void>;
   importFile: (file: File) => Promise<void>;
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingPersistJobId: string | null = null;
+
+function normalizeJobName(name: string): string {
+  const trimmed = name.trim();
+  return trimmed.length > 0 ? trimmed : 'Untitled job';
+}
 
 function schedulePersist(job: Job, reloadLibrary: () => Promise<void>): void {
   const toPersist = job;
@@ -51,9 +95,14 @@ function schedulePersist(job: Job, reloadLibrary: () => Promise<void>): void {
   }, 300);
 }
 
+function bumpHistoryTick(set: (partial: Partial<JobStore> | ((state: JobStore) => Partial<JobStore>)) => void): void {
+  set((state) => ({ historyTick: state.historyTick + 1 }));
+}
+
 export const useJobStore = create<JobStore>((set, get) => ({
   jobs: [],
   activeJob: null,
+  historyTick: 0,
 
   loadLibrary: async () => {
     const list = await jobsDb.listJobs();
@@ -64,56 +113,144 @@ export const useJobStore = create<JobStore>((set, get) => ({
     const job = createEmptyJob();
     await jobsDb.putJob(job);
     await get().loadLibrary();
+    resetDiagramHistory(job.id);
     set({ activeJob: job });
+    bumpHistoryTick(set);
   },
 
   openJob: async (id: string) => {
     const job = await jobsDb.getJob(id);
     if (!job) return;
+    resetDiagramHistory(job.id);
     set({ activeJob: job });
+    bumpHistoryTick(set);
   },
 
   deleteJob: async (id: string) => {
-    if (pendingPersistJobId === id && persistTimer !== null) {
-      clearTimeout(persistTimer);
-      persistTimer = null;
-      pendingPersistJobId = null;
+    await get().deleteJobs([id]);
+  },
+
+  deleteJobs: async (ids: string[]) => {
+    if (ids.length === 0) return;
+
+    for (const id of ids) {
+      if (pendingPersistJobId === id && persistTimer !== null) {
+        clearTimeout(persistTimer);
+        persistTimer = null;
+        pendingPersistJobId = null;
+      }
+      await jobsDb.deleteJob(id);
     }
 
-    await jobsDb.deleteJob(id);
     const { activeJob } = get();
-    if (activeJob?.id === id) {
+    if (activeJob && ids.includes(activeJob.id)) {
+      clearDiagramHistory(activeJob.id);
       set({ activeJob: null });
+      bumpHistoryTick(set);
     }
     await get().loadLibrary();
   },
 
-  updateDiagram: (updater) => {
+  renameJob: async (id: string, name: string) => {
+    const nextName = normalizeJobName(name);
+    const { activeJob } = get();
+
+    if (activeJob?.id === id) {
+      const updatedAt = new Date().toISOString();
+      const next: Job = { ...activeJob, name: nextName, updatedAt };
+      set({ activeJob: next });
+      await jobsDb.putJob(next);
+      await get().loadLibrary();
+      return;
+    }
+
+    const job = await jobsDb.getJob(id);
+    if (!job) return;
+    const updatedAt = new Date().toISOString();
+    await jobsDb.putJob({ ...job, name: nextName, updatedAt });
+    await get().loadLibrary();
+  },
+
+  updateDiagram: (updater, options) => {
     const current = get().activeJob;
     if (!current) return;
+
+    const recordHistory = options?.history !== false;
+    if (recordHistory) {
+      recordDiagramHistory(current.id, current.diagram);
+    } else {
+      beginTransientDiagramHistory(current.id, current.diagram);
+    }
 
     const diagram = updater(current.diagram);
     const updatedAt = new Date().toISOString();
     const next: Job = { ...current, diagram, updatedAt };
     set({ activeJob: next });
+    if (recordHistory) {
+      bumpHistoryTick(set);
+    }
     schedulePersist(next, get().loadLibrary);
+  },
+
+  commitDiagramHistory: () => {
+    const current = get().activeJob;
+    if (!current) return;
+    if (commitTransientDiagramHistory(current.id, current.diagram)) {
+      bumpHistoryTick(set);
+    }
+  },
+
+  undoDiagram: () => {
+    const current = get().activeJob;
+    if (!current) return;
+    const previous = popUndoDiagram(current.id, current.diagram);
+    if (!previous) return;
+    const updatedAt = new Date().toISOString();
+    const next: Job = { ...current, diagram: previous, updatedAt };
+    set({ activeJob: next });
+    bumpHistoryTick(set);
+    schedulePersist(next, get().loadLibrary);
+  },
+
+  redoDiagram: () => {
+    const current = get().activeJob;
+    if (!current) return;
+    const restored = popRedoDiagram(current.id, current.diagram);
+    if (!restored) return;
+    const updatedAt = new Date().toISOString();
+    const next: Job = { ...current, diagram: restored, updatedAt };
+    set({ activeJob: next });
+    bumpHistoryTick(set);
+    schedulePersist(next, get().loadLibrary);
+  },
+
+  canUndo: () => {
+    const { activeJob, historyTick } = get();
+    void historyTick;
+    return canUndoDiagram(activeJob?.id);
+  },
+
+  canRedo: () => {
+    const { activeJob, historyTick } = get();
+    void historyTick;
+    return canRedoDiagram(activeJob?.id);
   },
 
   exportActive: () => {
     const job = get().activeJob;
     if (!job) return;
+    downloadJobFile(job);
+  },
 
-    const blob = exportJob(job);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const safe = job.name.replace(/[^\w\-]+/g, '_').slice(0, 80) || 'job';
-    a.download = `${safe}.wirer`;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  exportJobs: async (ids: string[]) => {
+    for (let i = 0; i < ids.length; i++) {
+      const job = await jobsDb.getJob(ids[i]!);
+      if (!job) continue;
+      downloadJobFile(job);
+      if (i < ids.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+    }
   },
 
   importFile: async (file: File) => {
@@ -121,13 +258,25 @@ export const useJobStore = create<JobStore>((set, get) => ({
     const job = importJob(json);
     await jobsDb.putJob(job);
     await get().loadLibrary();
+    resetDiagramHistory(job.id);
     set({ activeJob: job });
+    bumpHistoryTick(set);
   },
 }));
 
 /** Resolved wire directions derived from `activeJob.diagram` (breaker seeds + propagation). */
 export function useResolvedWireMap(): Map<string, ResolvedWire> {
   const diagram = useJobStore((s) => s.activeJob?.diagram);
+  const switchStateKey = useJobStore((s) =>
+    (s.activeJob?.diagram.switches ?? [])
+      .map((sw) => `${sw.id}:${sw.terminalCount}:${sw.position ?? ''}`)
+      .join('|'),
+  );
+  const dimmerStateKey = useJobStore((s) =>
+    (s.activeJob?.diagram.dimmerSwitches ?? [])
+      .map((dim) => `${dim.id}:${dim.level ?? ''}:${dim.position ?? ''}`)
+      .join('|'),
+  );
   return useMemo(() => {
     if (!diagram?.wires) return new Map();
     try {
@@ -136,5 +285,5 @@ export function useResolvedWireMap(): Map<string, ResolvedWire> {
       console.error('resolveDirections failed:', err);
       return new Map();
     }
-  }, [diagram]);
+  }, [diagram, switchStateKey, dimmerStateKey]);
 }

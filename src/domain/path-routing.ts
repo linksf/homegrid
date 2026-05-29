@@ -2,9 +2,9 @@ import { anchorPoint } from './anchors';
 import {
   breakerConduitPathPoints,
   deviceConduitPathPoints,
+  hubConduitPathPoints,
   localConduitPathPoints,
 } from './conduit-geometry';
-import { wireLinkForWire } from './wire-link-utils';
 import {
   conduitUsesPerWirePaths,
   dragPathVertex,
@@ -19,7 +19,7 @@ import {
   perpendicularDelta,
   type Point,
 } from './orthogonal-path';
-import type { Conduit, Diagram } from './types';
+import type { AnchorPosition, Conduit, Diagram } from './types';
 
 export type { ConduitEndpointRoles } from './path-editing';
 export type EndpointRole = ConduitEndpointRoles['start'];
@@ -36,10 +36,14 @@ export function defaultConduitPath(diagram: Diagram, conduit: Conduit): Point[] 
   if (conduit.kind === 'device') {
     return deviceConduitPathPoints(diagram, conduit.deviceNodeId);
   }
-  if (conduit.kind === 'breaker') {
-    const box = diagram.junctionBoxes.find((j) => j.id === conduit.junctionBoxId);
+  if (conduit.kind === 'hub') {
+    return hubConduitPathPoints(diagram, conduit.hubId);
+  }
+  if ((conduit as { kind: string }).kind === 'breaker') {
+    const legacy = conduit as typeof conduit & { junctionBoxId: string; anchor: AnchorPosition };
+    const box = diagram.junctionBoxes.find((j) => j.id === legacy.junctionBoxId);
     if (!box) return null;
-    return breakerConduitPathPoints(box, conduit.anchor);
+    return breakerConduitPathPoints(box, legacy.anchor);
   }
   if (conduit.kind === 'span') {
     const boxA = diagram.junctionBoxes.find((j) => j.id === conduit.junctionBoxIdA);
@@ -53,12 +57,18 @@ export function defaultConduitPath(diagram: Diagram, conduit: Conduit): Point[] 
   return null;
 }
 
-/** True when any wire on this conduit is linked or tied to a hub at the far end. */
+/** True when any wire on this conduit is tied to a hub or terminal at the far end. */
 export function isConduitFarEndConnected(diagram: Diagram, conduit: Conduit): boolean {
+  if (conduit.kind === 'hub') {
+    for (const wireId of conduit.wireIds) {
+      const wire = diagram.wires.find((w) => w.id === wireId);
+      if (wire?.deviceNodeId) return true;
+    }
+    return false;
+  }
   for (const wireId of conduit.wireIds) {
     const wire = diagram.wires.find((w) => w.id === wireId);
     if (!wire) continue;
-    if (wireLinkForWire(diagram, wire.id)) return true;
     if (wire.hubId) return true;
   }
   return false;
@@ -240,18 +250,33 @@ export function wireHasFreeFarEnd(diagram: Diagram, wireId: string): boolean {
   if (!wire?.conduitId) return false;
   const conduit = diagram.conduits.find((c) => c.id === wire.conduitId);
   if (!conduit || conduit.kind === 'span') return false;
-  if (wireLinkForWire(diagram, wireId)) return false;
-  if (wire.hubId) return false;
+  if (wire.deviceNodeId) return false;
   return true;
+}
+
+function wireEndpointFixedForLink(
+  diagram: Diagram,
+  wireId: string,
+  endpoint: 'start' | 'end',
+): boolean {
+  const wire = diagram.wires.find((w) => w.id === wireId);
+  if (!wire) return true;
+  if (wire.deviceNodeId && endpoint === 'end') return true;
+  const conduit = wire.conduitId ? diagram.conduits.find((c) => c.id === wire.conduitId) : undefined;
+  if (conduit?.kind === 'span') return true;
+  if (endpoint === 'start') return true;
+  return false;
 }
 
 export function wireLinkEndpointsFullyAnchored(diagram: Diagram, linkId: string): boolean {
   const link = diagram.wireLinks.find((l) => l.id === linkId);
   if (!link) return false;
-  const wa = diagram.wires.find((w) => w.id === link.wireIdA);
-  const wb = diagram.wires.find((w) => w.id === link.wireIdB);
-  if (!wa || !wb) return false;
-  return !wireHasFreeFarEnd(diagram, wa.id) && !wireHasFreeFarEnd(diagram, wb.id);
+  const epA = link.endpointA ?? 'end';
+  const epB = link.endpointB ?? 'end';
+  return (
+    wireEndpointFixedForLink(diagram, link.wireIdA, epA) &&
+    wireEndpointFixedForLink(diagram, link.wireIdB, epB)
+  );
 }
 
 

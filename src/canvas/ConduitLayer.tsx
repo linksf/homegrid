@@ -6,6 +6,9 @@ import { WireChevronPath } from './WireChevronPath';
 import { polylineMidpoint, wireWorldPolyline } from '../domain/wire-geometry';
 import { ZoomLabel } from './ZoomLabel';
 
+/** Post-cable migration: `local` / `span` bundles are drawn via `CableLayer` / `ConduitRunLayer` only. */
+const SKIP_CONDUIT_BUNDLE_KINDS = new Set<Conduit['kind']>(['local', 'span']);
+
 const WIRE_CLASS: Record<WireColor, string> = {
   red: 'wire-stroke wire-stroke--red',
   white: 'wire-stroke wire-stroke--white',
@@ -17,11 +20,11 @@ type ConduitBundleProps = {
   conduit: Diagram['conduits'][number];
   resolvedByWireId: Map<string, ResolvedWire>;
   tool: EditorMainTool;
-  selectedWireId: string | null;
+  selectedWireIds: Set<string>;
   connectPendingWireId: string | null;
   onWirePointerDown?: (wireId: string) => void;
   showLabels: boolean;
-  selectedConduitId?: string | null;
+  selectedConduitIds?: Set<string>;
   onSelectConduit?: (conduitId: string) => void;
 };
 
@@ -34,11 +37,11 @@ export function ConduitBundle({
   conduit,
   resolvedByWireId,
   tool,
-  selectedWireId,
+  selectedWireIds,
   connectPendingWireId,
   onWirePointerDown: _onWirePointerDown,
   showLabels,
-  selectedConduitId,
+  selectedConduitIds,
   onSelectConduit,
 }: ConduitBundleProps): JSX.Element | null {
   const wires = conduit.wireIds
@@ -48,17 +51,17 @@ export function ConduitBundle({
 
   const centerPath = conduitCenterPath(diagram, conduit.id);
   const conduitMid = centerPath ? polylineMidpoint(centerPath) : null;
-  const conduitSelected = selectedConduitId === conduit.id;
+  const conduitSelected = selectedConduitIds?.has(conduit.id) ?? false;
   const conduitSelectable =
     tool === 'select' && Boolean(onSelectConduit) && centerPath && centerPath.length >= 2;
 
   const kindClass =
-    conduit.kind === 'breaker'
-      ? 'conduit-bundle--breaker'
-      : conduit.kind === 'span'
-        ? 'conduit-bundle--span'
-        : conduit.kind === 'device'
-          ? 'conduit-bundle--device'
+    conduit.kind === 'span'
+      ? 'conduit-bundle--span'
+      : conduit.kind === 'device'
+        ? 'conduit-bundle--device'
+        : conduit.kind === 'hub'
+          ? 'conduit-bundle--hub'
           : 'conduit-bundle--local';
 
   return (
@@ -90,7 +93,7 @@ export function ConduitBundle({
         const rw = resolvedByWireId.get(wire.id);
         const strokeClass = [
           WIRE_CLASS[wire.color],
-          tool === 'select' && selectedWireId === wire.id ? 'wire-stroke--selected' : '',
+          tool === 'select' && selectedWireIds.has(wire.id) ? 'wire-stroke--selected' : '',
           tool === 'connect-wires' && connectPendingWireId === wire.id ? 'wire-stroke--pending-link' : '',
         ]
           .filter(Boolean)
@@ -151,13 +154,13 @@ type ConduitLayerProps = {
   layerClassName?: string;
   resolvedByWireId: Map<string, ResolvedWire>;
   tool: EditorMainTool;
-  selectedWireId: string | null;
+  selectedWireIds: Set<string>;
   connectPendingWireId: string | null;
   onWirePointerDown?: (wireId: string) => void;
   showLabels: boolean;
   /** When false, wire/conduit labels are omitted (e.g. drawn in DiagramLabelsLayer). */
   renderLabels?: boolean;
-  selectedConduitId?: string | null;
+  selectedConduitIds?: Set<string>;
   onSelectConduit?: (conduitId: string) => void;
   onApplyDiagram?: (mutator: (diagram: Diagram) => Diagram) => void;
 };
@@ -168,19 +171,19 @@ export function ConduitLayer({
   layerClassName,
   resolvedByWireId,
   tool,
-  selectedWireId,
+  selectedWireIds,
   connectPendingWireId,
   onWirePointerDown,
   showLabels,
   renderLabels,
-  selectedConduitId,
+  selectedConduitIds,
   onSelectConduit,
   onApplyDiagram: _onApplyDiagram,
 }: ConduitLayerProps): JSX.Element {
   const labelsVisible = renderLabels ?? showLabels;
-  const conduits = kinds
-    ? diagram.conduits.filter((c) => kinds.includes(c.kind))
-    : diagram.conduits;
+  const conduits = diagram.conduits.filter(
+    (c) => !SKIP_CONDUIT_BUNDLE_KINDS.has(c.kind) && (!kinds || kinds.includes(c.kind)),
+  );
 
   return (
     <g
@@ -195,11 +198,11 @@ export function ConduitLayer({
           diagram={diagram}
           resolvedByWireId={resolvedByWireId}
           tool={tool}
-          selectedWireId={selectedWireId}
+          selectedWireIds={selectedWireIds}
           connectPendingWireId={connectPendingWireId}
           onWirePointerDown={onWirePointerDown}
           showLabels={labelsVisible}
-          selectedConduitId={selectedConduitId}
+          selectedConduitIds={selectedConduitIds}
           onSelectConduit={onSelectConduit}
         />
       ))}

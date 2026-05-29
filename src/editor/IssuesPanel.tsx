@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 import type { Diagram, ResolvedWire } from '../domain/types';
+import { isDirectionOpposedLink } from '../domain/wire-link-utils';
 
 function wireTitle(diagram: Diagram, wireId: string): string {
   const w = diagram.wires.find((x) => x.id === wireId);
@@ -34,7 +35,15 @@ export function IssuesPanel({
     .slice()
     .sort((a, b) => a.id.localeCompare(b.id));
 
-  const mismatchLinks = diagram.wireLinks.filter((l) => l.whiteMismatchWarning).slice();
+  const opposedLinks = diagram.wireLinks
+    .filter((link) =>
+      isDirectionOpposedLink(
+        link,
+        resolvedByWireId.get(link.wireIdA),
+        resolvedByWireId.get(link.wireIdB),
+      ),
+    )
+    .slice();
 
   return (
     <section className="issues-panel" aria-label="Issues">
@@ -78,12 +87,12 @@ export function IssuesPanel({
       </div>
 
       <div className="issues-panel__block">
-        <h4 className="issues-panel__subtitle">White–hot mismatches</h4>
-        {mismatchLinks.length === 0 ? (
+        <h4 className="issues-panel__subtitle">Opposing flow at connections</h4>
+        {opposedLinks.length === 0 ? (
           <p className="issues-panel__empty">None</p>
         ) : (
           <ul className="issues-panel__list">
-            {mismatchLinks.map((link) => {
+            {opposedLinks.map((link) => {
               const a = wireTitle(diagram, link.wireIdA);
               const b = wireTitle(diagram, link.wireIdB);
               return (

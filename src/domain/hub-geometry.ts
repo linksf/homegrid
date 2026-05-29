@@ -1,14 +1,9 @@
-import type { Diagram, Hub, HubSlot, JunctionBox } from './types';
+import { anchorPoint } from './anchors';
+import { HUB_GRID_INSET } from './grid';
+import { resolveWirePath } from './wire-routing';
+import type { Diagram, Hub, HubSlot, JunctionBox, Wire } from './types';
 
 export const HUB_SLOT_COUNT = 4;
-
-/** Normalized positions for the four hub nodes inside a junction box. */
-export const HUB_SLOT_POSITIONS: Record<HubSlot, { u: number; v: number }> = {
-  0: { u: 0.28, v: 0.32 },
-  1: { u: 0.72, v: 0.32 },
-  2: { u: 0.28, v: 0.68 },
-  3: { u: 0.72, v: 0.68 },
-};
 
 export const HUB_SLOTS: HubSlot[] = [0, 1, 2, 3];
 
@@ -16,24 +11,56 @@ export function isHubSlot(n: number): n is HubSlot {
   return n === 0 || n === 1 || n === 2 || n === 3;
 }
 
-export function hubWorldPoint(box: JunctionBox, hub: Hub): { x: number; y: number } {
-  const pos = HUB_SLOT_POSITIONS[hub.slot];
-  return {
-    x: box.x + pos.u * box.width,
-    y: box.y + pos.v * box.height,
-  };
+/** Grid-aligned hub positions inset one cell from each corner of the box interior. */
+export function hubSlotWorldPoint(
+  box: Pick<JunctionBox, 'x' | 'y' | 'width' | 'height'>,
+  slot: HubSlot,
+): { x: number; y: number } {
+  const left = box.x + HUB_GRID_INSET;
+  const right = box.x + box.width - HUB_GRID_INSET;
+  const top = box.y + HUB_GRID_INSET;
+  const bottom = box.y + box.height - HUB_GRID_INSET;
+  switch (slot) {
+    case 0:
+      return { x: left, y: top };
+    case 1:
+      return { x: right, y: top };
+    case 2:
+      return { x: left, y: bottom };
+    case 3:
+      return { x: right, y: bottom };
+    default:
+      return { x: left, y: top };
+  }
 }
 
-export function hubSlotWorldPoint(box: JunctionBox, slot: HubSlot): { x: number; y: number } {
-  const pos = HUB_SLOT_POSITIONS[slot];
-  return {
-    x: box.x + pos.u * box.width,
-    y: box.y + pos.v * box.height,
-  };
+export function hubWorldPoint(box: JunctionBox, hub: Hub): { x: number; y: number } {
+  return hubSlotWorldPoint(box, hub.slot);
 }
+
+/** @deprecated Slots are grid-fixed; kept for normalize-hubs migration. */
+export const HUB_SLOT_POSITIONS = {
+  0: { u: 0, v: 0 },
+  1: { u: 1, v: 0 },
+  2: { u: 0, v: 1 },
+  3: { u: 1, v: 1 },
+} as const;
 
 export function hubById(diagram: Diagram, hubId: string): Hub | undefined {
   return diagram.hubs.find((h) => h.id === hubId);
+}
+
+/**
+ * Wires tied to this hub by the Connect tool (not created as part of a hub conduit stub bundle).
+ * Hub conduit wires share `hubId` but are excluded so multiple conductors can stub from one hub.
+ */
+export function wiresDirectAttachedToHub(diagram: Diagram, hubId: string): Wire[] {
+  return diagram.wires.filter((w) => {
+    if (w.hubId !== hubId) return false;
+    if (!w.conduitId) return true;
+    const conduit = diagram.conduits.find((c) => c.id === w.conduitId);
+    return !(conduit?.kind === 'hub' && conduit.hubId === hubId);
+  });
 }
 
 export function hubsOnJunctionBox(diagram: Diagram, junctionBoxId: string): Hub[] {
@@ -56,7 +83,6 @@ export function firstAvailableHubSlot(diagram: Diagram, junctionBoxId: string): 
   return null;
 }
 
-/** Pick the nearest slot for legacy hubs that only stored u/v. */
 export function nearestHubSlot(u: number, v: number): HubSlot {
   let best: HubSlot = 0;
   let bestDist = Infinity;
@@ -84,24 +110,27 @@ export function junctionBoxForWire(diagram: Diagram, wireId: string): string | n
   const conduit = diagram.conduits.find((c) => c.id === wire.conduitId);
   if (!conduit) return null;
 
-  if (conduit.kind === 'local' || conduit.kind === 'breaker') {
+  if (conduit.kind === 'local') {
     return conduit.junctionBoxId;
   }
 
-  if (conduit.kind !== 'span') {
-    return null;
+  if ((conduit as { kind: string }).kind === 'breaker') {
+    return (conduit as unknown as { junctionBoxId: string }).junctionBoxId;
   }
 
-  const path = diagram.layout.conduitPaths[conduit.id]?.points;
-  if (!path || path.length < 2) return null;
+  if (conduit.kind === 'span') {
+    const boxA = diagram.junctionBoxes.find((j) => j.id === conduit.junctionBoxIdA);
+    const boxB = diagram.junctionBoxes.find((j) => j.id === conduit.junctionBoxIdB);
+    const path = resolveWirePath(diagram, wireId);
+    if (!path || path.length < 2 || !boxA || !boxB) return null;
 
-  const wireIdx = conduit.wireIds.indexOf(wireId);
-  if (wireIdx < 0) return null;
+    const anchorA = anchorPoint(boxA, conduit.anchorA);
+    const anchorB = anchorPoint(boxB, conduit.anchorB);
+    const start = path[0]!;
+    const distA = Math.hypot(start.x - anchorA.x, start.y - anchorA.y);
+    const distB = Math.hypot(start.x - anchorB.x, start.y - anchorB.y);
+    return distA <= distB ? conduit.junctionBoxIdA : conduit.junctionBoxIdB;
+  }
 
-  const nearStart =
-    Math.hypot(path[0]!.x - path[1]!.x, path[0]!.y - path[1]!.y) > 0
-      ? wireIdx < conduit.wireIds.length / 2
-      : true;
-
-  return nearStart ? conduit.junctionBoxIdA : conduit.junctionBoxIdB;
+  return null;
 }

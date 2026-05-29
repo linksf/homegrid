@@ -15,7 +15,7 @@ function polylineToPath(pts: { x: number; y: number }[]): string {
 
 /** Wire hit targets above wire links so linked stubs stay selectable. */
 export function WireHitLayer({ diagram, tool, onWirePointerDown }: WireHitLayerProps): JSX.Element {
-  const interactive = (tool === 'select' || tool === 'connect-wires') && Boolean(onWirePointerDown);
+  const interactive = tool === 'select' && Boolean(onWirePointerDown);
 
   return (
     <g className="wire-hit-layer" role="presentation" aria-label="Wire selection">

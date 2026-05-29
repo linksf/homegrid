@@ -1,4 +1,5 @@
 import { orthogonalRoute, type Point } from './orthogonal-path';
+import { GRID_SIZE, snapGridCoord, snapGridPoint } from './grid';
 import type { Conduit } from './types';
 
 export type ConduitEndpointRoles = {
@@ -7,23 +8,34 @@ export type ConduitEndpointRoles = {
 };
 
 export function conduitUsesPerWirePaths(conduit: Conduit): boolean {
-  return conduit.kind === 'local' || conduit.kind === 'device' || conduit.kind === 'breaker';
+  return (
+    conduit.kind === 'local' ||
+    conduit.kind === 'device' ||
+    conduit.kind === 'hub' ||
+    conduit.kind === 'span'
+  );
 }
 
-export const PATH_EDIT_SNAP = 12;
+export const PATH_EDIT_SNAP = GRID_SIZE;
 
-/** Wires and wire links always use exactly four anchors (three segments). */
+/** Stub/breaker/local wires use four anchors; span wires use five (three interior bends). */
 export const FIXED_WIRE_VERTEX_COUNT = 4;
-export const FIXED_LINK_VERTEX_COUNT = 4;
+export const FIXED_SPAN_WIRE_VERTEX_COUNT = 5;
+/** Dashed ties (wire links, hub wires, hub bridges, device wires) use five anchors (three interior bends). */
+export const FIXED_LINK_VERTEX_COUNT = 5;
+
+export function wirePathVertexCount(conduit: Conduit | null | undefined): number {
+  return conduit?.kind === 'span' ? FIXED_SPAN_WIRE_VERTEX_COUNT : FIXED_WIRE_VERTEX_COUNT;
+}
 
 const EPS = 1e-6;
 
-export function snapPathCoord(value: number, step = PATH_EDIT_SNAP): number {
-  return Math.round(value / step) * step;
+export function snapPathCoord(value: number, step = GRID_SIZE): number {
+  return snapGridCoord(value, step);
 }
 
-export function snapPathPoint(p: Point, step = PATH_EDIT_SNAP): Point {
-  return { x: snapPathCoord(p.x, step), y: snapPathCoord(p.y, step) };
+export function snapPathPoint(p: Point, step = GRID_SIZE): Point {
+  return snapGridPoint(p, step);
 }
 
 /** Removes collinear middle vertices. */
@@ -78,7 +90,28 @@ export function defaultFourPointPath(start: Point, end: Point): Point[] {
   return [a, snapPathPoint(midA), snapPathPoint(midB), b];
 }
 
-/** Normalize any stored path to exactly four anchors, pinning both ends. */
+/** Default five-anchor orthogonal path between a fixed start and end (span wires). */
+export function defaultFivePointPath(start: Point, end: Point): Point[] {
+  const route = defaultFourPointPath(start, end);
+  if (route.length !== FIXED_WIRE_VERTEX_COUNT) {
+    return defaultFourPointPath(start, end);
+  }
+
+  const a = { ...route[0]! };
+  const b = { ...route[1]! };
+  const c = { ...route[2]! };
+  const d = { ...route[3]! };
+  const mid = snapPathPoint({ x: (b.x + c.x) / 2, y: (b.y + c.y) / 2 });
+  return [a, b, mid, c, d];
+}
+
+export function defaultWirePathBetween(start: Point, end: Point, vertexCount: number): Point[] {
+  return vertexCount === FIXED_SPAN_WIRE_VERTEX_COUNT
+    ? defaultFivePointPath(start, end)
+    : defaultFourPointPath(start, end);
+}
+
+/** Normalize any stored path to a fixed anchor count, pinning both ends. */
 export function normalizeFixedPath(
   points: Point[] | null | undefined,
   start: Point,
@@ -94,6 +127,15 @@ export function normalizeFixedPath(
 
   if (points && points.length > vertexCount) {
     const last = points.length - 1;
+    if (vertexCount === FIXED_SPAN_WIRE_VERTEX_COUNT) {
+      const mid = Math.floor(last / 2);
+      return normalizeFixedPath(
+        [points[0]!, points[1]!, points[mid]!, points[last - 1]!, points[last]!],
+        start,
+        end,
+        vertexCount,
+      );
+    }
     return normalizeFixedPath(
       [points[0]!, points[1]!, points[last - 1]!, points[last]!],
       start,
@@ -102,15 +144,20 @@ export function normalizeFixedPath(
     );
   }
 
-  return defaultFourPointPath(start, end);
+  if (points && points.length === FIXED_WIRE_VERTEX_COUNT && vertexCount === FIXED_SPAN_WIRE_VERTEX_COUNT) {
+    return defaultFivePointPath(start, end);
+  }
+
+  return defaultWirePathBetween(start, end, vertexCount);
 }
 
 export function normalizeWirePath(
   points: Point[] | null | undefined,
   start: Point,
   end: Point,
+  vertexCount: number = FIXED_WIRE_VERTEX_COUNT,
 ): Point[] {
-  return normalizeFixedPath(points, start, end, FIXED_WIRE_VERTEX_COUNT);
+  return normalizeFixedPath(points, start, end, vertexCount);
 }
 
 export function normalizeLinkPath(
@@ -134,14 +181,24 @@ export function dragFixedVertex(
   return out;
 }
 
-/** Draggable wire anchors: interior pair plus far tip (hub wires omit the tip). */
-export function draggableWireVertexIndices(hubAttached: boolean): number[] {
-  return hubAttached ? [1, 2] : [1, 2, 3];
+/** Draggable wire anchors: interior bends plus any free end anchor. */
+export function draggableWireVertexIndices(
+  pathLength: number,
+  startFixed: boolean,
+  endFixed: boolean,
+): number[] {
+  const indices: number[] = [];
+  for (let i = 1; i < pathLength - 1; i++) indices.push(i);
+  if (!endFixed) indices.push(pathLength - 1);
+  if (!startFixed) indices.unshift(0);
+  return indices;
 }
 
-/** Draggable wire-link anchors (endpoints stay on wire tips). */
-export function draggableLinkVertexIndices(): number[] {
-  return [1, 2];
+/** Draggable dashed-connection anchors (endpoints stay on their nodes). */
+export function draggableLinkVertexIndices(pathLength: number = FIXED_LINK_VERTEX_COUNT): number[] {
+  const indices: number[] = [];
+  for (let i = 1; i < pathLength - 1; i++) indices.push(i);
+  return indices;
 }
 
 /** Indices the user may drag (never the fixed anchor at 0). */
@@ -197,9 +254,17 @@ export function pinPathEndpoints(
 ): Point[] {
   if (points.length < 2) return orthogonalRoute(start, end);
 
-  if (points.length === FIXED_WIRE_VERTEX_COUNT || points.length === FIXED_LINK_VERTEX_COUNT) {
+  const fixedCounts = new Set<number>([
+    FIXED_WIRE_VERTEX_COUNT,
+    FIXED_SPAN_WIRE_VERTEX_COUNT,
+    FIXED_LINK_VERTEX_COUNT,
+  ]);
+
+  if (fixedCounts.has(points.length)) {
     const out = points.map((p) => ({ ...p }));
-    out[0] = { ...start };
+    if (roles.start === 'fixed') {
+      out[0] = { ...start };
+    }
     if (roles.end === 'fixed') {
       out[out.length - 1] = { ...end };
     }
@@ -219,8 +284,11 @@ export function hasCustomConduitPathShape(points: Point[] | undefined | null): b
   return Boolean(points && points.length >= 3);
 }
 
-export function hasCustomWirePathShape(points: Point[] | undefined | null): boolean {
-  return Boolean(points && points.length === FIXED_WIRE_VERTEX_COUNT);
+export function hasCustomWirePathShape(
+  points: Point[] | undefined | null,
+  vertexCount: number = FIXED_WIRE_VERTEX_COUNT,
+): boolean {
+  return Boolean(points && points.length === vertexCount);
 }
 
 export function hasCustomLinkPathShape(points: Point[] | undefined | null): boolean {
