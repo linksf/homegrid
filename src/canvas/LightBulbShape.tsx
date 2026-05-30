@@ -2,7 +2,8 @@ import type { CSSProperties, JSX, PointerEvent as ReactPointerEvent } from 'reac
 import { useRef } from 'react';
 import {
   conduitsOnDeviceNode,
-  deviceNodeWorldPoint,
+  deviceNodeLocalPoint,
+  deviceOrientation,
   LIGHT_BULB_RADIUS,
   deviceNodesForDevice,
   wireOnDeviceNode,
@@ -57,6 +58,7 @@ export function LightBulbShape({
   const lit = brightness > 0;
   const connectInteractive = tool === 'connect-wires';
   const conduitInteractive = tool === 'cable';
+  const orientation = deviceOrientation(bulb);
 
   function worldPoint(ev: ReactPointerEvent | PointerEvent) {
     return vp.clientPointToWorld(ev.clientX, ev.clientY);
@@ -112,7 +114,7 @@ export function LightBulbShape({
       ]
         .filter(Boolean)
         .join(' ')}
-      transform={`translate(${bulb.x}, ${bulb.y})`}
+      transform={`translate(${bulb.x}, ${bulb.y}) rotate(${orientation}, ${r}, ${r})`}
       style={{ '--bulb-brightness': String(brightness / 100) } as CSSProperties}
     >
       <circle
@@ -126,7 +128,7 @@ export function LightBulbShape({
         onPointerCancel={endDrag}
       />
       {nodes.map((node) => {
-        const world = deviceNodeWorldPoint(diagram, node);
+        const world = deviceNodeLocalPoint(diagram, node);
         if (!world) return null;
         const lx = world.x - bulb.x;
         const ly = world.y - bulb.y;

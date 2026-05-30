@@ -2,7 +2,8 @@ import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import { useRef } from 'react';
 import {
   conduitsOnDeviceNode,
-  deviceNodeWorldPoint,
+  deviceNodeLocalPoint,
+  deviceOrientation,
   deviceNodesForDevice,
   wireOnDeviceNode,
 } from '../domain/device-node-geometry';
@@ -108,13 +109,15 @@ export function OutletShape({
 
   const nodeLayout = nodes
     .map((node) => {
-      const world = deviceNodeWorldPoint(diagram, node);
+      const world = deviceNodeLocalPoint(diagram, node);
       if (!world) return null;
       return { node, lx: world.x - outlet.x, ly: world.y - outlet.y };
     })
     .filter((entry): entry is NonNullable<typeof entry> => entry != null);
 
   const slotPoint = new Map(nodeLayout.map(({ node, lx, ly }) => [node.slot, { lx, ly }]));
+
+  const orientation = deviceOrientation(outlet);
 
   return (
     <g
@@ -126,7 +129,7 @@ export function OutletShape({
       ]
         .filter(Boolean)
         .join(' ')}
-      transform={`translate(${outlet.x}, ${outlet.y})`}
+      transform={`translate(${outlet.x}, ${outlet.y}) rotate(${orientation}, ${cx}, ${cy})`}
     >
       <rect
         className="outlet-device__body"

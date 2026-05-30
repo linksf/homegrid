@@ -2,7 +2,8 @@ import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import { useRef } from 'react';
 import {
   conduitsOnDeviceNode,
-  deviceNodeWorldPoint,
+  deviceNodeLocalPoint,
+  deviceOrientation,
   deviceNodesForDevice,
   wireOnDeviceNode,
 } from '../domain/device-node-geometry';
@@ -126,7 +127,7 @@ export function SwitchShape({
 
   const nodeLayout = nodes
     .map((node) => {
-      const world = deviceNodeWorldPoint(diagram, node);
+      const world = deviceNodeLocalPoint(diagram, node);
       if (!world) return null;
       return {
         node,
@@ -138,6 +139,8 @@ export function SwitchShape({
 
   const slotPoint = new Map(nodeLayout.map(({ node, lx, ly }) => [node.slot, { lx, ly }]));
 
+  const orientation = deviceOrientation(sw);
+
   return (
     <g
       className={[
@@ -147,7 +150,7 @@ export function SwitchShape({
       ]
         .filter(Boolean)
         .join(' ')}
-      transform={`translate(${sw.x}, ${sw.y})`}
+      transform={`translate(${sw.x}, ${sw.y}) rotate(${orientation}, ${cx}, ${cy})`}
     >
       <rect
         className="switch-device__body"

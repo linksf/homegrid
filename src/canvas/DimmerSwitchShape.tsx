@@ -2,7 +2,8 @@ import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import { useRef } from 'react';
 import {
   conduitsOnDeviceNode,
-  deviceNodeWorldPoint,
+  deviceNodeLocalPoint,
+  deviceOrientation,
   deviceNodesForDevice,
   wireOnDeviceNode,
 } from '../domain/device-node-geometry';
@@ -110,11 +111,13 @@ export function DimmerSwitchShape({
 
   const nodeLayout = nodes
     .map((node) => {
-      const world = deviceNodeWorldPoint(diagram, node);
+      const world = deviceNodeLocalPoint(diagram, node);
       if (!world) return null;
       return { node, lx: world.x - dim.x, ly: world.y - dim.y };
     })
     .filter((entry): entry is NonNullable<typeof entry> => entry != null);
+
+  const orientation = deviceOrientation(dim);
 
   return (
     <g
@@ -125,7 +128,7 @@ export function DimmerSwitchShape({
       ]
         .filter(Boolean)
         .join(' ')}
-      transform={`translate(${dim.x}, ${dim.y})`}
+      transform={`translate(${dim.x}, ${dim.y}) rotate(${orientation}, ${cx}, ${cy})`}
     >
       <rect
         className="dimmer-device__body"
