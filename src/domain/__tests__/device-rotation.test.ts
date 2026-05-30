@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyJob } from '../defaults';
-import { addSwitch } from '../device-mutations';
+import { addLightBulb, addOutlet, addDimmerSwitch, addSwitch, rotateDevice } from '../device-mutations';
 import { deviceNodeWorldPoint } from '../device-node-geometry';
 import type { DeviceNode } from '../types';
 
@@ -44,5 +44,41 @@ describe('rotation-aware terminal geometry', () => {
     const left = deviceNodeWorldPoint(diagram, switchNode(diagram, 0))!;
     expect(left.x).toBeCloseTo(cx);
     expect(left.y).toBeCloseTo(cy + sw.width / 2);
+  });
+});
+
+describe('rotateDevice', () => {
+  it('cycles a switch clockwise through 90/180/270/0', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addSwitch(diagram, 300, 300, 2);
+    const id = diagram.switches[0]!.id;
+    diagram = rotateDevice(diagram, 'switch', id, 'cw');
+    expect(diagram.switches[0]!.orientation).toBe(90);
+    diagram = rotateDevice(diagram, 'switch', id, 'cw');
+    expect(diagram.switches[0]!.orientation).toBe(180);
+    diagram = rotateDevice(diagram, 'switch', id, 'cw');
+    expect(diagram.switches[0]!.orientation).toBe(270);
+    diagram = rotateDevice(diagram, 'switch', id, 'cw');
+    expect(diagram.switches[0]!.orientation).toBe(0);
+  });
+
+  it('rotates counter-clockwise', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addOutlet(diagram, 300, 300, false);
+    const id = diagram.outlets[0]!.id;
+    diagram = rotateDevice(diagram, 'outlet', id, 'ccw');
+    expect(diagram.outlets[0]!.orientation).toBe(270);
+  });
+
+  it('rotates a light bulb and a dimmer', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addLightBulb(diagram, 200, 200);
+    diagram = addDimmerSwitch(diagram, 400, 400);
+    const bulbId = diagram.lightBulbs[0]!.id;
+    const dimId = diagram.dimmerSwitches[0]!.id;
+    diagram = rotateDevice(diagram, 'lightBulb', bulbId, 'cw');
+    diagram = rotateDevice(diagram, 'dimmerSwitch', dimId, 'cw');
+    expect(diagram.lightBulbs[0]!.orientation).toBe(90);
+    expect(diagram.dimmerSwitches[0]!.orientation).toBe(90);
   });
 });

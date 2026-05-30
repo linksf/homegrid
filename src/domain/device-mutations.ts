@@ -359,6 +359,85 @@ function removeDeviceConduitsForNodes(diagram: Diagram, nodeIds: Set<string>): D
   };
 }
 
+export type DeviceRotationKind = 'lightBulb' | 'switch' | 'dimmerSwitch' | 'outlet';
+export type RotationDirection = 'cw' | 'ccw';
+
+function nextOrientation(current: number | undefined, direction: RotationDirection): 0 | 90 | 180 | 270 {
+  const base = ((Math.round((current ?? 0) / 90) * 90) % 360 + 360) % 360;
+  const delta = direction === 'cw' ? 90 : -90;
+  const next = ((base + delta) % 360 + 360) % 360;
+  return next as 0 | 90 | 180 | 270;
+}
+
+/** Rotates a single device 90° around its own center and refreshes attached paths. */
+export function rotateDevice(
+  diagram: Diagram,
+  kind: DeviceRotationKind,
+  id: string,
+  direction: RotationDirection,
+): Diagram {
+  if (kind === 'lightBulb') {
+    const bulb = diagram.lightBulbs.find((b) => b.id === id);
+    if (!bulb) return diagram;
+    const orientation = nextOrientation(bulb.orientation, direction);
+    return refreshHubWirePaths(
+      rebuildDeviceConduitPathsForDevice(
+        {
+          ...diagram,
+          lightBulbs: diagram.lightBulbs.map((b) => (b.id === id ? { ...b, orientation } : b)),
+        },
+        'lightBulb',
+        id,
+      ),
+    );
+  }
+  if (kind === 'switch') {
+    const sw = diagram.switches.find((s) => s.id === id);
+    if (!sw) return diagram;
+    const orientation = nextOrientation(sw.orientation, direction);
+    return refreshHubWirePaths(
+      rebuildDeviceConduitPathsForDevice(
+        {
+          ...diagram,
+          switches: diagram.switches.map((s) => (s.id === id ? { ...s, orientation } : s)),
+        },
+        'switch',
+        id,
+      ),
+    );
+  }
+  if (kind === 'dimmerSwitch') {
+    const dim = (diagram.dimmerSwitches ?? []).find((d) => d.id === id);
+    if (!dim) return diagram;
+    const orientation = nextOrientation(dim.orientation, direction);
+    return refreshHubWirePaths(
+      rebuildDeviceConduitPathsForDevice(
+        {
+          ...diagram,
+          dimmerSwitches: (diagram.dimmerSwitches ?? []).map((d) =>
+            d.id === id ? { ...d, orientation } : d,
+          ),
+        },
+        'dimmerSwitch',
+        id,
+      ),
+    );
+  }
+  const outlet = (diagram.outlets ?? []).find((o) => o.id === id);
+  if (!outlet) return diagram;
+  const orientation = nextOrientation(outlet.orientation, direction);
+  return refreshHubWirePaths(
+    rebuildDeviceConduitPathsForDevice(
+      {
+        ...diagram,
+        outlets: (diagram.outlets ?? []).map((o) => (o.id === id ? { ...o, orientation } : o)),
+      },
+      'outlet',
+      id,
+    ),
+  );
+}
+
 export function deleteLightBulb(diagram: Diagram, bulbId: string): Diagram {
   const nodeIds = new Set(
     diagram.deviceNodes
