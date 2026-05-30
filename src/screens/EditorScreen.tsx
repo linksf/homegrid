@@ -50,9 +50,9 @@ import {
   updateDimmerSwitch,
   updateOutlet,
 } from '../domain/device-mutations';
-import { addRoomDoor, removeRoomDoor, updateRoom } from '../domain/room-mutations';
+import { addRoomDoorAt, removeRoomDoor, updateRoom } from '../domain/room-mutations';
 import { deviceNodeById } from '../domain/device-node-geometry';
-import type { Diagram, RoomWall } from '../domain/types';
+import type { Diagram } from '../domain/types';
 import { CanvasViewport } from '../canvas/CanvasViewport';
 import { CanvasZoomControls } from '../canvas/CanvasZoomControls';
 import { JobNameField } from '../components/JobNameField';
@@ -97,7 +97,7 @@ import {
 } from '../editor/diagram-selection';
 import { encodeJunctionAnchor } from '../editor/anchor-selection';
 import { collectMarqueeSelection } from '../editor/marquee-selection';
-import { deleteAllSelected } from '../editor/selection-actions';
+import { deleteAllSelected, rotateSelectedDevices, selectionHasRotatableDevice } from '../editor/selection-actions';
 
 const WORLD_BOUNDS = {
   minX: -800,
@@ -175,6 +175,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   const [shiftPanActive, setShiftPanActive] = useState(false);
   const [switchPlacementKind, setSwitchPlacementKind] = useState<SwitchPlacementKind>('single-pole');
   const [outletPassthrough, setOutletPassthrough] = useState(false);
+  const [doorPlacingRoomId, setDoorPlacingRoomId] = useState<string | null>(null);
   const [infoPanelOpen, setInfoPanelOpen] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true,
   );
@@ -221,11 +222,16 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     setConduitDialog(null);
     setConnectPending(null);
     setMarquee(null);
+    setDoorPlacingRoomId(null);
     marqueeStartRef.current = null;
   }, [tool]);
 
   useEffect(() => {
     setDeleteError(null);
+  }, [selection]);
+
+  useEffect(() => {
+    setDoorPlacingRoomId((prev) => (prev && selection.rooms.has(prev) ? prev : null));
   }, [selection]);
 
   function clearSelection() {
@@ -320,6 +326,11 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
       if (e.key === 'Escape') {
+        if (doorPlacingRoomId) {
+          e.preventDefault();
+          setDoorPlacingRoomId(null);
+          return;
+        }
         if (tool !== 'select' || conduitDialog || connectPending || conduitConnectPending) {
           e.preventDefault();
           returnToSelectTool();
@@ -366,6 +377,13 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         }
       }
 
+      if (!mod && e.key.toLowerCase() === 'r' && tool === 'select' && selectionHasRotatableDevice(selection)) {
+        e.preventDefault();
+        const direction = e.shiftKey ? 'ccw' : 'cw';
+        updateDiagram((d) => rotateSelectedDevices(d, selection, direction));
+        return;
+      }
+
       const dimmerId = soleSelectedId(selection.dimmerSwitches);
       if (dimmerId && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();
@@ -388,6 +406,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     conduitDialog,
     connectPending,
     conduitConnectPending,
+    doorPlacingRoomId,
     selection,
     job,
     updateDiagram,
@@ -919,7 +938,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   if (tool === 'place-junction') {
     helper = 'Tap the canvas to place junction boxes. Press Escape to return to Select.';
   } else if (tool === 'place-room') {
-    helper = 'Tap the canvas to place rooms. Click the outline to select; interior clicks pass through. Press Escape to return to Select.';
+    helper =
+      'Drag on the canvas to size a new room (or click for a default room). Click the outline to select; interior clicks pass through. Press Escape to return to Select.';
   } else if (tool === 'cable') {
     helper =
       'Cable tool (C): tap a junction anchor for cables (1–3 wires); tap a breaker panel anchor for a breaker circuit; tap a hub or device terminal for stubs. Press Escape for Select.';
@@ -947,6 +967,10 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   } else if (tool === 'select') {
     helper =
       'Click to select one item. Drag on empty canvas: left→right selects anything touched; right→left selects only items fully inside. Hold Shift and drag to pan. Drag selected junction anchors or path bends together. Middle-drag to pan. Tools: V select, H pan, B box, M room, L light, S switch, O outlet, C cable, E conduit connect, J link, T labels. ⌘Z undo, ⇧⌘Z redo. Press Delete to remove selection.';
+  }
+
+  if (doorPlacingRoomId) {
+    helper = 'Place door: click anywhere along a room wall to drop a door there. Press Escape or toggle off when done.';
   }
 
   return (
@@ -1070,6 +1094,10 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                     if (prev.rooms.has(id) && prev.rooms.size > 1) return prev;
                     return setSingleRoom(id);
                   });
+                }}
+                doorPlacingRoomId={doorPlacingRoomId}
+                onPlaceRoomDoor={(roomId, wall, centerOffset) => {
+                  updateDiagram((d) => addRoomDoorAt(d, roomId, wall, centerOffset));
                 }}
                 onSelectLightBulb={(id) => {
                   if (!id) return;
@@ -1267,13 +1295,14 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 if (!selectedRoomId) return;
                 updateDiagram((d) => updateRoom(d, selectedRoomId, patch));
               }}
-              onAddRoomDoor={(wall: RoomWall) => {
-                if (!selectedRoomId) return;
-                updateDiagram((d) => addRoomDoor(d, selectedRoomId, wall));
-              }}
               onRemoveRoomDoor={(doorId) => {
                 if (!selectedRoomId) return;
                 updateDiagram((d) => removeRoomDoor(d, selectedRoomId, doorId));
+              }}
+              doorPlacing={Boolean(selectedRoomId) && doorPlacingRoomId === selectedRoomId}
+              onToggleDoorPlacing={() => {
+                if (!selectedRoomId) return;
+                setDoorPlacingRoomId((prev) => (prev === selectedRoomId ? null : selectedRoomId));
               }}
               onDelete={handleDeleteSelection}
             />
