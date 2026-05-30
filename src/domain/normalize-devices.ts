@@ -2,6 +2,12 @@ import { nanoid } from 'nanoid';
 import { normalizeDimmerLevel, normalizeDimmerPosition, normalizeSwitchPosition, switchTerminalCount } from './continuity';
 import type { DeviceNode, Diagram, DimmerSwitch, LightBulb, Outlet, Switch } from './types';
 
+function normalizeOrientation(value: unknown): 0 | 90 | 180 | 270 {
+  const raw = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  const norm = ((Math.round(raw / 90) * 90) % 360 + 360) % 360;
+  return norm as 0 | 90 | 180 | 270;
+}
+
 function nodesForBulb(bulbId: string, existing: DeviceNode[]): DeviceNode[] {
   const bySlot = new Map(existing.filter((n) => n.deviceId === bulbId).map((n) => [n.slot, n]));
   const nodes: DeviceNode[] = [];
@@ -116,23 +122,26 @@ export function normalizeDeviceNodes(diagram: Diagram): Diagram {
 
   return {
     ...diagram,
-    lightBulbs: bulbs,
+    lightBulbs: bulbs.map((b) => ({ ...b, orientation: normalizeOrientation(b.orientation) })),
     switches: switches.map((s) => {
       const terminalCount = switchTerminalCount(s);
       return {
         ...s,
         terminalCount,
         position: normalizeSwitchPosition({ ...s, terminalCount }),
+        orientation: normalizeOrientation(s.orientation),
       };
     }),
     dimmerSwitches: dimmerSwitches.map((d) => ({
       ...d,
       level: normalizeDimmerLevel(d),
       position: normalizeDimmerPosition(d),
+      orientation: normalizeOrientation(d.orientation),
     })),
     outlets: outlets.map((o) => ({
       ...o,
       passthrough: Boolean(o.passthrough),
+      orientation: normalizeOrientation(o.orientation),
     })),
     deviceNodes,
     conduits,
