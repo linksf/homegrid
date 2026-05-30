@@ -1,4 +1,11 @@
-import { deleteLightBulb, deleteSwitch, deleteDimmerSwitch, deleteOutlet } from '../domain/device-mutations';
+import {
+  deleteLightBulb,
+  deleteSwitch,
+  deleteDimmerSwitch,
+  deleteOutlet,
+  rotateDevice,
+  type RotationDirection,
+} from '../domain/device-mutations';
 import {
   deleteConduit,
   deleteHub,
@@ -59,4 +66,28 @@ export function deleteAllSelected(diagram: Diagram, selection: DiagramSelection)
   }
 
   return next;
+}
+
+/** Rotates every selected device 90° around its own center. */
+export function rotateSelectedDevices(
+  diagram: Diagram,
+  selection: DiagramSelection,
+  direction: RotationDirection,
+): Diagram {
+  let next = diagram;
+  for (const id of selection.lightBulbs) next = rotateDevice(next, 'lightBulb', id, direction);
+  for (const id of selection.switches) next = rotateDevice(next, 'switch', id, direction);
+  for (const id of selection.dimmerSwitches) next = rotateDevice(next, 'dimmerSwitch', id, direction);
+  for (const id of selection.outlets) next = rotateDevice(next, 'outlet', id, direction);
+  return next;
+}
+
+/** True when the selection contains at least one rotatable device. */
+export function selectionHasRotatableDevice(selection: DiagramSelection): boolean {
+  return (
+    selection.lightBulbs.size > 0 ||
+    selection.switches.size > 0 ||
+    selection.dimmerSwitches.size > 0 ||
+    selection.outlets.size > 0
+  );
 }

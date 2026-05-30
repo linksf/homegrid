@@ -3,6 +3,8 @@ import { createEmptyJob } from '../defaults';
 import { addLightBulb, addOutlet, addDimmerSwitch, addSwitch, rotateDevice } from '../device-mutations';
 import { deviceNodeWorldPoint } from '../device-node-geometry';
 import type { DeviceNode } from '../types';
+import { emptySelection } from '../../editor/diagram-selection';
+import { rotateSelectedDevices } from '../../editor/selection-actions';
 
 function switchNode(diagram: ReturnType<typeof createEmptyJob>['diagram'], slot: number): DeviceNode {
   return diagram.deviceNodes.find((n) => n.deviceKind === 'switch' && n.slot === slot)!;
@@ -80,5 +82,28 @@ describe('rotateDevice', () => {
     diagram = rotateDevice(diagram, 'dimmerSwitch', dimId, 'cw');
     expect(diagram.lightBulbs[0]!.orientation).toBe(90);
     expect(diagram.dimmerSwitches[0]!.orientation).toBe(90);
+  });
+});
+
+describe('rotateSelectedDevices', () => {
+  it('rotates every selected device around its own center', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addSwitch(diagram, 300, 300, 2);
+    diagram = addOutlet(diagram, 600, 600, false);
+    const swId = diagram.switches[0]!.id;
+    const outletId = diagram.outlets[0]!.id;
+    const swX = diagram.switches[0]!.x;
+    const outletX = diagram.outlets[0]!.x;
+
+    const selection = emptySelection();
+    selection.switches.add(swId);
+    selection.outlets.add(outletId);
+
+    diagram = rotateSelectedDevices(diagram, selection, 'cw');
+    expect(diagram.switches[0]!.orientation).toBe(90);
+    expect(diagram.outlets[0]!.orientation).toBe(90);
+    // Positions (top-left) are unchanged — each rotates about its own center.
+    expect(diagram.switches[0]!.x).toBe(swX);
+    expect(diagram.outlets[0]!.x).toBe(outletX);
   });
 });
