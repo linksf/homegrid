@@ -378,7 +378,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         }
       }
 
-      if (!mod && e.key.toLowerCase() === 'r' && tool === 'select' && selectionHasRotatableDevice(selection)) {
+      if (!mod && !e.altKey && e.key.toLowerCase() === 'r' && tool === 'select' && selectionHasRotatableDevice(selection)) {
         e.preventDefault();
         const direction = e.shiftKey ? 'ccw' : 'cw';
         updateDiagram((d) => rotateSelectedDevices(d, selection, direction));
