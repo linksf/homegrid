@@ -19,7 +19,8 @@ describe('normalizeDeviceNodes orientation', () => {
     const missing = {
       ...diagram,
       switches: diagram.switches.map((s) => {
-        const { orientation: _drop, ...rest } = s as typeof s & { orientation?: number };
+        const rest = { ...s } as typeof s & { orientation?: number };
+        delete rest.orientation;
         return rest;
       }),
     };
