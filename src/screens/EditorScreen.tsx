@@ -49,6 +49,7 @@ import {
   adjustDimmerLevel,
   updateDimmerSwitch,
   updateOutlet,
+  rotateDevice,
 } from '../domain/device-mutations';
 import { addRoomDoorAt, removeRoomDoor, updateRoom } from '../domain/room-mutations';
 import { deviceNodeById } from '../domain/device-node-geometry';
@@ -1290,6 +1291,21 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
               onUpdateOutlet={(patch) => {
                 if (!selectedOutletId) return;
                 updateDiagram((d) => updateOutlet(d, selectedOutletId, patch));
+              }}
+              onRotateDevice={(direction) => {
+                const kind = selectedLightBulbId
+                  ? 'lightBulb'
+                  : selectedSwitchId
+                    ? 'switch'
+                    : selectedDimmerId
+                      ? 'dimmerSwitch'
+                      : selectedOutletId
+                        ? 'outlet'
+                        : null;
+                const id =
+                  selectedLightBulbId ?? selectedSwitchId ?? selectedDimmerId ?? selectedOutletId;
+                if (!kind || !id) return;
+                updateDiagram((d) => rotateDevice(d, kind, id, direction));
               }}
               onUpdateRoom={(patch) => {
                 if (!selectedRoomId) return;

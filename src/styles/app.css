@@ -774,6 +774,33 @@ html:has(.app--editor) #root {
   cursor: cell;
 }
 
+.room-place-preview {
+  fill: color-mix(in srgb, #6d4fb8 12%, transparent);
+  stroke: #6d4fb8;
+  stroke-width: 3px;
+  stroke-dasharray: 10 7;
+  pointer-events: none;
+}
+
+.room__door-target {
+  fill: none;
+  stroke: transparent;
+  pointer-events: stroke;
+  cursor: copy;
+}
+
+.room--door-placing .room__door-target:hover {
+  stroke: color-mix(in srgb, var(--wirer-accent) 30%, transparent);
+}
+
+.room__door-preview {
+  fill: none;
+  stroke: var(--wirer-accent);
+  stroke-width: 6px;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
 .inspector__door-list {
   list-style: none;
   margin: 0;
@@ -1649,6 +1676,14 @@ html:has(.app--editor) #root {
   font-weight: 600;
 }
 
+.inspector__rotate-buttons {
+  display: flex;
+  gap: 8px;
+}
+.inspector__rotate-buttons .btn {
+  flex: 1;
+}
+
 .inspector__label {
   font-size: 0.85rem;
 }
@@ -1902,4 +1937,155 @@ html:has(.app--editor) #root {
 .wire-link--selected .path-joint-handle {
   stroke: #1d4ed8;
   filter: drop-shadow(0 0 2px rgb(37 99 235 / 45%));
+}
+
+/* ── Electrical-themed loading indicator ─────────────────────────────── */
+
+.electric-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--wirer-fg);
+}
+
+.electric-loader--inline {
+  padding: 2.5rem 1rem;
+}
+
+.electric-loader--overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--wirer-bg) 78%, transparent);
+  backdrop-filter: blur(2px);
+  animation: electric-overlay-in 160ms ease-out;
+}
+
+@keyframes electric-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.electric-loader__svg {
+  width: 220px;
+  height: 120px;
+  max-width: 70vw;
+  overflow: visible;
+}
+
+.electric-loader__wire {
+  fill: none;
+  stroke: var(--wire-black);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+}
+
+/* Gold "current" that flows along the wire toward the bulb. */
+.electric-loader__current {
+  fill: none;
+  stroke: #facc15;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 10 22;
+  filter: drop-shadow(0 0 3px rgb(250 204 21 / 80%));
+  animation: electric-flow 0.9s linear infinite;
+}
+
+@keyframes electric-flow {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+.electric-loader__glow {
+  fill: rgb(250 204 21 / 35%);
+  transform-origin: center;
+  animation: electric-bulb-glow 0.9s ease-in-out infinite;
+}
+
+@keyframes electric-bulb-glow {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.78);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.electric-loader__glass {
+  fill: color-mix(in srgb, #facc15 14%, var(--wirer-surface));
+  stroke: var(--wire-black);
+  stroke-width: 2;
+  animation: electric-glass-lit 0.9s ease-in-out infinite;
+}
+
+@keyframes electric-glass-lit {
+  55% {
+    fill: color-mix(in srgb, #facc15 60%, var(--wirer-surface));
+  }
+}
+
+.electric-loader__filament {
+  fill: none;
+  stroke: #ca8a04;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: electric-filament 0.9s ease-in-out infinite;
+}
+
+@keyframes electric-filament {
+  55% {
+    stroke: #fff4c2;
+    filter: drop-shadow(0 0 3px rgb(250 204 21 / 90%));
+  }
+}
+
+.electric-loader__base {
+  fill: #9ca3af;
+  stroke: var(--wire-black);
+  stroke-width: 1.5;
+}
+
+.electric-loader__base-line {
+  stroke: var(--wire-black);
+  stroke-width: 1.5;
+}
+
+.electric-loader__label {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+  animation: electric-label-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes electric-label-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .electric-loader__current,
+  .electric-loader__glow,
+  .electric-loader__glass,
+  .electric-loader__filament,
+  .electric-loader__label,
+  .electric-loader--overlay {
+    animation: none;
+  }
+  .electric-loader__glow {
+    opacity: 0.6;
+  }
+  .electric-loader__glass {
+    fill: color-mix(in srgb, #facc15 45%, var(--wirer-surface));
+  }
 }

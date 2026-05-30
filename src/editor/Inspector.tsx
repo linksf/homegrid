@@ -68,6 +68,23 @@ export type InspectorSelection =
     }
   | null;
 
+function RotateControl({ onRotate }: { onRotate?: (direction: 'cw' | 'ccw') => void }): JSX.Element | null {
+  if (!onRotate) return null;
+  return (
+    <div className="inspector__field">
+      <span className="inspector__label">Rotation</span>
+      <div className="inspector__rotate-buttons">
+        <button type="button" className="btn" onClick={() => onRotate('ccw')} title="Rotate 90° counter-clockwise (Shift+R)">
+          ⟲ 90°
+        </button>
+        <button type="button" className="btn" onClick={() => onRotate('cw')} title="Rotate 90° clockwise (R)">
+          ⟳ 90°
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const BOX_WALL_ANCHORS: AnchorPosition[] = [
   'top-left',
   'top-center',
@@ -106,9 +123,11 @@ type InspectorProps = {
   onUpdateDimmerSwitch?: (patch: { label?: string; level?: number; position?: DimmerSwitchPosition }) => void;
   onToggleDimmer?: () => void;
   onUpdateOutlet?: (patch: { label?: string; passthrough?: boolean }) => void;
+  onRotateDevice?: (direction: 'cw' | 'ccw') => void;
   onUpdateRoom?: (patch: { label?: string; doors?: RoomDoor[] }) => void;
-  onAddRoomDoor?: (wall: RoomWall) => void;
   onRemoveRoomDoor?: (doorId: string) => void;
+  doorPlacing?: boolean;
+  onToggleDoorPlacing?: () => void;
   onDelete: () => void;
   deleteError: string | null;
 };
@@ -135,9 +154,11 @@ export function Inspector({
   onUpdateDimmerSwitch,
   onToggleDimmer,
   onUpdateOutlet,
+  onRotateDevice,
   onUpdateRoom,
-  onAddRoomDoor,
   onRemoveRoomDoor,
+  doorPlacing = false,
+  onToggleDoorPlacing,
   onDelete,
   deleteError,
 }: InspectorProps): JSX.Element {
@@ -293,6 +314,7 @@ export function Inspector({
             autoComplete="off"
           />
         </label>
+        <RotateControl onRotate={onRotateDevice} />
         {selection.wireLabels.length > 0 && (
           <ul className="inspector__wire-list">
             {selection.wireLabels.map((label, idx) => (
@@ -343,6 +365,7 @@ export function Inspector({
             autoComplete="off"
           />
         </label>
+        <RotateControl onRotate={onRotateDevice} />
         <label className="inspector__field">
           <span className="inspector__label">Terminals</span>
           <select
@@ -444,6 +467,7 @@ export function Inspector({
             autoComplete="off"
           />
         </label>
+        <RotateControl onRotate={onRotateDevice} />
         <label className="inspector__field">
           <span className="inspector__label">Level ({level}%)</span>
           <input
@@ -499,6 +523,7 @@ export function Inspector({
             autoComplete="off"
           />
         </label>
+        <RotateControl onRotate={onRotateDevice} />
         <label className="inspector__field">
           <span className="inspector__label">Type</span>
           <select
@@ -564,81 +589,59 @@ export function Inspector({
 
         <div className="inspector__field">
           <span className="inspector__label">Doors</span>
+          <button
+            type="button"
+            className={['btn', 'btn--block', doorPlacing ? 'btn--active' : ''].filter(Boolean).join(' ')}
+            aria-pressed={doorPlacing}
+            onClick={() => onToggleDoorPlacing?.()}
+          >
+            {doorPlacing ? 'Click a wall to place… (Esc to stop)' : 'Place door'}
+          </button>
           {(room.doors ?? []).length === 0 ? (
-            <p className="inspector__hint">No doors yet. Add a door to break the outline.</p>
+            <p className="inspector__hint">
+              No doors yet. Choose “Place door”, then click anywhere along a wall to drop one.
+            </p>
           ) : (
             <ul className="inspector__door-list">
-              {(room.doors ?? []).map((door) => {
-                const maxOffset = Math.max(0, wallLength(room, door.wall) - door.width);
-                return (
-                  <li key={door.id} className="inspector__door-item">
-                    <label className="inspector__door-field">
-                      <span>Wall</span>
-                      <select
-                        className="inspector__input"
-                        value={door.wall}
-                        onChange={(e) => updateDoor(door.id, { wall: e.target.value as RoomWall })}
-                      >
-                        {(Object.keys(wallLabels) as RoomWall[]).map((wall) => (
-                          <option key={wall} value={wall}>
-                            {wallLabels[wall]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="inspector__door-field">
-                      <span>Offset</span>
-                      <input
-                        className="inspector__input"
-                        type="number"
-                        min={0}
-                        max={maxOffset}
-                        step={12}
-                        value={door.offset}
-                        onChange={(e) =>
-                          updateDoor(door.id, { offset: Number(e.target.value) })
-                        }
-                      />
-                    </label>
-                    <label className="inspector__door-field">
-                      <span>Width</span>
-                      <input
-                        className="inspector__input"
-                        type="number"
-                        min={24}
-                        max={wallLength(room, door.wall)}
-                        step={12}
-                        value={door.width}
-                        onChange={(e) =>
-                          updateDoor(door.id, { width: Number(e.target.value) })
-                        }
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="btn btn--small"
-                      onClick={() => onRemoveRoomDoor?.(door.id)}
+              {(room.doors ?? []).map((door) => (
+                <li key={door.id} className="inspector__door-item">
+                  <label className="inspector__door-field">
+                    <span>Wall</span>
+                    <select
+                      className="inspector__input"
+                      value={door.wall}
+                      onChange={(e) => updateDoor(door.id, { wall: e.target.value as RoomWall })}
                     >
-                      Remove
-                    </button>
-                  </li>
-                );
-              })}
+                      {(Object.keys(wallLabels) as RoomWall[]).map((wall) => (
+                        <option key={wall} value={wall}>
+                          {wallLabels[wall]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="inspector__door-field">
+                    <span>Width</span>
+                    <input
+                      className="inspector__input"
+                      type="number"
+                      min={24}
+                      max={wallLength(room, door.wall)}
+                      step={12}
+                      value={door.width}
+                      onChange={(e) => updateDoor(door.id, { width: Number(e.target.value) })}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn--small"
+                    onClick={() => onRemoveRoomDoor?.(door.id)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
             </ul>
           )}
-        </div>
-
-        <div className="inspector__door-actions">
-          {(Object.keys(wallLabels) as RoomWall[]).map((wall) => (
-            <button
-              key={wall}
-              type="button"
-              className="btn btn--small"
-              onClick={() => onAddRoomDoor?.(wall)}
-            >
-              Door · {wallLabels[wall]}
-            </button>
-          ))}
         </div>
 
         <p className="inspector__hint">
