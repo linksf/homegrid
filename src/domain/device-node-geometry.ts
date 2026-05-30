@@ -51,8 +51,61 @@ export function lightBulbCenter(bulb: LightBulb): { x: number; y: number } {
   return { x: bulb.x + r, y: bulb.y + r };
 }
 
-/** World position for a device terminal (2-way: left/right; 3-way: +bottom; 4-way: corners). */
-export function deviceNodeWorldPoint(diagram: Diagram, node: DeviceNode): { x: number; y: number } | null {
+/** Clockwise rotation for a device, defaulting to 0. */
+export function deviceOrientation(device: { orientation?: number } | null | undefined): number {
+  const raw = device?.orientation ?? 0;
+  const norm = ((Math.round(raw / 90) * 90) % 360 + 360) % 360;
+  return norm;
+}
+
+/** Center of a device in world space, used as the rotation pivot. */
+export function deviceCenter(diagram: Diagram, node: DeviceNode): { x: number; y: number } | null {
+  if (node.deviceKind === 'lightBulb') {
+    const bulb = lightBulbById(diagram, node.deviceId);
+    return bulb ? lightBulbCenter(bulb) : null;
+  }
+  const sw = switchById(diagram, node.deviceId);
+  if (sw) return { x: sw.x + sw.width / 2, y: sw.y + sw.height / 2 };
+  const dim = dimmerById(diagram, node.deviceId);
+  if (dim) return { x: dim.x + dim.width / 2, y: dim.y + dim.height / 2 };
+  const outlet = outletById(diagram, node.deviceId);
+  if (outlet) return { x: outlet.x + outlet.width / 2, y: outlet.y + outlet.height / 2 };
+  return null;
+}
+
+/** Rotate a point clockwise by `deg` (only 0/90/180/270 expected) around `center`. */
+export function rotateAroundCenter(
+  pt: { x: number; y: number },
+  center: { x: number; y: number },
+  deg: number,
+): { x: number; y: number } {
+  if (deg === 0) return pt;
+  const dx = pt.x - center.x;
+  const dy = pt.y - center.y;
+  // Clockwise rotation in SVG's y-down coordinate system.
+  switch (((deg % 360) + 360) % 360) {
+    case 90:
+      return { x: center.x - dy, y: center.y + dx };
+    case 180:
+      return { x: center.x - dx, y: center.y - dy };
+    case 270:
+      return { x: center.x + dy, y: center.y - dx };
+    default:
+      return pt;
+  }
+}
+
+/** Orientation-aware lookup of the device this node belongs to. */
+function deviceForNode(diagram: Diagram, node: DeviceNode): { orientation?: number } | null {
+  if (node.deviceKind === 'lightBulb') return lightBulbById(diagram, node.deviceId) ?? null;
+  if (node.deviceKind === 'switch') return switchById(diagram, node.deviceId) ?? null;
+  if (node.deviceKind === 'dimmerSwitch') return dimmerById(diagram, node.deviceId) ?? null;
+  if (node.deviceKind === 'outlet') return outletById(diagram, node.deviceId) ?? null;
+  return null;
+}
+
+/** World position for a device terminal IGNORING rotation (used by shape rendering inside a rotated group). */
+export function deviceNodeLocalPoint(diagram: Diagram, node: DeviceNode): { x: number; y: number } | null {
   if (node.deviceKind === 'lightBulb') {
     const bulb = lightBulbById(diagram, node.deviceId);
     if (!bulb) return null;
@@ -104,6 +157,17 @@ export function deviceNodeWorldPoint(diagram: Diagram, node: DeviceNode): { x: n
   }
 
   return null;
+}
+
+/** World position for a device terminal accounting for the device's orientation. */
+export function deviceNodeWorldPoint(diagram: Diagram, node: DeviceNode): { x: number; y: number } | null {
+  const local = deviceNodeLocalPoint(diagram, node);
+  if (!local) return null;
+  const orientation = deviceOrientation(deviceForNode(diagram, node));
+  if (orientation === 0) return local;
+  const center = deviceCenter(diagram, node);
+  if (!center) return local;
+  return rotateAroundCenter(local, center, orientation);
 }
 
 export function wiresOnDeviceNode(diagram: Diagram, nodeId: string): Wire[] {
