@@ -60,6 +60,8 @@ export interface LightBulb {
   /** Top-left of bounding square in world space. */
   x: number;
   y: number;
+  /** Clockwise rotation in degrees. One of 0 | 90 | 180 | 270. Defaults to 0 when absent. */
+  orientation?: 0 | 90 | 180 | 270;
 }
 
 export type SwitchTerminalCount = 2 | 3 | 4;
@@ -71,6 +73,8 @@ export interface Switch {
   y: number;
   width: number;
   height: number;
+  /** Clockwise rotation in degrees. One of 0 | 90 | 180 | 270. Defaults to 0 when absent. */
+  orientation?: 0 | 90 | 180 | 270;
   terminalCount: SwitchTerminalCount;
   /** SPST: open/closed. Three-way: common (slot 0) to traveler A/B. Four-way: straight or cross pairs. */
   position?: SinglePoleSwitchPosition | ThreeWaySwitchPosition | FourWaySwitchPosition;
@@ -97,6 +101,8 @@ export interface DimmerSwitch {
   y: number;
   width: number;
   height: number;
+  /** Clockwise rotation in degrees. One of 0 | 90 | 180 | 270. Defaults to 0 when absent. */
+  orientation?: 0 | 90 | 180 | 270;
   /** 0 = off (open), 100 = full current to load. */
   level?: number;
   /** Legacy on/off; migrated to `level` on load. */
@@ -111,6 +117,8 @@ export interface Outlet {
   y: number;
   width: number;
   height: number;
+  /** Clockwise rotation in degrees. One of 0 | 90 | 180 | 270. Defaults to 0 when absent. */
+  orientation?: 0 | 90 | 180 | 270;
   /** When true, hot in/out (0↔1) and neutral in/out (2↔3) pass through. */
   passthrough: boolean;
 }
