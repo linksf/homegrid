@@ -1,27 +1,38 @@
-import type { JSX } from 'react';
+import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import { hubWireDisplayPath } from '../domain/hub-wire-geometry';
 import { hubBridgeDisplayPath } from '../domain/hub-bridge-geometry';
 import type { Diagram, WireColor } from '../domain/types';
 import { WIRE_STROKE_HEX } from './wire-colors';
+import { HIT_STROKE_SCREEN_PX } from './hit-targets';
 
 function pathD(points: { x: number; y: number }[]): string {
   return points.map((pt, idx) => `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ');
 }
 
 type HubWireSegment = {
-  key: string;
+  wireId: string;
   points: { x: number; y: number }[];
   color: WireColor;
 };
 
 type HubConnectionLayerProps = {
   diagram: Diagram;
+  selectedHubWireIds: Set<string>;
   selectedHubBridgeIds: Set<string>;
   interactive: boolean;
+  onSelectHubWire?: (wireId: string) => void;
   onSelectHubBridge?: (bridgeId: string) => void;
 };
 
-function HubWireLinkPath({ points, color }: { points: { x: number; y: number }[]; color: WireColor }) {
+function HubWireLinkPath({
+  points,
+  color,
+  selected,
+}: {
+  points: { x: number; y: number }[];
+  color: WireColor;
+  selected: boolean;
+}) {
   const d = pathD(points);
   const stroke = WIRE_STROKE_HEX[color];
   const whiteHalo = color === 'white' ? { filter: 'drop-shadow(0 0 1px #1a1a1a)' } : undefined;
@@ -33,7 +44,7 @@ function HubWireLinkPath({ points, color }: { points: { x: number; y: number }[]
         d={d}
         fill="none"
         stroke="#1a1a1a"
-        strokeWidth={4.5}
+        strokeWidth={selected ? 5.5 : 4.5}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -42,7 +53,7 @@ function HubWireLinkPath({ points, color }: { points: { x: number; y: number }[]
         d={d}
         fill="none"
         stroke={stroke}
-        strokeWidth={2.5}
+        strokeWidth={selected ? 3.5 : 2.5}
         strokeDasharray="6 5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -54,8 +65,10 @@ function HubWireLinkPath({ points, color }: { points: { x: number; y: number }[]
 
 export function HubConnectionLayer({
   diagram,
+  selectedHubWireIds,
   selectedHubBridgeIds,
   interactive,
+  onSelectHubWire,
   onSelectHubBridge,
 }: HubConnectionLayerProps): JSX.Element {
   const wireToHub: HubWireSegment[] = [];
@@ -66,16 +79,41 @@ export function HubConnectionLayer({
     if (conduit?.kind === 'hub') continue;
     const points = hubWireDisplayPath(diagram, wire.id);
     if (points.length < 2) continue;
-    wireToHub.push({ key: `wh-${wire.id}`, points, color: wire.color });
+    wireToHub.push({ wireId: wire.id, points, color: wire.color });
   }
 
   return (
     <g className="hub-connection-layer" role="presentation" aria-label="Hub connections">
-      {wireToHub.map(({ key, points, color }) => (
-        <g key={key} className="hub-wire-link">
-          <HubWireLinkPath points={points} color={color} />
-        </g>
-      ))}
+      {wireToHub.map(({ wireId, points, color }) => {
+        const selected = selectedHubWireIds.has(wireId);
+        const d = pathD(points);
+        return (
+          <g
+            key={`wh-${wireId}`}
+            className={['hub-wire-link', selected ? 'hub-wire-link--selected' : ''].filter(Boolean).join(' ')}
+            data-hub-wire-id={wireId}
+          >
+            <HubWireLinkPath points={points} color={color} selected={selected} />
+            {interactive && (
+              <path
+                className="hub-wire-link-hit diagram-hit-stroke"
+                d={d}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={HIT_STROKE_SCREEN_PX}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                pointerEvents="stroke"
+                onPointerDown={(e: ReactPointerEvent<SVGPathElement>) => {
+                  if (e.button !== 0) return;
+                  e.stopPropagation();
+                  onSelectHubWire?.(wireId);
+                }}
+              />
+            )}
+          </g>
+        );
+      })}
 
       {diagram.hubBridges.map((bridge) => {
         const pts = hubBridgeDisplayPath(diagram, bridge.id);
@@ -86,11 +124,11 @@ export function HubConnectionLayer({
             <path className="hub-bridge__path" d={pathD(pts)} fill="none" strokeLinecap="round" />
             {interactive && (
               <path
-                className="hub-bridge-hit"
+                className="hub-bridge-hit diagram-hit-stroke"
                 d={pathD(pts)}
                 fill="none"
                 stroke="transparent"
-                strokeWidth={18}
+                strokeWidth={HIT_STROKE_SCREEN_PX}
                 strokeLinecap="round"
                 onPointerDown={(e) => {
                   if (e.button !== 0) return;

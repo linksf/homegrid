@@ -14,6 +14,7 @@ import {
   moveConduitStubJoint,
   moveExposedJoint,
 } from '../domain/cable-geometry';
+import { moveConduitRunJoint, conduitRunDisplayPath, draggableConduitRunVertexIndices, refreshConduitRunPaths } from '../domain/conduit-run-geometry';
 import { hubWireDisplayPath, moveHubWireJoint } from '../domain/hub-wire-geometry';
 import { moveWireJoint, wireEndpointRoles } from '../domain/wire-routing';
 import { moveWireLinkJoint, wireLinkDisplayPath, wireWorldPolyline } from '../domain/wire-geometry';
@@ -27,6 +28,8 @@ type PathEditLayerProps = {
   tool: EditorMainTool;
   selectedWireId: string | null;
   selectedCableId: string | null;
+  selectedConduitRunId: string | null;
+  selectedHubWireId: string | null;
   selectedConduitId: string | null;
   selectedLinkId: string | null;
   selectedHubBridgeId: string | null;
@@ -40,6 +43,8 @@ export function PathEditLayer({
   tool,
   selectedWireId,
   selectedCableId,
+  selectedConduitRunId,
+  selectedHubWireId,
   selectedConduitId,
   selectedLinkId,
   selectedHubBridgeId,
@@ -50,7 +55,41 @@ export function PathEditLayer({
 
   const handles: JSX.Element[] = [];
 
-  if (selectedWireId) {
+  if (selectedHubWireId) {
+    const hubPath = hubWireDisplayPath(diagram, selectedHubWireId);
+    const hubIndices = draggableLinkVertexIndices(hubPath.length);
+    if (hubPath.length >= 2 && hubIndices.length > 0) {
+      handles.push(
+        <PathJointHandles
+          key={`hub-wire-${selectedHubWireId}`}
+          path={hubPath}
+          vertexIndices={hubIndices}
+          onMoveVertex={(index, x, y) => {
+            onApplyDiagram((d) => moveHubWireJoint(d, selectedHubWireId, index, x, y), { history: false });
+          }}
+          onCommitHistory={onCommitHistory}
+        />,
+      );
+    }
+  } else if (selectedConduitRunId) {
+    const runPath = conduitRunDisplayPath(diagram, selectedConduitRunId);
+    const runIndices = draggableConduitRunVertexIndices(runPath.length);
+    if (runPath.length >= 2 && runIndices.length > 0) {
+      handles.push(
+        <PathJointHandles
+          key={`conduit-run-${selectedConduitRunId}`}
+          path={runPath}
+          vertexIndices={runIndices}
+          onMoveVertex={(index, x, y) => {
+            onApplyDiagram((d) => moveConduitRunJoint(d, selectedConduitRunId, index, x, y), {
+              history: false,
+            });
+          }}
+          onCommitHistory={onCommitHistory}
+        />,
+      );
+    }
+  } else if (selectedWireId) {
     const wire = diagram.wires.find((w) => w.id === selectedWireId);
     const conduit = wire?.conduitId
       ? diagram.conduits.find((c) => c.id === wire.conduitId)
@@ -156,14 +195,7 @@ export function PathEditLayer({
     }
   } else if (selectedCableId) {
     const path = conduitStubResolvedPath(diagram, selectedCableId);
-    const stubEndFixed = diagram.conduitRuns.some(
-      (r) => r.cableIdA === selectedCableId || r.cableIdB === selectedCableId,
-    );
-    const indices = path
-      ? stubEndFixed
-        ? draggableLinkVertexIndices(path.length)
-        : draggableWireVertexIndices(path.length, true, false)
-      : [];
+    const indices = path ? draggableWireVertexIndices(path.length, true, false) : [];
     if (path && indices.length > 0) {
       handles.push(
         <PathJointHandles
@@ -171,7 +203,10 @@ export function PathEditLayer({
           path={path}
           vertexIndices={indices}
           onMoveVertex={(index, x, y) => {
-            onApplyDiagram((d) => moveConduitStubJoint(d, selectedCableId, index, x, y), {
+            onApplyDiagram((d) => {
+              let next = moveConduitStubJoint(d, selectedCableId, index, x, y);
+              return refreshConduitRunPaths(next);
+            }, {
               history: false,
             });
           }}

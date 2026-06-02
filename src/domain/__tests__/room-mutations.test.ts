@@ -4,10 +4,14 @@ import { GRID_SIZE } from '../grid';
 import {
   addRoom,
   addRoomDoor,
+  addRoomDoorAt,
+  addRoomFromBounds,
+  MIN_ROOM_SIZE,
   removeRoomDoor,
   resizeRoom,
   roomOutlineSegments,
   updateRoom,
+  wallOffsetForPoint,
 } from '../room-mutations';
 
 describe('rooms', () => {
@@ -52,6 +56,43 @@ describe('rooms', () => {
 
     diagram = removeRoomDoor(diagram, roomId, doorId);
     expect(diagram.rooms[0]!.doors).toHaveLength(0);
+  });
+
+  it('creates a room from drag bounds regardless of corner order', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addRoomFromBounds(diagram, 400, 360, 100, 120);
+    const room = diagram.rooms[0]!;
+    expect(room.x).toBeLessThanOrEqual(100);
+    expect(room.y).toBeLessThanOrEqual(120);
+    expect(room.width).toBeGreaterThanOrEqual(GRID_SIZE * 6);
+    expect(room.height).toBeGreaterThanOrEqual(GRID_SIZE * 6);
+  });
+
+  it('clamps a tiny drag up to the minimum room size', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addRoomFromBounds(diagram, 200, 200, 205, 203);
+    const room = diagram.rooms[0]!;
+    expect(room.width).toBe(MIN_ROOM_SIZE.width);
+    expect(room.height).toBe(MIN_ROOM_SIZE.height);
+  });
+
+  it('places a door centered at a point along a wall', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addRoom(diagram, 200, 200);
+    const room = diagram.rooms[0]!;
+    const center = room.width / 2;
+    diagram = addRoomDoorAt(diagram, room.id, 'north', center);
+
+    const door = diagram.rooms[0]!.doors[0]!;
+    expect(door.wall).toBe('north');
+    // Door is centered on the requested offset, within one grid cell of snap tolerance.
+    expect(Math.abs(door.offset + door.width / 2 - center)).toBeLessThanOrEqual(GRID_SIZE);
+  });
+
+  it('maps a world point to a grid-snapped wall offset', () => {
+    const room = { x: 100, y: 80, width: 240, height: 180 };
+    expect(wallOffsetForPoint(room, 'north', 173, 80)).toBe(72);
+    expect(wallOffsetForPoint(room, 'west', 100, 153)).toBe(72);
   });
 
   it('resizes from a corner with minimum size', () => {

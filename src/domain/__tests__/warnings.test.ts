@@ -81,7 +81,9 @@ describe('isDirectionOpposedLink', () => {
 
   it('does not warn when either wire has no resolved direction', () => {
     const link = createWireLink(baseWire('a'), 'end', baseWire('b'), 'end');
-    expect(isDirectionOpposedLink(link, { resolvedDirection: 'toward' }, undefined)).toBe(false);
+    expect(
+      isDirectionOpposedLink(link, { resolvedDirection: 'toward', color: 'black' }, undefined),
+    ).toBe(false);
   });
 
   it('does not warn for white-to-white links when directions match', () => {

@@ -1,24 +1,23 @@
 import { nanoid } from 'nanoid';
 import { defaultSwitchPosition, defaultDimmerLevel, defaultDimmerPosition, normalizeSwitchPosition, switchTerminalCount, toggleSwitchPosition, toggleDimmerLevel, normalizeDimmerLevel } from './continuity';
 import { snapGridPoint } from './grid';
-import type { DeviceNode, Diagram, DimmerSwitch, LightBulb, Outlet, Switch, SwitchTerminalCount, WireEndpoint } from './types';
+import type { DeviceNode, Diagram, DimmerSwitch, LightBulb, Outlet, Switch, SwitchTerminalCount, WireColor, WireEndpoint } from './types';
 import {
   DEFAULT_DIMMER_SIZE,
   DEFAULT_OUTLET_SIZE,
   DEFAULT_SWITCH_SIZE,
-  conduitsOnDeviceNode,
   deviceNodeById,
   LIGHT_BULB_RADIUS,
-  wiresOnDeviceNode,
   wireIdsOnDeviceTerminal,
 } from './device-node-geometry';
 import { refreshHubWirePaths } from './hub-wire-geometry';
 import { refreshDeviceWirePaths } from './device-wire-geometry';
-import { hubById } from './hub-geometry';
+import { hubById, wiresDirectAttachedToHub } from './hub-geometry';
 import { normalizeDeviceNodes } from './normalize-devices';
 import { rebuildDeviceConduitPathsForDevice } from './conduit-geometry';
-import { attachWireToHub } from './mutations';
-import { wireLinksForWire } from './wire-link-utils';
+import { addDeviceConduit, addWireLinkToDiagram, attachWireToHub } from './mutations';
+import { wireLinksForWire, wireLinkAtEndpoint } from './wire-link-utils';
+import { connectableWireEndpoints, wireEndpointRole } from './wire-routing';
 
 function createBulbNodes(bulbId: string): DeviceNode[] {
   return [0, 1].map((slot) => ({
@@ -507,6 +506,95 @@ export function detachWireFromDeviceNode(diagram: Diagram, wireId: string): Diag
   return refreshDeviceWirePaths(refreshHubWirePaths({ ...diagram, wires }));
 }
 
+/** A terminal wire end that can accept a new wire link or hub tie. */
+export function findLinkableTerminalWire(
+  diagram: Diagram,
+  nodeId: string,
+): { wireId: string; endpoint: WireEndpoint } | null {
+  for (const wireId of wireIdsOnDeviceTerminal(diagram, nodeId)) {
+    for (const endpoint of connectableWireEndpoints(diagram, wireId)) {
+      if (wireLinkAtEndpoint(diagram, wireId, endpoint)) continue;
+      return { wireId, endpoint };
+    }
+  }
+  return null;
+}
+
+function initiatingWireColorFromHub(diagram: Diagram, hubId: string): WireColor {
+  const direct = wiresDirectAttachedToHub(diagram, hubId);
+  if (direct.length > 0) return direct[0]!.color;
+  const onHub = diagram.wires.filter((w) => w.hubId === hubId);
+  if (onHub.length > 0) return onHub[0]!.color;
+  return 'black';
+}
+
+function deviceStubWireId(diagram: Diagram, nodeId: string): string {
+  const conduit = diagram.conduits.find((c) => c.kind === 'device' && c.deviceNodeId === nodeId);
+  const wireId = conduit?.wireIds[0];
+  if (!wireId) {
+    throw new Error('Could not create a wire on this terminal');
+  }
+  return wireId;
+}
+
+/**
+ * Connect tool: link a free wire end to a device terminal (creates a matching stub wire when empty).
+ */
+export function connectWireToDeviceTerminal(
+  diagram: Diagram,
+  nodeId: string,
+  wireId: string,
+  endpoint: WireEndpoint,
+): Diagram {
+  const node = deviceNodeById(diagram, nodeId);
+  const wire = diagram.wires.find((w) => w.id === wireId);
+  if (!node || !wire) {
+    throw new Error('Terminal or wire not found');
+  }
+  if (wire.hubId) {
+    throw new Error('Disconnect the wire from its hub before linking to a terminal');
+  }
+  if (wireEndpointRole(diagram, wireId, endpoint) !== 'free') {
+    throw new Error('Connect the free wire end to a terminal');
+  }
+
+  const target = findLinkableTerminalWire(diagram, nodeId);
+  if (target) {
+    return addWireLinkToDiagram(diagram, wireId, endpoint, target.wireId, target.endpoint);
+  }
+
+  if (wireIdsOnDeviceTerminal(diagram, nodeId).length > 0) {
+    throw new Error('Terminal wire has no free end available for a link');
+  }
+
+  let next = addDeviceConduit(diagram, { deviceNodeId: nodeId, wireColors: [wire.color] });
+  const stubWireId = deviceStubWireId(next, nodeId);
+  return addWireLinkToDiagram(next, wireId, endpoint, stubWireId, 'end');
+}
+
+/**
+ * Connect tool: tie a hub to a device terminal (creates a matching stub wire when empty).
+ */
+export function connectHubToDeviceTerminal(diagram: Diagram, hubId: string, nodeId: string): Diagram {
+  if (!hubById(diagram, hubId) || !deviceNodeById(diagram, nodeId)) {
+    throw new Error('Hub or terminal not found');
+  }
+
+  const target = findLinkableTerminalWire(diagram, nodeId);
+  if (target) {
+    return attachWireToHub(diagram, hubId, target.wireId);
+  }
+
+  if (wireIdsOnDeviceTerminal(diagram, nodeId).length > 0) {
+    throw new Error('Terminal wire has no free end available for a hub link');
+  }
+
+  const color = initiatingWireColorFromHub(diagram, hubId);
+  let next = addDeviceConduit(diagram, { deviceNodeId: nodeId, wireColors: [color] });
+  const stubWireId = deviceStubWireId(next, nodeId);
+  return attachWireToHub(next, hubId, stubWireId);
+}
+
 /** Attaches a wire's free end directly to a light or switch terminal. */
 export function attachWireToDeviceNode(
   diagram: Diagram,
@@ -539,27 +627,7 @@ export function attachWireToDeviceNode(
   return refreshDeviceWirePaths(refreshHubWirePaths({ ...diagram, wires }));
 }
 
-/** Links a device terminal to a hub via a direct wire or conduit wire on that terminal. */
+/** Links a device terminal to a hub via stub wire or wire link. */
 export function attachHubToDeviceNode(diagram: Diagram, hubId: string, nodeId: string): Diagram {
-  if (!hubById(diagram, hubId) || !deviceNodeById(diagram, nodeId)) {
-    throw new Error('Hub or terminal not found');
-  }
-
-  const directWires = wiresOnDeviceNode(diagram, nodeId);
-  if (directWires.length > 0) {
-    const wire = directWires.find((w) => !w.hubId) ?? directWires[0]!;
-    return attachWireToHub(diagram, hubId, wire.id);
-  }
-
-  const conduit = conduitsOnDeviceNode(diagram, nodeId)[0];
-  if (!conduit || conduit.wireIds.length === 0) {
-    throw new Error('Connect a wire to this terminal before linking to a hub');
-  }
-  const conduitWire =
-    conduit.wireIds.map((id) => diagram.wires.find((w) => w.id === id)).find((w) => w && !w.hubId) ??
-    diagram.wires.find((w) => w.id === conduit.wireIds[0]);
-  if (!conduitWire) {
-    throw new Error('No wire available on this terminal');
-  }
-  return attachWireToHub(diagram, hubId, conduitWire.id);
+  return connectHubToDeviceTerminal(diagram, hubId, nodeId);
 }

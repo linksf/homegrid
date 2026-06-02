@@ -10,7 +10,9 @@ import {
   IconBox,
   IconRoom,
   IconCable,
+  IconConduitColor,
   IconConduitConnect,
+  IconConduitHidden,
   IconLabels,
   IconLight,
   IconLink,
@@ -27,6 +29,10 @@ type ToolbarProps = {
   onToolChange: (next: EditorMainTool) => void;
   showLabels: boolean;
   onShowLabelsChange: (show: boolean) => void;
+  hideConduits: boolean;
+  onHideConduitsChange: (hide: boolean) => void;
+  colorConduitGroups: boolean;
+  onColorConduitGroupsChange: (color: boolean) => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -70,6 +76,10 @@ export function Toolbar({
   onToolChange,
   showLabels,
   onShowLabelsChange,
+  hideConduits,
+  onHideConduitsChange,
+  colorConduitGroups,
+  onColorConduitGroupsChange,
   canUndo,
   canRedo,
   onUndo,
@@ -80,7 +90,7 @@ export function Toolbar({
   onOutletPassthroughChange,
 }: ToolbarProps): JSX.Element {
   return (
-    <div className="editor-toolbar editor-toolbar--scroll" role="toolbar" aria-label="Editor tools">
+    <div className="editor-toolbar" role="toolbar" aria-label="Editor tools">
       <button
         type="button"
         className="toolbar-btn"
@@ -223,6 +233,30 @@ export function Toolbar({
       >
         <IconLabels />
         <span className="toolbar-btn__key">T</span>
+      </button>
+
+      <button
+        type="button"
+        className={['toolbar-btn', hideConduits ? 'toolbar-btn--active' : ''].filter(Boolean).join(' ')}
+        aria-pressed={hideConduits}
+        aria-label="Hide conduits in walls (W)"
+        title="Hide conduits in walls (W)"
+        onClick={() => onHideConduitsChange(!hideConduits)}
+      >
+        <IconConduitHidden />
+        <span className="toolbar-btn__key">W</span>
+      </button>
+
+      <button
+        type="button"
+        className={['toolbar-btn', colorConduitGroups ? 'toolbar-btn--active' : ''].filter(Boolean).join(' ')}
+        aria-pressed={colorConduitGroups}
+        aria-label="Color-differentiate conduit groups (G)"
+        title="Color-differentiate conduit groups (G)"
+        onClick={() => onColorConduitGroupsChange(!colorConduitGroups)}
+      >
+        <IconConduitColor />
+        <span className="toolbar-btn__key">G</span>
       </button>
     </div>
   );

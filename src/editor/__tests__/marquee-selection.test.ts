@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { addCable } from '../../domain/cable-mutations';
 import { addJunctionBox, addLocalConduit } from '../../domain/mutations';
 import { addLightBulb } from '../../domain/device-mutations';
 import { createEmptyJob } from '../../domain/defaults';
@@ -62,5 +63,19 @@ describe('marquee selection', () => {
 
     const sel = collectMarqueeSelection(diagram, 380, 380, 430, 430);
     expect(sel.lightBulbs.has(bulbId)).toBe(true);
+  });
+
+  it('window select collects path anchors on cable exposed wires without throwing', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addJunctionBox(diagram, 300, 300);
+    const box = diagram.junctionBoxes.find((b) => b.type === 'normal')!;
+    diagram = addCable(diagram, {
+      junctionBoxId: box.id,
+      anchor: 'middle-right',
+      wireColors: ['black', 'white'],
+    });
+
+    const sel = collectMarqueeSelection(diagram, 200, 200, 500, 500);
+    expect(sel.pathAnchors.size).toBeGreaterThan(0);
   });
 });

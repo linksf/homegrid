@@ -2,6 +2,8 @@ import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import { hubWorldPoint } from '../domain/hub-geometry';
 import type { Diagram, Hub, JunctionBox } from '../domain/types';
 import type { EditorMainTool } from '../editor/editor-tools';
+import { useDiagramViewport } from './CanvasViewport';
+import { worldHitRadius } from './hit-targets';
 type HubShapeProps = {
   box: JunctionBox;
   hub: Hub;
@@ -9,6 +11,7 @@ type HubShapeProps = {
   tool: EditorMainTool;
   selected: boolean;
   connectPendingHubId: string | null;
+  connectInteractionActive?: boolean;
   onSelect: () => void;
   onHubPointerDown?: (hubId: string) => void;
   onHubConduitPick?: (hubId: string) => void;
@@ -21,10 +24,13 @@ export function HubShape({
   tool,
   selected,
   connectPendingHubId,
+  connectInteractionActive = false,
   onSelect,
   onHubPointerDown,
   onHubConduitPick,
 }: HubShapeProps): JSX.Element {
+  const vp = useDiagramViewport();
+  const hitRadius = worldHitRadius(vp.scale);
   const pt = hubWorldPoint(box, hub);
   const pending = connectPendingHubId === hub.id;
 
@@ -32,7 +38,7 @@ export function HubShape({
     if (e.button !== 0) return;
     e.stopPropagation();
 
-    if (tool === 'connect-wires') {
+    if (connectInteractionActive) {
       onHubPointerDown?.(hub.id);
       return;
     }
@@ -55,9 +61,16 @@ export function HubShape({
         .filter(Boolean)
         .join(' ')}
       transform={`translate(${pt.x}, ${pt.y})`}
-      onPointerDown={onPointerDown}
     >
-      <circle className="hub__ring" r={14} />
+      <circle className="hub__ring" r={14} pointerEvents="none" />
+      <circle className="hub__core" r={8} pointerEvents="none" />
+      <circle
+        className="hub-hit"
+        r={hitRadius}
+        fill="transparent"
+        pointerEvents="all"
+        onPointerDown={onPointerDown}
+      />
       <circle className="hub__core" r={8} />
       <title>
         {trimmed || 'Hub'} ({wireCount} wire{wireCount === 1 ? '' : 's'})

@@ -13,8 +13,10 @@ import {
   deleteJunctionBox,
   deleteWire,
   deleteWireLink,
+  detachWireFromHub,
 } from '../domain/mutations';
 import { deleteCable } from '../domain/cable-mutations';
+import { disconnectConduitRun } from '../domain/conduit-run-mutations';
 import { deleteRoom } from '../domain/room-mutations';
 import type { Diagram } from '../domain/types';
 import type { DiagramSelection } from './diagram-selection';
@@ -26,8 +28,14 @@ export function deleteAllSelected(diagram: Diagram, selection: DiagramSelection)
   for (const id of selection.links) {
     next = deleteWireLink(next, id);
   }
+  for (const id of selection.hubWires) {
+    next = detachWireFromHub(next, id);
+  }
   for (const id of selection.hubBridges) {
     next = deleteHubBridge(next, id);
+  }
+  for (const id of selection.conduitRuns) {
+    next = disconnectConduitRun(next, id);
   }
   for (const id of selection.conduits) {
     next = deleteConduit(next, id);

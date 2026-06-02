@@ -109,29 +109,32 @@ describe('rotation-aware terminal geometry', () => {
     expect(right).toEqual({ x: sw.x + sw.width, y: cy });
   });
 
-  it('rotates the left terminal to the top after one clockwise quarter turn', () => {
+  it('rotates the left terminal above center after one clockwise quarter turn', () => {
     let diagram = createEmptyJob().diagram;
     diagram = addSwitch(diagram, 300, 300, 2);
     const sw = { ...diagram.switches[0]!, orientation: 90 as const };
     diagram = { ...diagram, switches: [sw] };
     const cx = sw.x + sw.width / 2;
     const cy = sw.y + sw.height / 2;
-    // unrotated left terminal is (sw.x, cy); rotating CW 90 about center maps it to top-center.
+    // Unrotated left terminal sits width/2 left of center; a rigid CW 90 turn maps it to
+    // width/2 ABOVE center (the wide switch becomes tall, so the terminal extends past the
+    // unrotated bounding box). x stays on the center line.
     const left = deviceNodeWorldPoint(diagram, switchNode(diagram, 0))!;
     expect(left.x).toBeCloseTo(cx);
-    expect(left.y).toBeCloseTo(sw.y);
+    expect(left.y).toBeCloseTo(cy - sw.width / 2);
   });
 
-  it('rotates the left terminal to the bottom after a 270° turn', () => {
+  it('rotates the left terminal below center after a 270° turn', () => {
     let diagram = createEmptyJob().diagram;
     diagram = addSwitch(diagram, 300, 300, 2);
     const sw = { ...diagram.switches[0]!, orientation: 270 as const };
     diagram = { ...diagram, switches: [sw] };
     const cx = sw.x + sw.width / 2;
-    // unrotated left terminal (sw.x, cy) rotates CW 270 about center to bottom-center.
+    const cy = sw.y + sw.height / 2;
+    // Rigid CW 270 maps the left terminal to width/2 BELOW center.
     const left = deviceNodeWorldPoint(diagram, switchNode(diagram, 0))!;
     expect(left.x).toBeCloseTo(cx);
-    expect(left.y).toBeCloseTo(sw.y + sw.height);
+    expect(left.y).toBeCloseTo(cy + sw.width / 2);
   });
 });
 ```

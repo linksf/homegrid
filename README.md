@@ -1,4 +1,4 @@
-# Wirer
+# HomeGrid
 
 Electrical wiring diagram editor. Jobs (maps) are saved to **Firebase Storage** and the app is deployed with **Firebase Hosting**.
 

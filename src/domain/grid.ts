@@ -40,5 +40,5 @@ export function snapJunctionBoxRect(
   };
 }
 
-/** Inset for hub nodes from the junction box interior (one grid cell). */
-export const HUB_GRID_INSET = GRID_SIZE;
+/** Distance from box center to each hub in the diamond (two grid cells). */
+export const HUB_DIAMOND_OFFSET = GRID_SIZE * 2;

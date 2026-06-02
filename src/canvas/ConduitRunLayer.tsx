@@ -1,19 +1,27 @@
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import { conduitStubResolvedPath } from '../domain/cable-geometry';
 import type { Diagram } from '../domain/types';
+import { HIT_STROKE_SCREEN_PX } from './hit-targets';
 
 function pathD(points: { x: number; y: number }[]): string {
   if (points.length < 2) return '';
   return points.map((pt, idx) => `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ');
 }
 
-const HIT_STROKE_WIDTH = 24;
 
 export type ConduitRunLayerProps = {
   diagram: Diagram;
   selectedConduitRunIds: Set<string>;
   selectedCableIds: Set<string>;
   interactive: boolean;
+  /** Hide all conduit runs + cable stubs, as if buried in the walls. */
+  hideConduits?: boolean;
+  /** Conduit connect tool active — keep stubs visible/pickable even when hidden. */
+  conduitConnectActive?: boolean;
+  /** When set, tint each run's sheath with its group color. */
+  groupColorByRunId?: Map<string, string> | null;
+  /** When set, tint each cable stub's sheath with its group color. */
+  groupColorByCableId?: Map<string, string> | null;
   onSelectConduitRun?: (id: string) => void;
   /** Select tool — choose a cable bundle from its stub hit target */
   onSelectCableConduit?: (cableId: string) => void;
@@ -31,6 +39,10 @@ export function ConduitRunLayer({
   selectedConduitRunIds,
   selectedCableIds,
   interactive,
+  hideConduits = false,
+  conduitConnectActive = false,
+  groupColorByRunId = null,
+  groupColorByCableId = null,
   onSelectConduitRun,
   onSelectCableConduit,
   conduitConnectInteractive = false,
@@ -47,11 +59,12 @@ export function ConduitRunLayer({
 
   return (
     <g className="conduit-run-layer" role="presentation" aria-label="Conduit runs">
-      {diagram.conduitRuns.map((run) => {
+      {!hideConduits && diagram.conduitRuns.map((run) => {
         const pts = diagram.layout.conduitRunPaths?.[run.id]?.points ?? [];
         if (pts.length < 2) return null;
         const d = pathD(pts);
         const selected = selectedConduitRunIds.has(run.id);
+        const runColor = groupColorByRunId?.get(run.id);
 
         return (
           <g
@@ -60,14 +73,19 @@ export function ConduitRunLayer({
             data-conduit-run-id={run.id}
           >
             <path className="conduit-run__sheath-outline" d={d} fill="none" />
-            <path className="conduit-run__sheath" d={d} fill="none" />
+            <path
+              className="conduit-run__sheath"
+              d={d}
+              fill="none"
+              style={runColor ? { stroke: runColor } : undefined}
+            />
             {runInteractive && (
               <path
-                className="conduit-run-hit"
+                className="conduit-run-hit diagram-hit-stroke"
                 d={d}
                 fill="none"
                 stroke="transparent"
-                strokeWidth={HIT_STROKE_WIDTH}
+                strokeWidth={HIT_STROKE_SCREEN_PX}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 pointerEvents="stroke"
@@ -82,13 +100,15 @@ export function ConduitRunLayer({
         );
       })}
 
-      {diagram.cables.map((cable) => {
+      {!(hideConduits && !conduitConnectActive) && diagram.cables.map((cable) => {
         const box = diagram.junctionBoxes.find((j) => j.id === cable.junctionBoxId);
         const n = cable.wireIds.length;
         if (!box || n < 1 || n > 3) return null;
 
         const pts = conduitStubResolvedPath(diagram, cable.id);
         if (!pts || pts.length < 2) return null;
+
+        const stubColor = groupColorByCableId?.get(cable.id);
 
         const d = pathD(pts);
         const selectedStub = selectedCableIds.has(cable.id);
@@ -131,14 +151,19 @@ export function ConduitRunLayer({
             data-cable-id={cable.id}
           >
             <path className="conduit-run__sheath-outline" d={d} fill="none" />
-            <path className="conduit-run__sheath" d={d} fill="none" />
+            <path
+              className="conduit-run__sheath"
+              d={d}
+              fill="none"
+              style={stubColor ? { stroke: stubColor } : undefined}
+            />
             {stubHitActive && (
               <path
-                className="conduit-run-hit conduit-run-hit--stub"
+                className="conduit-run-hit conduit-run-hit--stub diagram-hit-stroke"
                 d={d}
                 fill="none"
                 stroke="transparent"
-                strokeWidth={HIT_STROKE_WIDTH}
+                strokeWidth={HIT_STROKE_SCREEN_PX}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 pointerEvents="stroke"

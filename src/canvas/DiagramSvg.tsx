@@ -1,8 +1,10 @@
-import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
-import type { AnchorPosition } from '../domain/types';
+import { useMemo, useRef, useState, type JSX, type PointerEvent as ReactPointerEvent } from 'react';
+import type { AnchorPosition, RoomWall } from '../domain/types';
 import { addLightBulb, addSwitch, addDimmerSwitch, addOutlet } from '../domain/device-mutations';
+import { GRID_SIZE } from '../domain/grid';
 import { addJunctionBox } from '../domain/mutations';
-import { addRoom } from '../domain/room-mutations';
+import { addRoom, addRoomFromBounds } from '../domain/room-mutations';
+import { snapRoomDraftCorners } from '../domain/room-snap';
 import type { Diagram, ResolvedWire, WireEndpoint } from '../domain/types';
 import type { ApplyDiagramFn } from '../editor/apply-diagram';
 import type { EditorMainTool } from '../editor/editor-tools';
@@ -14,11 +16,13 @@ import { DiagramGrid } from './DiagramGrid';
 import { RoomShape } from './RoomShape';
 import { CableLayer } from './CableLayer';
 import { ConduitRunLayer } from './ConduitRunLayer';
+import { conduitGroupColors } from './conduit-group-colors';
 import { ConduitLayer } from './ConduitLayer';
 import { DiagramLabelsLayer } from './DiagramLabelsLayer';
 import { JunctionBoxShape } from './JunctionBoxShape';
 import { DeviceConnectionLayer } from './DeviceConnectionLayer';
 import { HubConnectionLayer } from './HubConnectionLayer';
+import { HubConnectHitLayer } from './HubConnectHitLayer';
 import { LightBulbShape } from './LightBulbShape';
 import { SwitchShape } from './SwitchShape';
 import { DimmerSwitchShape } from './DimmerSwitchShape';
@@ -29,21 +33,29 @@ import { WireEndpointHitLayer } from './WireEndpointHitLayer';
 import { PathEditLayer } from './PathEditLayer';
 import { PathAnchorEditLayer } from './PathAnchorEditLayer';
 import { SelectionMarquee } from './SelectionMarquee';
+import { PenHoverIndicator } from './PenHoverIndicator';
 import type { DiagramSelection } from '../editor/diagram-selection';
 import { soleSelectedId } from '../editor/diagram-selection';
+import type { ContextMenuTarget } from '../editor/context-menu-target';
+import { useEntityContextMenuGesture } from '../editor/use-context-menu-gesture';
+import { DESKTOP_LONG_PRESS_MS, TOUCH_LONG_PRESS_MS, useTouchNavigationProfile } from '../canvas/touch-profile';
 import { useDiagramViewport } from './CanvasViewport';
 
 export type DiagramSvgProps = {
   diagram: Diagram;
   resolvedByWireId: Map<string, ResolvedWire>;
   tool: EditorMainTool;
+  connectInteractionActive?: boolean;
   selection: DiagramSelection;
   connectPendingWireId: string | null;
   connectPendingHubId: string | null;
   connectPendingNodeId: string | null;
   marquee: { ax: number; ay: number; bx: number; by: number } | null;
+  penHover?: { world: { x: number; y: number }; label: string | null } | null;
   onSelectBox: (id: string | null) => void;
   onSelectRoom?: (id: string) => void;
+  doorPlacingRoomId?: string | null;
+  onPlaceRoomDoor?: (roomId: string, wall: RoomWall, centerOffset: number) => void;
   onWirePointerDown?: (wireId: string) => void;
   onWireEndpointPointerDown?: (wireId: string, endpoint: WireEndpoint) => void;
   connectPendingWireEndpoint?: WireEndpoint | null;
@@ -62,6 +74,7 @@ export type DiagramSvgProps = {
   conduitConnectDimStubNonTargets?: boolean;
   onSelectHub?: (hubId: string) => void;
   onSelectHubBridge?: (bridgeId: string) => void;
+  onSelectHubWire?: (wireId: string) => void;
   onHubPointerDown?: (hubId: string) => void;
   onHubConduitPick?: (hubId: string) => void;
   onSelectLightBulb?: (id: string) => void;
@@ -78,21 +91,29 @@ export type DiagramSvgProps = {
     height: number;
   };
   showLabels: boolean;
+  hideConduits: boolean;
+  colorConduitGroups: boolean;
   switchPlacementKind: SwitchPlacementKind;
   outletPassthrough: boolean;
+  onEntityContextMenu?: (target: ContextMenuTarget, clientX: number, clientY: number) => void;
+  onSurfaceLongPress?: (clientX: number, clientY: number) => void;
 };
 
 export function DiagramSvg({
   diagram,
   resolvedByWireId,
   tool,
+  connectInteractionActive = false,
   selection,
   connectPendingWireId,
   connectPendingHubId,
   connectPendingNodeId,
   marquee,
+  penHover = null,
   onSelectBox,
   onSelectRoom,
+  doorPlacingRoomId = null,
+  onPlaceRoomDoor,
   onWirePointerDown,
   onWireEndpointPointerDown,
   connectPendingWireEndpoint = null,
@@ -111,6 +132,7 @@ export function DiagramSvg({
   conduitConnectDimStubNonTargets = false,
   onSelectHub,
   onSelectHubBridge,
+  onSelectHubWire,
   onHubPointerDown,
   onHubConduitPick,
   onSelectLightBulb,
@@ -122,10 +144,30 @@ export function DiagramSvg({
   onJunctionAnchorPointerDown,
   worldRect,
   showLabels,
+  hideConduits,
+  colorConduitGroups,
   switchPlacementKind,
   outletPassthrough,
+  onEntityContextMenu,
+  onSurfaceLongPress,
 }: DiagramSvgProps): JSX.Element {
   const vp = useDiagramViewport();
+  const touchNavigation = useTouchNavigationProfile();
+  const longPressGestureOptions = {
+    longPressMs: touchNavigation ? TOUCH_LONG_PRESS_MS : DESKTOP_LONG_PRESS_MS,
+    onLongPressAt: onSurfaceLongPress,
+  };
+  const { bind: bindContextMenu } = useEntityContextMenuGesture(onEntityContextMenu ?? (() => {}), longPressGestureOptions);
+
+  const groupColors = useMemo(
+    () => (colorConduitGroups ? conduitGroupColors(diagram) : null),
+    [colorConduitGroups, diagram],
+  );
+  const groupColorByRunId = groupColors?.runColorById ?? null;
+  const groupColorByCableId = groupColors?.cableColorById ?? null;
+
+  const roomDragRef = useRef<{ pointerId: number; start: { x: number; y: number } } | null>(null);
+  const [roomDraft, setRoomDraft] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
 
   const { minX, minY, width, height } = worldRect;
 
@@ -133,7 +175,7 @@ export function DiagramSvg({
     tool === 'cable' || tool === 'conduit-connect';
 
   function placeJunction(e: ReactPointerEvent<SVGRectElement>) {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || vp.isMultiTouchActive()) return;
     const world = vp.clientPointToWorld(e.clientX, e.clientY);
     if (!world) return;
     e.stopPropagation();
@@ -147,7 +189,7 @@ export function DiagramSvg({
   }
 
   function placeBulb(e: ReactPointerEvent<SVGRectElement>) {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || vp.isMultiTouchActive()) return;
     const world = vp.clientPointToWorld(e.clientX, e.clientY);
     if (!world) return;
     e.stopPropagation();
@@ -161,7 +203,7 @@ export function DiagramSvg({
   }
 
   function placeSwitchDevice(e: ReactPointerEvent<SVGRectElement>) {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || vp.isMultiTouchActive()) return;
     const world = vp.clientPointToWorld(e.clientX, e.clientY);
     if (!world) return;
     e.stopPropagation();
@@ -188,7 +230,7 @@ export function DiagramSvg({
   }
 
   function placeOutletDevice(e: ReactPointerEvent<SVGRectElement>, passthrough: boolean) {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || vp.isMultiTouchActive()) return;
     const world = vp.clientPointToWorld(e.clientX, e.clientY);
     if (!world) return;
     e.stopPropagation();
@@ -201,14 +243,54 @@ export function DiagramSvg({
     if (newId) onSelectOutlet?.(newId);
   }
 
-  function placeRoomDevice(e: ReactPointerEvent<SVGRectElement>) {
-    if (e.button !== 0) return;
+  const ROOM_DRAG_THRESHOLD = GRID_SIZE * 2;
+
+  function beginRoomDraft(e: ReactPointerEvent<SVGRectElement>) {
+    if (e.button !== 0 || vp.isMultiTouchActive()) return;
     const world = vp.clientPointToWorld(e.clientX, e.clientY);
     if (!world) return;
     e.stopPropagation();
+    roomDragRef.current = { pointerId: e.pointerId, start: world };
+    setRoomDraft({ x0: world.x, y0: world.y, x1: world.x, y1: world.y });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function moveRoomDraft(e: ReactPointerEvent<SVGRectElement>) {
+    const drag = roomDragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const world = vp.clientPointToWorld(e.clientX, e.clientY);
+    if (!world) return;
+    const snapped = snapRoomDraftCorners(
+      drag.start.x,
+      drag.start.y,
+      world.x,
+      world.y,
+      diagram.rooms ?? [],
+    );
+    setRoomDraft({ x0: snapped.x0, y0: snapped.y0, x1: snapped.x1, y1: snapped.y1 });
+  }
+
+  function endRoomDraft(e: ReactPointerEvent<SVGRectElement>) {
+    const drag = roomDragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    roomDragRef.current = null;
+    setRoomDraft(null);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+
+    const world = vp.clientPointToWorld(e.clientX, e.clientY) ?? drag.start;
+    const dragged =
+      Math.abs(world.x - drag.start.x) >= ROOM_DRAG_THRESHOLD ||
+      Math.abs(world.y - drag.start.y) >= ROOM_DRAG_THRESHOLD;
+
     let newId: string | undefined;
     onApplyDiagram((d) => {
-      const next = addRoom(d, world.x, world.y);
+      const next = dragged
+        ? addRoomFromBounds(d, drag.start.x, drag.start.y, world.x, world.y)
+        : addRoom(d, drag.start.x, drag.start.y);
       newId = next.rooms[next.rooms.length - 1]?.id;
       return next;
     });
@@ -227,6 +309,8 @@ export function DiagramSvg({
   const soleConduitId = soleSelectedId(selection.conduits);
   const soleLinkId = soleSelectedId(selection.links);
   const soleHubBridgeId = soleSelectedId(selection.hubBridges);
+  const soleHubWireId = soleSelectedId(selection.hubWires);
+  const soleConduitRunId = soleSelectedId(selection.conduitRuns);
 
   return (
     <g
@@ -244,8 +328,12 @@ export function DiagramSvg({
           selected={selection.rooms.has(room.id)}
           selection={selection}
           onSelect={() => onSelectRoom?.(room.id)}
+          doorPlacing={doorPlacingRoomId === room.id}
+          onPlaceDoor={(wall, centerOffset) => onPlaceRoomDoor?.(room.id, wall, centerOffset)}
           onApplyDiagram={onApplyDiagram}
           onCommitHistory={onCommitHistory}
+          onEntityContextMenu={onEntityContextMenu}
+          onSurfaceLongPress={onSurfaceLongPress}
         />
       ))}
 
@@ -256,6 +344,7 @@ export function DiagramSvg({
         tool={tool}
         selectedWireIds={selection.wires}
         connectPendingWireId={connectPendingWireId}
+        connectInteractionActive={connectInteractionActive}
         onWirePointerDown={onWirePointerDown}
         showLabels={showLabels}
         renderLabels={false}
@@ -269,6 +358,10 @@ export function DiagramSvg({
         selectedConduitRunIds={selection.conduitRuns}
         selectedCableIds={selection.cables}
         interactive={tool === 'select'}
+        hideConduits={hideConduits}
+        conduitConnectActive={tool === 'conduit-connect'}
+        groupColorByRunId={groupColorByRunId}
+        groupColorByCableId={groupColorByCableId}
         onSelectConduitRun={onSelectConduitRun}
         onSelectCableConduit={tool === 'select' ? onSelectCableConduit : undefined}
         conduitConnectInteractive={tool === 'conduit-connect'}
@@ -290,6 +383,7 @@ export function DiagramSvg({
           selectedJunctionAnchorKeys={selection.junctionAnchors}
           selection={selection}
           connectPendingHubId={connectPendingHubId}
+          connectInteractionActive={connectInteractionActive}
           anchorsInteractive={anchorsInteractive}
           onAnchorPointerDown={(anchor) => onAnchorPick?.({ boxId: box.id, anchor })}
           onJunctionAnchorPointerDown={onJunctionAnchorPointerDown}
@@ -299,6 +393,8 @@ export function DiagramSvg({
           onHubConduitPick={onHubConduitPick}
           onApplyDiagram={onApplyDiagram}
           onCommitHistory={onCommitHistory}
+          onEntityContextMenu={onEntityContextMenu}
+          onSurfaceLongPress={onSurfaceLongPress}
         />
       ))}
 
@@ -310,9 +406,12 @@ export function DiagramSvg({
         tool={tool}
         interactive={tool === 'select'}
         connectPendingWireId={connectPendingWireId}
+        connectInteractionActive={connectInteractionActive}
         onSelectCable={onSelectCable}
         onWirePointerDown={onWirePointerDown}
         onToggleBreakerCable={onToggleBreakerCable}
+        groupColorByCableId={groupColorByCableId}
+        bindContextMenu={onEntityContextMenu ? bindContextMenu : undefined}
       />
 
       <ConduitLayer
@@ -323,6 +422,7 @@ export function DiagramSvg({
         tool={tool}
         selectedWireIds={selection.wires}
         connectPendingWireId={connectPendingWireId}
+        connectInteractionActive={connectInteractionActive}
         onWirePointerDown={onWirePointerDown}
         showLabels={showLabels}
         renderLabels={false}
@@ -335,8 +435,10 @@ export function DiagramSvg({
 
       <HubConnectionLayer
         diagram={diagram}
+        selectedHubWireIds={selection.hubWires}
         selectedHubBridgeIds={selection.hubBridges}
-        interactive={tool === 'select'}
+        interactive={tool === 'select' && !connectInteractionActive}
+        onSelectHubWire={onSelectHubWire}
         onSelectHubBridge={onSelectHubBridge}
       />
 
@@ -350,6 +452,7 @@ export function DiagramSvg({
           selectedNodeIds={selection.deviceNodes}
           selection={selection}
           connectPendingNodeId={connectPendingNodeId}
+          connectInteractionActive={connectInteractionActive}
           onSelect={() => onSelectLightBulb?.(bulb.id)}
           onSelectNode={(nodeId) => onSelectDeviceNode?.(nodeId)}
           onNodePointerDown={onDeviceNodePointerDown}
@@ -368,6 +471,7 @@ export function DiagramSvg({
           selectedNodeIds={selection.deviceNodes}
           selection={selection}
           connectPendingNodeId={connectPendingNodeId}
+          connectInteractionActive={connectInteractionActive}
           onSelect={() => onSelectSwitch?.(sw.id)}
           onSelectNode={(nodeId) => onSelectDeviceNode?.(nodeId)}
           onNodePointerDown={onDeviceNodePointerDown}
@@ -386,6 +490,7 @@ export function DiagramSvg({
           selectedNodeIds={selection.deviceNodes}
           selection={selection}
           connectPendingNodeId={connectPendingNodeId}
+          connectInteractionActive={connectInteractionActive}
           onSelect={() => onSelectDimmerSwitch?.(dim.id)}
           onSelectNode={(nodeId) => onSelectDeviceNode?.(nodeId)}
           onNodePointerDown={onDeviceNodePointerDown}
@@ -404,6 +509,7 @@ export function DiagramSvg({
           selectedNodeIds={selection.deviceNodes}
           selection={selection}
           connectPendingNodeId={connectPendingNodeId}
+          connectInteractionActive={connectInteractionActive}
           onSelect={() => onSelectOutlet?.(outlet.id)}
           onSelectNode={(nodeId) => onSelectDeviceNode?.(nodeId)}
           onNodePointerDown={onDeviceNodePointerDown}
@@ -420,6 +526,7 @@ export function DiagramSvg({
         tool={tool}
         selectedWireIds={selection.wires}
         connectPendingWireId={connectPendingWireId}
+        connectInteractionActive={connectInteractionActive}
         onWirePointerDown={onWirePointerDown}
         showLabels={showLabels}
         renderLabels={false}
@@ -434,13 +541,21 @@ export function DiagramSvg({
         selectedLinkIds={selection.links}
         interactive={tool === 'select'}
         onSelectLink={onSelectLink}
+        bindContextMenu={onEntityContextMenu ? bindContextMenu : undefined}
       />
 
-      <WireHitLayer diagram={diagram} tool={tool} onWirePointerDown={onWirePointerDown} />
+      <WireHitLayer
+        diagram={diagram}
+        tool={tool}
+        connectInteractionActive={connectInteractionActive}
+        onWirePointerDown={onWirePointerDown}
+        onEntityContextMenu={onEntityContextMenu}
+        onSurfaceLongPress={onSurfaceLongPress}
+      />
 
       <WireEndpointHitLayer
         diagram={diagram}
-        tool={tool}
+        connectInteractionActive={connectInteractionActive}
         connectPendingWireId={connectPendingWireId}
         connectPendingWireEndpoint={connectPendingWireEndpoint}
         onWireEndpointPointerDown={onWireEndpointPointerDown}
@@ -449,10 +564,21 @@ export function DiagramSvg({
       <PathEditLayer
         diagram={diagram}
         tool={tool}
-        selectedWireId={soleWireId}
-        selectedCableId={
-          soleWireId || soleConduitId || soleLinkId || soleHubBridgeId ? null : soleCableId
+        selectedWireId={
+          soleHubWireId || soleConduitRunId || soleLinkId || soleHubBridgeId ? null : soleWireId
         }
+        selectedCableId={
+          soleWireId ||
+          soleConduitId ||
+          soleLinkId ||
+          soleHubBridgeId ||
+          soleHubWireId ||
+          soleConduitRunId
+            ? null
+            : soleCableId
+        }
+        selectedConduitRunId={soleConduitRunId}
+        selectedHubWireId={soleHubWireId}
         selectedConduitId={soleConduitId}
         selectedLinkId={soleLinkId}
         selectedHubBridgeId={soleHubBridgeId}
@@ -463,6 +589,7 @@ export function DiagramSvg({
       {tool === 'select' && selection.pathAnchors.size > 0 && (
         <PathAnchorEditLayer
           diagram={diagram}
+          selection={selection}
           selectedPathAnchorKeys={selection.pathAnchors}
           onApplyDiagram={onApplyDiagram}
           onCommitHistory={onCommitHistory}
@@ -472,6 +599,23 @@ export function DiagramSvg({
       <DiagramLabelsLayer diagram={diagram} showLabels={showLabels} />
 
       {marquee && <SelectionMarquee ax={marquee.ax} ay={marquee.ay} bx={marquee.bx} by={marquee.by} />}
+
+      {penHover && <PenHoverIndicator world={penHover.world} />}
+
+      {connectInteractionActive && onHubPointerDown && (
+        <HubConnectHitLayer diagram={diagram} onHubPointerDown={onHubPointerDown} />
+      )}
+
+      {roomDraft && tool === 'place-room' && (
+        <rect
+          className="room-place-preview"
+          x={Math.min(roomDraft.x0, roomDraft.x1)}
+          y={Math.min(roomDraft.y0, roomDraft.y1)}
+          width={Math.abs(roomDraft.x1 - roomDraft.x0)}
+          height={Math.abs(roomDraft.y1 - roomDraft.y0)}
+          pointerEvents="none"
+        />
+      )}
 
       {(tool === 'place-junction' ||
         tool === 'place-room' ||
@@ -493,9 +637,12 @@ export function DiagramSvg({
                 : tool === 'place-outlet'
                   ? (e) => placeOutletDevice(e, outletPassthrough)
                   : tool === 'place-room'
-                    ? placeRoomDevice
+                    ? beginRoomDraft
                     : placeJunction
           }
+          onPointerMove={tool === 'place-room' ? moveRoomDraft : undefined}
+          onPointerUp={tool === 'place-room' ? endRoomDraft : undefined}
+          onPointerCancel={tool === 'place-room' ? endRoomDraft : undefined}
         />
       )}
     </g>

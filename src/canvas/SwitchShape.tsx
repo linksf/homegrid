@@ -15,7 +15,7 @@ import { flipSwitchPosition } from '../domain/device-mutations';
 import type { Diagram, Switch } from '../domain/types';
 import type { ApplyDiagramFn } from '../editor/apply-diagram';
 import type { EditorMainTool } from '../editor/editor-tools';
-import { moveSwitchesByDelta, switchIdsForGroupMove } from '../editor/selection-move';
+import { captureSelectionMoveSnapshot, moveSelectionByDelta, switchIdsForGroupMove } from '../editor/selection-move';
 import type { DiagramSelection } from '../editor/diagram-selection';
 import { useDiagramViewport } from './CanvasViewport';
 import { DeviceNodeMarker } from './DeviceNodeMarker';
@@ -28,6 +28,7 @@ type SwitchShapeProps = {
   selectedNodeIds: Set<string>;
   selection: DiagramSelection;
   connectPendingNodeId: string | null;
+  connectInteractionActive?: boolean;
   onSelect: () => void;
   onSelectNode: (nodeId: string) => void;
   onNodePointerDown?: (nodeId: string) => void;
@@ -43,6 +44,7 @@ export function SwitchShape({
   selectedNodeIds,
   selection,
   connectPendingNodeId,
+  connectInteractionActive = false,
   onSelect,
   onSelectNode,
   onNodePointerDown,
@@ -53,11 +55,10 @@ export function SwitchShape({
   const drag = useRef<{
     pointerId: number;
     start: { x: number; y: number };
-    switchIds: string[];
-    startSwitches: Map<string, { x: number; y: number }>;
+    snapshot: ReturnType<typeof captureSelectionMoveSnapshot>;
   } | null>(null);
   const nodes = deviceNodesForDevice(diagram, 'switch', sw.id);
-  const connectInteractive = tool === 'connect-wires';
+  const connectInteractive = connectInteractionActive;
   const conduitInteractive = tool === 'cable';
   const position = normalizeSwitchPosition(sw);
   const connectedPairs = switchConnectedSlots(sw);
@@ -89,13 +90,13 @@ export function SwitchShape({
     if (!p) return;
 
     const switchIds = [...switchIdsForGroupMove(selection, sw.id)];
-    const startSwitches = new Map<string, { x: number; y: number }>();
-    for (const id of switchIds) {
-      const item = diagram.switches.find((s) => s.id === id);
-      if (item) startSwitches.set(id, { x: item.x, y: item.y });
-    }
+    const moveSelection: DiagramSelection = {
+      ...selection,
+      switches: new Set([...selection.switches, ...switchIds]),
+    };
+    const snapshot = captureSelectionMoveSnapshot(diagram, moveSelection);
 
-    drag.current = { pointerId: e.pointerId, start: p, switchIds, startSwitches };
+    drag.current = { pointerId: e.pointerId, start: p, snapshot };
     (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
   }
 
@@ -106,7 +107,7 @@ export function SwitchShape({
     if (!p) return;
     const dx = p.x - session.start.x;
     const dy = p.y - session.start.y;
-    onApplyDiagram((d) => moveSwitchesByDelta(d, session.switchIds, session.startSwitches, dx, dy), {
+    onApplyDiagram((d) => moveSelectionByDelta(d, session.snapshot, dx, dy), {
       history: false,
     });
   }

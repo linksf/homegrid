@@ -113,8 +113,8 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
         if (!hubWirePairAllowed(diagram, ids[i]!, ids[j]!)) continue;
-        addNeighbor(adj, ids[i]!, ids[j]!, false);
-        addNeighbor(adj, ids[j]!, ids[i]!, false);
+        addNeighbor(adj, ids[i]!, ids[j]!, true);
+        addNeighbor(adj, ids[j]!, ids[i]!, true);
       }
     }
   }
@@ -124,8 +124,8 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
     const b = byHub.get(bridge.hubIdB) ?? [];
     for (const wa of a) {
       for (const wb of b) {
-        addNeighbor(adj, wa, wb, false);
-        addNeighbor(adj, wb, wa, false);
+        addNeighbor(adj, wa, wb, true);
+        addNeighbor(adj, wb, wa, true);
       }
     }
   }

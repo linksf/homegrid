@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { PREFERENCE_KEY_PREFIX } from '../app-brand';
 import type { AnchorPosition, WireColor, WireEndpoint } from '../domain/types';
 import type { BreakerCircuitPreset } from '../domain/breaker-cable';
 import { breakerPresetWireColors, isBreakerSeededWire } from '../domain/breaker-cable';
@@ -25,6 +26,7 @@ import {
   updateHub,
   updateJunctionBox,
   updateWire,
+  updateWireColor,
 } from '../domain/mutations';
 import {
   conduitConnectCompatibleCableIds,
@@ -39,8 +41,8 @@ import {
 } from '../domain/wire-link-utils';
 import { resolveDirections } from '../domain/direction';
 import {
-  attachHubToDeviceNode,
-  attachWireToDeviceNode,
+  connectHubToDeviceTerminal,
+  connectWireToDeviceTerminal,
   detachWireFromDeviceNode,
   updateLightBulb,
   flipSwitchPosition,
@@ -51,11 +53,30 @@ import {
   updateOutlet,
   rotateDevice,
 } from '../domain/device-mutations';
-import { addRoomDoorAt, removeRoomDoor, updateRoom } from '../domain/room-mutations';
+import { addRoomDoorAt, removeRoomDoor, updateRoom, updateRoomDoor } from '../domain/room-mutations';
 import { deviceNodeById } from '../domain/device-node-geometry';
 import type { Diagram } from '../domain/types';
-import { CanvasViewport } from '../canvas/CanvasViewport';
+import { CanvasViewport, type DiagramViewportSnapshot } from '../canvas/CanvasViewport';
+import { useTouchNavigationProfile, TOUCH_LONG_PRESS_MS } from '../canvas/touch-profile';
+import { usePenBarrelGesture } from '../canvas/use-pen-barrel-gesture';
+import { hitContextMenuTarget, hitContextMenuTargetsAt } from '../editor/context-menu-hit-test';
+import { contextMenuTargetLabel } from '../editor/context-menu-target-label';
+import { resolveTapCycleTarget, type TapCycleState } from '../editor/tap-selection';
 import { CanvasZoomControls } from '../canvas/CanvasZoomControls';
+import { diagramContentBounds, selectionContentBounds } from '../editor/diagram-bounds';
+import {
+  captureSelectionForDuplicate,
+  DUPLICATE_OFFSET,
+  duplicateClipboardOntoDiagram,
+  type DuplicateClipboard,
+  selectionHasDuplicateableContent,
+  shiftDuplicateClipboard,
+} from '../editor/duplicate-selection';
+import {
+  diagramExportFilename,
+  exportDiagramPngFile,
+  exportDiagramSvgFile,
+} from '../editor/diagram-export';
 import { JobNameField } from '../components/JobNameField';
 import {
   DEFAULT_LABEL_SCREEN_PX,
@@ -85,6 +106,7 @@ import {
   setSingleDeviceNode,
   setSingleHub,
   setSingleHubBridge,
+  setSingleHubWire,
   setSingleJunctionBox,
   setSingleLightBulb,
   setSingleLink,
@@ -99,6 +121,17 @@ import {
 import { encodeJunctionAnchor } from '../editor/anchor-selection';
 import { collectMarqueeSelection } from '../editor/marquee-selection';
 import { deleteAllSelected, rotateSelectedDevices, selectionHasRotatableDevice } from '../editor/selection-actions';
+import { ContextMenu } from '../components/ContextMenu';
+import { PickMenu } from '../components/PickMenu';
+import {
+  buildContextMenuActions,
+  cableColorsFromActionId,
+  wireColorFromActionId,
+  type ContextMenuAction,
+} from '../editor/context-menu-actions';
+import { selectionForContextMenuTarget, enrichDeviceNodeSelection } from '../editor/context-menu-selection';
+import type { ContextMenuTarget } from '../editor/context-menu-target';
+import { connectableWireEndpoints } from '../domain/wire-routing';
 
 const WORLD_BOUNDS = {
   minX: -800,
@@ -107,15 +140,30 @@ const WORLD_BOUNDS = {
   height: 4000,
 } as const;
 
-const OPPOSED_FLOW_SESSION_KEY = 'wirer:opposed-flow-toast';
-const SHOW_LABELS_KEY = 'wirer:show-labels';
-const LABEL_SIZE_KEY = 'wirer:label-size-px';
+const OPPOSED_FLOW_SESSION_KEY = `${PREFERENCE_KEY_PREFIX}opposed-flow-toast`;
+const SHOW_LABELS_KEY = `${PREFERENCE_KEY_PREFIX}show-labels`;
+const HIDE_CONDUITS_KEY = `${PREFERENCE_KEY_PREFIX}hide-conduits`;
+const COLOR_CONDUIT_GROUPS_KEY = `${PREFERENCE_KEY_PREFIX}color-conduit-groups`;
+const LABEL_SIZE_KEY = `${PREFERENCE_KEY_PREFIX}label-size-px`;
 
 type ConnectPending =
   | { kind: 'wire-end'; wireId: string; endpoint: import('../domain/types').WireEndpoint }
   | { kind: 'hub'; id: string }
   | { kind: 'node'; id: string }
   | null;
+
+type EntityContextMenuState = {
+  x: number;
+  y: number;
+  actions: ContextMenuAction[];
+  target: ContextMenuTarget;
+};
+
+type PickMenuState = {
+  x: number;
+  y: number;
+  items: { target: ContextMenuTarget; label: string }[];
+};
 
 function readShowLabelsPreference(): boolean {
   try {
@@ -126,6 +174,25 @@ function readShowLabelsPreference(): boolean {
     /* ignore */
   }
   return true;
+}
+
+function readBooleanPreference(key: string, fallback: boolean): boolean {
+  try {
+    const v = sessionStorage.getItem(key);
+    if (v === '0') return false;
+    if (v === '1') return true;
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+function writeBooleanPreference(key: string, value: boolean): void {
+  try {
+    sessionStorage.setItem(key, value ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
 }
 
 function readLabelSizePreference(): number {
@@ -172,16 +239,121 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   const [conduitDialog, setConduitDialog] = useState<ConduitDialogState>(null);
   const [conduitConnectPending, setConduitConnectPending] = useState<{ cableIdA: string } | null>(null);
   const [showLabels, setShowLabels] = useState(readShowLabelsPreference);
+  const [hideConduits, setHideConduits] = useState(() => readBooleanPreference(HIDE_CONDUITS_KEY, false));
+  const [colorConduitGroups, setColorConduitGroups] = useState(() =>
+    readBooleanPreference(COLOR_CONDUIT_GROUPS_KEY, false),
+  );
   const [labelSizePx, setLabelSizePx] = useState(readLabelSizePreference);
+
+  const viewportApiRef = useRef<DiagramViewportSnapshot | null>(null);
+  const duplicateClipboardRef = useRef<DuplicateClipboard | null>(null);
+
+  const fitView = useCallback(
+    (mode: 'selection-or-all' | 'all') => {
+      const d = job?.diagram;
+      if (!d) return;
+      const rect =
+        mode === 'all'
+          ? diagramContentBounds(d)
+          : selectionContentBounds(d, selection) ?? diagramContentBounds(d);
+      viewportApiRef.current?.fitToRect(rect);
+    },
+    [job, selection],
+  );
+
+  const applyHideConduits = useCallback((value: boolean) => {
+    setHideConduits(value);
+    writeBooleanPreference(HIDE_CONDUITS_KEY, value);
+  }, []);
+  const applyColorConduitGroups = useCallback((value: boolean) => {
+    setColorConduitGroups(value);
+    writeBooleanPreference(COLOR_CONDUIT_GROUPS_KEY, value);
+  }, []);
+
+  const handleCopySelection = useCallback(() => {
+    if (!job) return;
+    const clip = captureSelectionForDuplicate(job.diagram, selection);
+    if (clip) duplicateClipboardRef.current = clip;
+  }, [job, selection]);
+
+  const handlePasteSelection = useCallback(() => {
+    const clip = duplicateClipboardRef.current;
+    if (!job || !clip) return;
+    let nextSelection: DiagramSelection = emptySelection();
+    updateDiagram((d) => {
+      const result = duplicateClipboardOntoDiagram(d, clip, DUPLICATE_OFFSET, DUPLICATE_OFFSET);
+      nextSelection = result.selection;
+      return result.diagram;
+    });
+    setSelection(nextSelection);
+    duplicateClipboardRef.current = shiftDuplicateClipboard(clip, DUPLICATE_OFFSET, DUPLICATE_OFFSET);
+  }, [job, updateDiagram]);
+
+  const handleDuplicateSelection = useCallback(() => {
+    if (!job || !selectionHasDuplicateableContent(selection)) return;
+    const clip = captureSelectionForDuplicate(job.diagram, selection);
+    if (!clip) return;
+    duplicateClipboardRef.current = clip;
+    let nextSelection: DiagramSelection = emptySelection();
+    updateDiagram((d) => {
+      const result = duplicateClipboardOntoDiagram(d, clip, DUPLICATE_OFFSET, DUPLICATE_OFFSET);
+      nextSelection = result.selection;
+      return result.diagram;
+    });
+    setSelection(nextSelection);
+    duplicateClipboardRef.current = shiftDuplicateClipboard(clip, DUPLICATE_OFFSET, DUPLICATE_OFFSET);
+  }, [job, selection, updateDiagram]);
+
+  const handleExportSvg = useCallback(() => {
+    const svg = viewportApiRef.current?.svgRef.current;
+    if (!svg || !job) return;
+    exportDiagramSvgFile(svg, diagramExportFilename(job.name, 'svg'));
+  }, [job]);
+
+  const handleExportPng = useCallback(() => {
+    const svg = viewportApiRef.current?.svgRef.current;
+    if (!svg || !job) return;
+    void exportDiagramPngFile(svg, diagramExportFilename(job.name, 'png'));
+  }, [job]);
+
   const [shiftPanActive, setShiftPanActive] = useState(false);
+  const [penBarrelPanActive, setPenBarrelPanActive] = useState(false);
+  const [penHover, setPenHover] = useState<{ world: { x: number; y: number }; label: string | null } | null>(
+    null,
+  );
   const [switchPlacementKind, setSwitchPlacementKind] = useState<SwitchPlacementKind>('single-pole');
   const [outletPassthrough, setOutletPassthrough] = useState(false);
   const [doorPlacingRoomId, setDoorPlacingRoomId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<EntityContextMenuState | null>(null);
+  const [pickMenu, setPickMenu] = useState<PickMenuState | null>(null);
+  const tapCycleRef = useRef<TapCycleState | null>(null);
+  /** Context-menu link flow: stay in select tool until the link is completed or cancelled. */
+  const [ephemeralConnect, setEphemeralConnect] = useState(false);
+  /** Context-menu door flow: exit door placement after one door is placed. */
+  const [ephemeralDoorPlacing, setEphemeralDoorPlacing] = useState(false);
+
+  const connectInteractionActive = tool === 'connect-wires' || ephemeralConnect;
   const [infoPanelOpen, setInfoPanelOpen] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true,
   );
 
-  const panActive = tool === 'pan' || shiftPanActive;
+  const panActive = tool === 'pan' || shiftPanActive || penBarrelPanActive;
+  const touchNavigation = useTouchNavigationProfile();
+  const penInputActive = touchNavigation && tool === 'select';
+
+  usePenBarrelGesture({
+    enabled: penInputActive,
+    onSqueezeStart: () => setPenBarrelPanActive(true),
+    onSqueezeEnd: () => setPenBarrelPanActive(false),
+    onDoubleBarrelTap: () => setTool((current) => (current === 'pan' ? 'select' : 'pan')),
+  });
+
+  useEffect(() => {
+    if (!penInputActive) {
+      setPenHover(null);
+      setPenBarrelPanActive(false);
+    }
+  }, [penInputActive]);
 
   useEffect(() => {
     function isEditableTarget(target: EventTarget | null): boolean {
@@ -239,6 +411,33 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     setSelection(emptySelection());
   }
 
+  function applySelectionFromTarget(target: ContextMenuTarget) {
+    if (!job) return;
+    let nextSelection = selectionForContextMenuTarget(target);
+    if (target.kind === 'deviceNode') {
+      nextSelection = enrichDeviceNodeSelection(job.diagram, nextSelection);
+    }
+    setSelection(nextSelection);
+  }
+
+  function handleTouchMarqueeClear() {
+    setMarquee(null);
+  }
+
+  function handleTouchMarqueeBounds(bounds: { ax: number; ay: number; bx: number; by: number }) {
+    setMarquee(bounds);
+  }
+
+  function handleTouchMarqueeCommit(bounds: { ax: number; ay: number; bx: number; by: number }) {
+    if (!job) {
+      setMarquee(null);
+      return;
+    }
+    const picked = collectMarqueeSelection(job.diagram, bounds.ax, bounds.ay, bounds.bx, bounds.by);
+    setSelection(selectionTotalCount(picked) > 0 ? picked : emptySelection());
+    setMarquee(null);
+  }
+
   function handleMarqueeStart(world: { x: number; y: number }) {
     marqueeStartRef.current = world;
     setMarquee({ ax: world.x, ay: world.y, bx: world.x, by: world.y });
@@ -268,7 +467,31 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     setConduitDialog(null);
     setConduitConnectPending(null);
     setConnectPending(null);
+    setEphemeralConnect(false);
+    setEphemeralDoorPlacing(false);
     setTool('select');
+  }
+
+  function handleToolChange(next: EditorMainTool) {
+    if (next !== 'connect-wires') {
+      setEphemeralConnect(false);
+      if (next !== 'select') {
+        setConnectPending(null);
+      }
+    } else {
+      setEphemeralConnect(false);
+    }
+    setTool(next);
+  }
+
+  function clearEphemeralConnect() {
+    setConnectPending(null);
+    setEphemeralConnect(false);
+  }
+
+  function endConnectPending() {
+    setConnectPending(null);
+    setEphemeralConnect(false);
   }
 
   function hubDisplayLabel(diagram: Diagram, hubId: string): string {
@@ -283,6 +506,16 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     if (!w) return wireId;
     const label = (w.label ?? '').trim();
     return label.length > 0 ? label : `${w.color} wire`;
+  }
+
+  function cableDisplayLabel(diagram: Diagram, cableId: string): string {
+    const cable = diagram.cables.find((c) => c.id === cableId);
+    if (!cable) return cableId;
+    const label = (cable.label ?? '').trim();
+    if (label.length > 0) return label;
+    const box = diagram.junctionBoxes.find((j) => j.id === cable.junctionBoxId);
+    const boxLabel = (box?.label ?? '').trim() || 'Box';
+    return `${boxLabel} · ${cable.anchor}`;
   }
 
   function handleDeleteSelection() {
@@ -321,15 +554,244 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     }
   }
 
+  const handleEntityContextMenu = useCallback(
+    (target: ContextMenuTarget, clientX: number, clientY: number) => {
+      if (tool !== 'select' || !job) return;
+
+      let nextSelection = selectionForContextMenuTarget(target);
+      if (target.kind === 'deviceNode') {
+        nextSelection = enrichDeviceNodeSelection(job.diagram, nextSelection);
+      }
+      setSelection(nextSelection);
+
+      const actions = buildContextMenuActions({
+        diagram: job.diagram,
+        selection: nextSelection,
+        target,
+      });
+      if (actions.length === 0) return;
+
+      setContextMenu({ x: clientX, y: clientY, actions, target });
+    },
+    [job, tool],
+  );
+
+  const handleDiagramTap = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!job) return;
+
+      if (connectInteractionActive && connectPending) {
+        const vp = viewportApiRef.current;
+        const world = vp?.clientPointToWorld(clientX, clientY);
+        if (!world) return;
+        const scale = vp?.scale ?? 1;
+        const preferHub = connectPending.kind === 'wire-end' || connectPending.kind === 'hub';
+        const candidates = hitContextMenuTargetsAt(job.diagram, world.x, world.y, scale, { preferHub });
+        for (const candidate of candidates) {
+          const target = candidate.target;
+          if (target.kind === 'hub') {
+            finishConnect({ kind: 'hub', id: target.hubId });
+            return;
+          }
+          if (target.kind === 'deviceNode') {
+            finishConnect({ kind: 'node', id: target.nodeId });
+            return;
+          }
+        }
+        return;
+      }
+
+      if (tool !== 'select' || ephemeralConnect) return;
+      const vp = viewportApiRef.current;
+      const world = vp?.clientPointToWorld(clientX, clientY);
+      if (!world) return;
+      const scale = vp?.scale ?? 1;
+      const candidates = hitContextMenuTargetsAt(job.diagram, world.x, world.y, scale);
+      const { target, nextState } = resolveTapCycleTarget(candidates, tapCycleRef.current, clientX, clientY);
+      tapCycleRef.current = nextState;
+      if (target) applySelectionFromTarget(target);
+      else clearSelection();
+    },
+    [connectInteractionActive, connectPending, ephemeralConnect, job, tool],
+  );
+
+  const handleSurfaceLongPress = useCallback(
+    (clientX: number, clientY: number) => {
+      if (tool !== 'select' || !job) return;
+      const vp = viewportApiRef.current;
+      const world = vp?.clientPointToWorld(clientX, clientY);
+      if (!world) return;
+      const scale = vp?.scale ?? 1;
+      const candidates = hitContextMenuTargetsAt(job.diagram, world.x, world.y, scale);
+      if (candidates.length === 0) return;
+      setPickMenu({
+        x: clientX,
+        y: clientY,
+        items: candidates.map((candidate) => ({
+          target: candidate.target,
+          label: contextMenuTargetLabel(job.diagram, candidate.target),
+        })),
+      });
+    },
+    [job, tool],
+  );
+
+  const handlePenHoverAt = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!penInputActive || !job) {
+        setPenHover(null);
+        return;
+      }
+      const vp = viewportApiRef.current;
+      const world = vp?.clientPointToWorld(clientX, clientY);
+      if (!world) return;
+      const scale = vp?.scale ?? 1;
+      const preferHub =
+        connectPending?.kind === 'wire-end' || connectPending?.kind === 'hub';
+      const target = hitContextMenuTarget(job.diagram, world.x, world.y, scale, {
+        preferHub: Boolean(preferHub),
+      });
+      setPenHover({
+        world,
+        label: target ? contextMenuTargetLabel(job.diagram, target) : null,
+      });
+    },
+    [connectPending, job, penInputActive],
+  );
+
+  const handlePenHoverClear = useCallback(() => setPenHover(null), []);
+
+  const handlePickMenuTarget = useCallback((target: ContextMenuTarget) => {
+    applySelectionFromTarget(target);
+    setPickMenu(null);
+  }, [job]);
+
+  const handleContextMenuAtClient = useCallback(
+    (clientX: number, clientY: number) => {
+      if (tool !== 'select' || !job) return;
+      const world = viewportApiRef.current?.clientPointToWorld(clientX, clientY);
+      if (!world) return;
+      const scale = viewportApiRef.current?.scale ?? 1;
+      const target = hitContextMenuTarget(job.diagram, world.x, world.y, scale);
+      if (target) handleEntityContextMenu(target, clientX, clientY);
+    },
+    [handleEntityContextMenu, job, tool],
+  );
+
+  function handleContextMenuAction(actionId: string) {
+    if (!job || !contextMenu) return;
+    const { target } = contextMenu;
+    setDeleteError(null);
+
+    if (actionId === 'delete') {
+      handleDeleteSelection();
+      return;
+    }
+
+    if (actionId === 'duplicate') {
+      handleDuplicateSelection();
+      return;
+    }
+
+    if (actionId === 'rotate-cw') {
+      updateDiagram((d) => rotateSelectedDevices(d, selection, 'cw'));
+      return;
+    }
+
+    if (actionId === 'room-place-door' && target.kind === 'room') {
+      setDoorPlacingRoomId(target.roomId);
+      setEphemeralDoorPlacing(true);
+      return;
+    }
+
+    if (actionId === 'box-add-hub' && target.kind === 'junctionBox') {
+      try {
+        updateDiagram((d) => addHub(d, target.boxId));
+      } catch (err) {
+        setDeleteError(err instanceof Error ? err.message : 'Could not add hub.');
+      }
+      return;
+    }
+
+    if (actionId === 'box-add-breaker-circuit' && target.kind === 'junctionBox') {
+      const panelAnchors: AnchorPosition[] = [
+        'middle-left',
+        'middle-right',
+        'top-center',
+        'bottom-center',
+        'top-left',
+        'top-right',
+      ];
+      updateDiagram((d) => {
+        const count = d.cables.filter(
+          (c) => c.junctionBoxId === target.boxId && c.role === 'breaker',
+        ).length;
+        const anchor = panelAnchors[count % panelAnchors.length]!;
+        return addCable(d, {
+          junctionBoxId: target.boxId,
+          anchor,
+          wireColors: breakerPresetWireColors('twoWire'),
+        });
+      });
+      return;
+    }
+
+    const cableColors = cableColorsFromActionId(actionId);
+    if (cableColors && target.kind === 'junctionAnchor') {
+      if (cableAnchorTaken(job.diagram, target.boxId, target.anchor)) {
+        setDeleteError('That junction anchor already has a cable.');
+        return;
+      }
+      try {
+        updateDiagram((d) =>
+          addCable(d, {
+            junctionBoxId: target.boxId,
+            anchor: target.anchor,
+            wireColors: cableColors,
+          }),
+        );
+      } catch (err) {
+        setDeleteError(err instanceof Error ? err.message : 'Could not add cable.');
+      }
+      return;
+    }
+
+    const wireColor = wireColorFromActionId(actionId);
+    if (wireColor && target.kind === 'wire') {
+      updateDiagram((d) => updateWireColor(d, target.wireId, wireColor));
+      return;
+    }
+
+    if (actionId === 'wire-create-link' && target.kind === 'wire') {
+      const endpoint = connectableWireEndpoints(job.diagram, target.wireId).find(
+        (ep) => !wireLinkAtEndpoint(job.diagram, target.wireId, ep),
+      );
+      if (!endpoint) return;
+      setEphemeralConnect(true);
+      setConnectPending({ kind: 'wire-end', wireId: target.wireId, endpoint });
+    }
+  }
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
       if (e.key === 'Escape') {
+        if (contextMenu) {
+          e.preventDefault();
+          setContextMenu(null);
+          return;
+        }
         if (doorPlacingRoomId) {
           e.preventDefault();
           setDoorPlacingRoomId(null);
+          setEphemeralDoorPlacing(false);
+          return;
+        }
+        if (ephemeralConnect && connectPending) {
+          e.preventDefault();
+          clearEphemeralConnect();
           return;
         }
         if (tool !== 'select' || conduitDialog || connectPending || conduitConnectPending) {
@@ -355,6 +817,25 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         return;
       }
 
+      if (mod && tool === 'select') {
+        const key = e.key.toLowerCase();
+        if (key === 'c' && selectionHasDuplicateableContent(selection)) {
+          e.preventDefault();
+          handleCopySelection();
+          return;
+        }
+        if (key === 'v' && duplicateClipboardRef.current) {
+          e.preventDefault();
+          handlePasteSelection();
+          return;
+        }
+        if (key === 'd' && selectionHasDuplicateableContent(selection)) {
+          e.preventDefault();
+          handleDuplicateSelection();
+          return;
+        }
+      }
+
       if (!mod && !e.altKey && e.key.length === 1) {
         if (e.key.toLowerCase() === 't') {
           e.preventDefault();
@@ -370,10 +851,28 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
           return;
         }
 
+        if (e.key.toLowerCase() === 'w') {
+          e.preventDefault();
+          applyHideConduits(!hideConduits);
+          return;
+        }
+
+        if (e.key.toLowerCase() === 'g') {
+          e.preventDefault();
+          applyColorConduitGroups(!colorConduitGroups);
+          return;
+        }
+
+        if (e.key.toLowerCase() === 'f') {
+          e.preventDefault();
+          fitView(e.shiftKey ? 'all' : 'selection-or-all');
+          return;
+        }
+
         const nextTool = toolForShortcutKey(e.key);
         if (nextTool) {
           e.preventDefault();
-          setTool(nextTool);
+          handleToolChange(nextTool);
           return;
         }
       }
@@ -408,11 +907,22 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     connectPending,
     conduitConnectPending,
     doorPlacingRoomId,
+    ephemeralConnect,
+    ephemeralDoorPlacing,
+    contextMenu,
     selection,
     job,
     updateDiagram,
     undoDiagram,
     redoDiagram,
+    hideConduits,
+    colorConduitGroups,
+    applyHideConduits,
+    applyColorConduitGroups,
+    fitView,
+    handleCopySelection,
+    handlePasteSelection,
+    handleDuplicateSelection,
   ]);
 
   function finishConnect(target: ConnectPending) {
@@ -429,7 +939,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       connectPending.wireId === target.wireId &&
       connectPending.endpoint === target.endpoint
     ) {
-      setConnectPending(null);
+      endConnectPending();
       return;
     }
     if (
@@ -439,7 +949,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       'id' in target &&
       connectPending.id === target.id
     ) {
-      setConnectPending(null);
+      endConnectPending();
       return;
     }
 
@@ -448,13 +958,24 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         const wa = job.diagram.wires.find((w) => w.id === connectPending.wireId);
         const wb = job.diagram.wires.find((w) => w.id === target.wireId);
         if (!wa || !wb) {
-          setConnectPending(null);
+          endConnectPending();
           return;
         }
 
-        if (wa.hubId || wb.hubId || wa.deviceNodeId || wb.deviceNodeId) {
-          setDeleteError('A wire on a hub or terminal cannot use a direct wire-to-wire link. Detach it first.');
-          setConnectPending(null);
+        if (wa.hubId || wb.hubId) {
+          if (wa.hubId && wb.hubId && wa.hubId !== wb.hubId) {
+            setDeleteError('These wires are on different hubs. Connect both to the same hub instead.');
+            endConnectPending();
+            return;
+          }
+          if (wa.hubId && wb.hubId) {
+            endConnectPending();
+            return;
+          }
+          const hubId = wa.hubId ?? wb.hubId!;
+          const wireId = wa.hubId ? target.wireId : connectPending.wireId;
+          updateDiagram((d) => attachWireToHub(d, hubId, wireId));
+          endConnectPending();
           return;
         }
 
@@ -463,7 +984,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
           wireLinkAtEndpoint(job.diagram, target.wireId, target.endpoint)
         ) {
           setDeleteError('That wire end is already linked.');
-          setConnectPending(null);
+          endConnectPending();
           return;
         }
 
@@ -494,23 +1015,23 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       } else if (connectPending.kind === 'hub' && target.kind === 'hub') {
         updateDiagram((d) => addHubBridge(d, connectPending.id, target.id));
       } else if (connectPending.kind === 'hub' && target.kind === 'node') {
-        updateDiagram((d) => attachHubToDeviceNode(d, connectPending.id, target.id));
+        updateDiagram((d) => connectHubToDeviceTerminal(d, connectPending.id, target.id));
       } else if (connectPending.kind === 'node' && target.kind === 'hub') {
-        updateDiagram((d) => attachHubToDeviceNode(d, target.id, connectPending.id));
+        updateDiagram((d) => connectHubToDeviceTerminal(d, target.id, connectPending.id));
       } else if (connectPending.kind === 'wire-end' && target.kind === 'node') {
         updateDiagram((d) =>
-          attachWireToDeviceNode(d, target.id, connectPending.wireId, connectPending.endpoint),
+          connectWireToDeviceTerminal(d, target.id, connectPending.wireId, connectPending.endpoint),
         );
       } else if (connectPending.kind === 'node' && target.kind === 'wire-end') {
         updateDiagram((d) =>
-          attachWireToDeviceNode(d, connectPending.id, target.wireId, target.endpoint),
+          connectWireToDeviceTerminal(d, connectPending.id, target.wireId, target.endpoint),
         );
       }
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Could not connect.');
     }
 
-    setConnectPending(null);
+    endConnectPending();
   }
 
   function handleJunctionAnchorPointerDown(boxId: string, anchor: AnchorPosition) {
@@ -610,23 +1131,23 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   function handleWirePointerDown(wireId: string) {
     if (!job) return;
 
-    if (tool === 'select') {
+    if (tool === 'select' && !ephemeralConnect) {
       setSelection(setSingleWire(wireId));
       return;
     }
 
-    if (tool === 'connect-wires') {
+    if (connectInteractionActive) {
       return;
     }
   }
 
   function handleWireEndpointPointerDown(wireId: string, endpoint: WireEndpoint) {
-    if (tool !== 'connect-wires') return;
+    if (!connectInteractionActive) return;
     finishConnect({ kind: 'wire-end', wireId, endpoint });
   }
 
   function handleHubPointerDown(hubId: string) {
-    if (tool !== 'connect-wires') return;
+    if (!connectInteractionActive) return;
     finishConnect({ kind: 'hub', id: hubId });
   }
 
@@ -636,7 +1157,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       setConduitDialog({ kind: 'device', deviceNodeId: nodeId });
       return;
     }
-    if (tool === 'connect-wires') {
+    if (connectInteractionActive) {
       finishConnect({ kind: 'node', id: nodeId });
       return;
     }
@@ -735,6 +1256,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
 
   const selectedLinkId = soleSelectedId(selection.links);
   const selectedHubBridgeId = soleSelectedId(selection.hubBridges);
+  const selectedHubWireId = soleSelectedId(selection.hubWires);
+  const selectedConduitRunId = soleSelectedId(selection.conduitRuns);
   const selectedHubId = soleSelectedId(selection.hubs);
   const selectedConduitId = soleSelectedId(selection.conduits);
   const selectedCableId = soleSelectedId(selection.cables);
@@ -758,6 +1281,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         cables: selection.cables.size,
         hubs: selection.hubs.size,
         hubBridges: selection.hubBridges.size,
+        hubWires: selection.hubWires.size,
+        conduitRuns: selection.conduitRuns.size,
         links: selection.links.size,
         lightBulbs: selection.lightBulbs.size,
         switches: selection.switches.size,
@@ -777,6 +1302,26 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         link,
         wireLabelA: wireDisplayLabel(job.diagram, link.wireIdA),
         wireLabelB: wireDisplayLabel(job.diagram, link.wireIdB),
+      };
+    }
+  } else if (selectedHubWireId) {
+    const wire = job.diagram.wires.find((w) => w.id === selectedHubWireId);
+    if (wire?.hubId) {
+      inspectorSelection = {
+        kind: 'hubWire',
+        wire,
+        hubLabel: hubDisplayLabel(job.diagram, wire.hubId),
+        wireLabel: wireDisplayLabel(job.diagram, wire.id),
+      };
+    }
+  } else if (selectedConduitRunId) {
+    const run = job.diagram.conduitRuns.find((r) => r.id === selectedConduitRunId);
+    if (run) {
+      inspectorSelection = {
+        kind: 'conduitRun',
+        run,
+        cableLabelA: cableDisplayLabel(job.diagram, run.cableIdA),
+        cableLabelB: run.cableIdB ? cableDisplayLabel(job.diagram, run.cableIdB) : '—',
       };
     }
   } else if (selectedHubBridgeId) {
@@ -967,11 +1512,15 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     helper = 'Drag anywhere to pan the diagram. Scroll to zoom. Press Escape to return to Select.';
   } else if (tool === 'select') {
     helper =
-      'Click to select one item. Drag on empty canvas: left→right selects anything touched; right→left selects only items fully inside. Hold Shift and drag to pan. Drag selected junction anchors or path bends together. Middle-drag to pan. Tools: V select, H pan, B box, M room, L light, S switch, O outlet, C cable, E conduit connect, J link, T labels. ⌘Z undo, ⇧⌘Z redo. Press Delete to remove selection.';
+      ephemeralConnect && connectPending
+        ? 'Complete the link: tap a second wire end, hub, or device terminal. Press Escape to cancel.'
+        : 'Click to select one item. Right-click or long-press a selected entity for actions. Drag on empty canvas: left→right selects anything touched; right→left selects only items fully inside. Hold Shift and drag to pan. Drag selected junction anchors or path bends together. Middle-drag to pan. Tools: V select, H pan, B box, M room, L light, S switch, O outlet, C cable, E conduit connect, J link, T labels, W hide conduits, G color groups, F fit (⇧F all). ⌘C copy, ⌘V paste, ⌘D duplicate. ⌘Z undo, ⇧⌘Z redo. Press Delete to remove selection.';
   }
 
   if (doorPlacingRoomId) {
-    helper = 'Place door: click anywhere along a room wall to drop a door there. Press Escape or toggle off when done.';
+    helper = ephemeralDoorPlacing
+      ? 'Place door: click a room wall to drop a door there. Press Escape to cancel.'
+      : 'Place door: click anywhere along a room wall to drop a door there. Press Escape or toggle off when done.';
   }
 
   return (
@@ -989,7 +1538,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
 
       <Toolbar
         tool={tool}
-        onToolChange={setTool}
+        onToolChange={handleToolChange}
         showLabels={showLabels}
         onShowLabelsChange={(next) => {
           setShowLabels(next);
@@ -999,6 +1548,10 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
             /* ignore */
           }
         }}
+        hideConduits={hideConduits}
+        onHideConduitsChange={applyHideConduits}
+        colorConduitGroups={colorConduitGroups}
+        onColorConduitGroupsChange={applyColorConduitGroups}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undoDiagram}
@@ -1027,7 +1580,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
             <LabelSizeProvider labelScreenPx={labelSizePx}>
               <CanvasViewport
                 viewBox="-800 -600 5200 4000"
-                overlay={<CanvasZoomControls />}
+                apiRef={viewportApiRef}
+                overlay={<CanvasZoomControls onFit={() => fitView('selection-or-all')} onFitAll={() => fitView('all')} />}
                 placementToolActive={
                   tool === 'place-junction' ||
                   tool === 'place-room' ||
@@ -1035,19 +1589,36 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                   tool === 'place-switch' ||
                   tool === 'place-outlet'
                 }
-                marqueeSelectActive={tool === 'select' && !shiftPanActive}
+                marqueeSelectActive={tool === 'select' && !shiftPanActive && !touchNavigation}
                 panToolActive={panActive}
                 toolCursorClass={viewportCursorClass(tool, panActive)}
+                entityContextMenuActive={tool === 'select'}
+                onEntityContextMenuAt={handleContextMenuAtClient}
                 onMarqueeStart={(world) => handleMarqueeStart(world)}
                 onMarqueeMove={(world) => handleMarqueeMove(world)}
                 onMarqueeEnd={(world) => handleMarqueeEnd(world)}
+                touchMarqueeSelectActive={false}
+                onMarqueeBoundsChange={handleTouchMarqueeBounds}
+                onMarqueeBoundsCommit={handleTouchMarqueeCommit}
+                onMarqueeBoundsClear={handleTouchMarqueeClear}
+                tapGestureActive={(tool === 'select' || tool === 'connect-wires') && touchNavigation}
+                longPressMs={TOUCH_LONG_PRESS_MS}
+                onTapAt={handleDiagramTap}
+                onLongPressAt={handleSurfaceLongPress}
+                penMarqueeSelectActive={false}
+                penHoverActive={penInputActive}
+                onPenHoverAt={handlePenHoverAt}
+                onPenHoverClear={handlePenHoverClear}
+                penHoverLabel={penHover?.label ?? null}
               >
                 <DiagramSvg
                 diagram={job.diagram}
                 resolvedByWireId={resolvedByWireId}
                 tool={tool}
+                connectInteractionActive={connectInteractionActive}
                 selection={selection}
                 marquee={marquee}
+                penHover={penHover}
                 connectPendingWireId={
                   connectPending?.kind === 'wire-end' ? connectPending.wireId : null
                 }
@@ -1067,6 +1638,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 onJunctionAnchorPointerDown={handleJunctionAnchorPointerDown}
                 onSelectLink={(id) => setSelection(setSingleLink(id))}
                 onSelectHubBridge={(id) => setSelection(setSingleHubBridge(id))}
+                onSelectHubWire={(id) => setSelection(setSingleHubWire(id))}
                 onSelectConduit={(id) => setSelection(setSingleConduit(id))}
                 onSelectCable={(id) => setSelection(setSingleCable(id))}
                 onToggleBreakerCable={(cableId) => {
@@ -1099,6 +1671,10 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 doorPlacingRoomId={doorPlacingRoomId}
                 onPlaceRoomDoor={(roomId, wall, centerOffset) => {
                   updateDiagram((d) => addRoomDoorAt(d, roomId, wall, centerOffset));
+                  if (ephemeralDoorPlacing) {
+                    setDoorPlacingRoomId(null);
+                    setEphemeralDoorPlacing(false);
+                  }
                 }}
                 onSelectLightBulb={(id) => {
                   if (!id) return;
@@ -1133,13 +1709,37 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 }}
                 worldRect={WORLD_BOUNDS}
                 showLabels={showLabels}
+                hideConduits={hideConduits}
+                colorConduitGroups={colorConduitGroups}
                 switchPlacementKind={switchPlacementKind}
                 outletPassthrough={outletPassthrough}
+                onEntityContextMenu={handleEntityContextMenu}
+                onSurfaceLongPress={handleSurfaceLongPress}
                 />
               </CanvasViewport>
             </LabelSizeProvider>
           </div>
         </div>
+
+        {contextMenu ? (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            actions={contextMenu.actions}
+            onAction={handleContextMenuAction}
+            onClose={() => setContextMenu(null)}
+          />
+        ) : null}
+
+        {pickMenu ? (
+          <PickMenu
+            x={pickMenu.x}
+            y={pickMenu.y}
+            items={pickMenu.items}
+            onPick={handlePickMenuTarget}
+            onClose={() => setPickMenu(null)}
+          />
+        ) : null}
 
         <EditorInspectorPanel open={infoPanelOpen} onOpenChange={setInfoPanelOpen}>
           <IssuesPanel
@@ -1150,6 +1750,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
             onSelectWire={(id) => setSelection(setSingleWire(id))}
             onSelectLink={(id) => setSelection(setSingleLink(id))}
             onExport={exportActive}
+            onExportSvg={handleExportSvg}
+            onExportPng={handleExportPng}
             onBack={onBack}
           />
           <div className="editor-panel__inspector-scroll">
@@ -1241,10 +1843,11 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                   ? () => {
                       const panelAnchors: AnchorPosition[] = [
                         'middle-left',
-                        'center',
                         'middle-right',
                         'top-center',
                         'bottom-center',
+                        'top-left',
+                        'top-right',
                       ];
                       updateDiagram((d) => {
                         const count = d.cables.filter(
@@ -1311,6 +1914,10 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 if (!selectedRoomId) return;
                 updateDiagram((d) => updateRoom(d, selectedRoomId, patch));
               }}
+              onUpdateRoomDoor={(doorId, patch) => {
+                if (!selectedRoomId) return;
+                updateDiagram((d) => updateRoomDoor(d, selectedRoomId, doorId, patch));
+              }}
               onRemoveRoomDoor={(doorId) => {
                 if (!selectedRoomId) return;
                 updateDiagram((d) => removeRoomDoor(d, selectedRoomId, doorId));
@@ -1318,9 +1925,15 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
               doorPlacing={Boolean(selectedRoomId) && doorPlacingRoomId === selectedRoomId}
               onToggleDoorPlacing={() => {
                 if (!selectedRoomId) return;
+                setEphemeralDoorPlacing(false);
                 setDoorPlacingRoomId((prev) => (prev === selectedRoomId ? null : selectedRoomId));
               }}
               onDelete={handleDeleteSelection}
+              onDuplicate={
+                tool === 'select' && selectionHasDuplicateableContent(selection)
+                  ? handleDuplicateSelection
+                  : undefined
+              }
             />
           </div>
         </EditorInspectorPanel>

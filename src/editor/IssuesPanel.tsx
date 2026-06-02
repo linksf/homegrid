@@ -1,4 +1,5 @@
 import type { JSX } from 'react';
+import { JOB_FILE_EXT } from '../app-brand';
 import type { Diagram, ResolvedWire } from '../domain/types';
 import { isDirectionOpposedLink } from '../domain/wire-link-utils';
 
@@ -17,6 +18,8 @@ type IssuesPanelProps = {
   onSelectWire: (wireId: string) => void;
   onSelectLink: (linkId: string) => void;
   onExport: () => void;
+  onExportSvg?: () => void;
+  onExportPng?: () => void;
   onBack: () => void;
 };
 
@@ -28,6 +31,8 @@ export function IssuesPanel({
   onSelectWire,
   onSelectLink,
   onExport,
+  onExportSvg,
+  onExportPng,
   onBack,
 }: IssuesPanelProps): JSX.Element {
   const conflictWires = diagram.wires
@@ -51,8 +56,18 @@ export function IssuesPanel({
         <h3 className="issues-panel__title">Issues</h3>
         <div className="issues-panel__actions">
           <button type="button" className="btn btn--small" onClick={onExport}>
-            Export .wirer
+            Export .{JOB_FILE_EXT}
           </button>
+          {onExportSvg ? (
+            <button type="button" className="btn btn--small" onClick={onExportSvg}>
+              Export SVG
+            </button>
+          ) : null}
+          {onExportPng ? (
+            <button type="button" className="btn btn--small" onClick={onExportPng}>
+              Export PNG
+            </button>
+          ) : null}
           <button type="button" className="btn btn--small" onClick={onBack}>
             Home
           </button>

@@ -4,14 +4,23 @@ import { PATH_EDIT_SNAP } from '../domain/path-editing';
 import type { Diagram } from '../domain/types';
 import type { ApplyDiagramFn } from '../editor/apply-diagram';
 import {
+  captureSelectionMoveSnapshot,
+  moveSelectionByDelta,
+} from '../editor/selection-move';
+import {
   decodePathAnchor,
-  movePathAnchorsByDelta,
   pathAnchorWorldPoint,
 } from '../editor/anchor-selection';
+import {
+  chainNeighborPoints,
+  snapPointToChainNeighbors,
+} from '../editor/path-anchor-snap';
+import type { DiagramSelection } from '../editor/diagram-selection';
 import { useDiagramViewport } from './CanvasViewport';
 
 type PathAnchorEditLayerProps = {
   diagram: Diagram;
+  selection: DiagramSelection;
   selectedPathAnchorKeys: Set<string>;
   onApplyDiagram: ApplyDiagramFn;
   onCommitHistory?: () => void;
@@ -20,6 +29,7 @@ type PathAnchorEditLayerProps = {
 /** Draggable handles for marquee-selected path bend anchors. */
 export function PathAnchorEditLayer({
   diagram,
+  selection,
   selectedPathAnchorKeys,
   onApplyDiagram,
   onCommitHistory,
@@ -27,8 +37,8 @@ export function PathAnchorEditLayer({
   const vp = useDiagramViewport();
   const dragRef = useRef<{
     pointerId: number;
-    draggedKey: string;
-    startPositions: Map<string, { x: number; y: number }>;
+    startPointer: { x: number; y: number };
+    snapshot: ReturnType<typeof captureSelectionMoveSnapshot>;
   } | null>(null);
 
   if (selectedPathAnchorKeys.size === 0) return null;
@@ -56,15 +66,20 @@ export function PathAnchorEditLayer({
     if (e.button !== 0) return;
     e.stopPropagation();
 
-    const startPositions = new Map<string, { x: number; y: number }>();
-    for (const anchorKey of selectedPathAnchorKeys) {
-      const ref = decodePathAnchor(anchorKey);
-      if (!ref) continue;
-      const pt = pathAnchorWorldPoint(diagram, ref);
-      if (pt) startPositions.set(anchorKey, { ...pt });
-    }
+    const moveSelection: DiagramSelection = {
+      ...selection,
+      pathAnchors: new Set([...selection.pathAnchors, key]),
+    };
+    const snapshot = captureSelectionMoveSnapshot(diagram, moveSelection);
 
-    dragRef.current = { pointerId: e.pointerId, draggedKey: key, startPositions };
+    const p = worldPoint(e);
+    if (!p) return;
+
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startPointer: { x: snap(p.x), y: snap(p.y) },
+      snapshot,
+    };
     (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
   }
 
@@ -73,18 +88,17 @@ export function PathAnchorEditLayer({
     if (!drag || drag.pointerId !== e.pointerId) return;
     const p = worldPoint(e);
     if (!p) return;
-    onApplyDiagram(
-      (d) =>
-        movePathAnchorsByDelta(
-          d,
-          selectedPathAnchorKeys,
-          drag.startPositions,
-          drag.draggedKey,
-          snap(p.x),
-          snap(p.y),
-        ),
-      { history: false },
-    );
+
+    const primaryKey = [...selectedPathAnchorKeys][0];
+    const primaryRef = primaryKey ? decodePathAnchor(primaryKey) : null;
+    const neighbors = primaryRef ? chainNeighborPoints(diagram, primaryRef) : [];
+    const aligned = snapPointToChainNeighbors(p.x, p.y, neighbors, vp.scale);
+
+    const sx = snap(aligned.x);
+    const sy = snap(aligned.y);
+    const dx = sx - drag.startPointer.x;
+    const dy = sy - drag.startPointer.y;
+    onApplyDiagram((d) => moveSelectionByDelta(d, drag.snapshot, dx, dy), { history: false });
   }
 
   function endDrag(e: ReactPointerEvent) {

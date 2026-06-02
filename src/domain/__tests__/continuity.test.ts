@@ -362,4 +362,68 @@ describe('switch continuity simulation', () => {
     expect(resolved.get(panelHot.id)?.resolvedDirection).toBeNull();
     expect(resolved.get(fieldHot.id)?.resolvedDirection).toBeNull();
   });
+
+  it('does not light a bulb when only the hot leg has charge', () => {
+    let diagram = createEmptyJob().diagram;
+    const panelId = diagram.junctionBoxes.find((b) => b.type === 'breaker')!.id;
+    diagram = addJunctionBox(diagram, GRID_SIZE * 30, GRID_SIZE * 15);
+    const fieldBox = diagram.junctionBoxes.find((b) => b.type === 'normal')!;
+
+    diagram = addCable(diagram, {
+      junctionBoxId: fieldBox.id,
+      anchor: 'middle-right',
+      wireColors: ['black', 'white'],
+    });
+    const fieldCable = diagram.cables.find((c) => c.junctionBoxId === fieldBox.id)!;
+    diagram = connectConduitRunToBreakerAnchor(diagram, fieldCable.id, panelId, 'middle-left');
+
+    diagram = addHub(diagram, fieldBox.id);
+    const hubId = diagram.hubs[0]!.id;
+    const fieldHot = diagram.wires.find((w) => w.cableId === fieldCable.id && w.color === 'black')!;
+    diagram = attachWireToHub(diagram, hubId, fieldHot.id);
+
+    diagram = addLightBulb(diagram, GRID_SIZE * 50, GRID_SIZE * 15);
+    const bulb = diagram.lightBulbs[0]!;
+    const hotTerminal = diagram.deviceNodes.find(
+      (n) => n.deviceKind === 'lightBulb' && n.deviceId === bulb.id && n.slot === 0,
+    )!;
+    diagram = addDeviceConduit(diagram, { deviceNodeId: hotTerminal.id, wireColors: ['black'] });
+    const hotStub = diagram.conduits.find((c) => c.kind === 'device')!.wireIds[0]!;
+    diagram = attachWireToHub(diagram, hubId, hotStub);
+
+    expect(isLightBulbLit(diagram, bulb.id)).toBe(false);
+  });
+
+  it('does not bridge hot and neutral through a shared hub', () => {
+    let diagram = createEmptyJob().diagram;
+    const panelId = diagram.junctionBoxes.find((b) => b.type === 'breaker')!.id;
+    diagram = addJunctionBox(diagram, GRID_SIZE * 30, GRID_SIZE * 15);
+    const fieldBox = diagram.junctionBoxes.find((b) => b.type === 'normal')!;
+
+    diagram = addCable(diagram, {
+      junctionBoxId: fieldBox.id,
+      anchor: 'middle-right',
+      wireColors: ['black', 'white'],
+    });
+    const fieldCable = diagram.cables.find((c) => c.junctionBoxId === fieldBox.id)!;
+    diagram = connectConduitRunToBreakerAnchor(diagram, fieldCable.id, panelId, 'middle-left');
+
+    diagram = addHub(diagram, fieldBox.id);
+    const hubId = diagram.hubs[0]!.id;
+    const fieldHot = diagram.wires.find((w) => w.cableId === fieldCable.id && w.color === 'black')!;
+    const fieldNeutral = diagram.wires.find((w) => w.cableId === fieldCable.id && w.color === 'white')!;
+    diagram = attachWireToHub(diagram, hubId, fieldHot.id);
+    diagram = attachWireToHub(diagram, hubId, fieldNeutral.id);
+
+    diagram = addLightBulb(diagram, GRID_SIZE * 50, GRID_SIZE * 15);
+    const bulb = diagram.lightBulbs[0]!;
+    const hotTerminal = diagram.deviceNodes.find(
+      (n) => n.deviceKind === 'lightBulb' && n.deviceId === bulb.id && n.slot === 0,
+    )!;
+    diagram = addDeviceConduit(diagram, { deviceNodeId: hotTerminal.id, wireColors: ['black'] });
+    const hotStub = diagram.conduits.find((c) => c.kind === 'device')!.wireIds[0]!;
+    diagram = attachWireToHub(diagram, hubId, hotStub);
+
+    expect(isLightBulbLit(diagram, bulb.id)).toBe(false);
+  });
 });

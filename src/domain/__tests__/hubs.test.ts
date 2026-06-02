@@ -42,7 +42,7 @@ describe('hubs', () => {
     expect(bridgePts!.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('rejects a second Connect-tool hub tie while another direct attachment exists', () => {
+  it('allows multiple wires on the same hub (wire-nut splice)', () => {
     let diagram = createEmptyJob().diagram;
     diagram = addJunctionBox(diagram, 100, 100);
     const box = diagram.junctionBoxes.find((b) => b.type === 'normal')!;
@@ -55,7 +55,8 @@ describe('hubs', () => {
     });
     const [a, b] = diagram.conduits[0]!.wireIds;
     diagram = attachWireToHub(diagram, hub.id, a);
-    expect(() => attachWireToHub(diagram, hub.id, b)).toThrow(/direct wire tie/i);
+    diagram = attachWireToHub(diagram, hub.id, b);
+    expect(diagram.wires.filter((w) => w.hubId === hub.id)).toHaveLength(2);
   });
 
   it('rejects wire link when wire is on a hub', () => {
@@ -124,7 +125,7 @@ describe('hubs', () => {
     expect(wireLinkForWire(diagram, w1)).toBeDefined();
 
     expect(() => addWireLinkToDiagram(diagram, w1, 'end', w3, 'end')).toThrow(/already linked/i);
-    diagram = addWireLinkToDiagram(diagram, w1, 'start', w3, 'end');
-    expect(diagram.wireLinks).toHaveLength(2);
+    expect(() => addWireLinkToDiagram(diagram, w1, 'start', w3, 'end')).toThrow(/cannot form a wire link/i);
+    expect(diagram.wireLinks).toHaveLength(1);
   });
 });

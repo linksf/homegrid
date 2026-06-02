@@ -9,7 +9,6 @@ import { pinnedCableExposedEnds } from './exposed-wire-endpoints';
 import type { Point } from './orthogonal-path';
 import {
   dragFixedVertex,
-  draggableLinkVertexIndices,
   draggableWireVertexIndices,
   defaultFivePointPath,
   defaultFourPointPath,
@@ -75,12 +74,6 @@ export function conduitStubDisplayPath(diagram: Diagram, cableId: string): Point
   return diagram.layout.conduitStubPaths?.[cableId]?.points?.map((p) => ({ ...p })) ?? [];
 }
 
-function cableReferencedByAnyConduitRun(diagram: Diagram, cableId: string): boolean {
-  return diagram.conduitRuns.some(
-    (r) => r.cableIdA === cableId || r.cableIdB === cableId,
-  );
-}
-
 function conduitStubPinnedEndpoints(diagram: Diagram, cableId: string): {
   start: Point;
   end: Point;
@@ -102,10 +95,7 @@ function conduitStubPinnedEndpoints(diagram: Diagram, cableId: string): {
   const outward = junctionBoxAnchorOutwardNormal(box, cable.anchor);
   const center = cableCenterPoint(box, cable.anchor, wireCount);
   const defaults = defaultConduitStubPath(center, outward);
-  const stubEndFixed = cableReferencedByAnyConduitRun(diagram, cable.id);
-  const roles: ConduitEndpointRoles = stubEndFixed
-    ? { start: 'fixed', end: 'fixed' }
-    : { start: 'fixed', end: 'free' };
+  const roles: ConduitEndpointRoles = { start: 'fixed', end: 'free' };
 
   const stored = diagram.layout.conduitStubPaths?.[cableId]?.points;
   const start = { ...center };
@@ -202,24 +192,19 @@ export function moveConduitStubJoint(
   current = pinPathEndpoints(current, start, end, roles);
   if (current.length !== FIXED_SPAN_WIRE_VERTEX_COUNT) return diagram;
 
-  const indices =
-    roles.end === 'free'
-      ? draggableWireVertexIndices(current.length, true, false)
-      : draggableLinkVertexIndices(current.length);
+  const indices = draggableWireVertexIndices(current.length, true, false);
   if (!indices.includes(vertexIndex)) return diagram;
 
   let points = dragFixedVertex(current, vertexIndex, { x, y }, options);
   const last = points.length - 1;
-  if (vertexIndex === last && roles.end === 'free') {
-    if (roles.start === 'fixed') {
-      points[0] = { ...start };
-    }
+  if (vertexIndex === last) {
+    points[0] = { ...start };
   } else if (vertexIndex === 0 && roles.start === 'free') {
     points[last] = { ...end };
   } else {
-    points = normalizeWirePath(points, start, end, FIXED_SPAN_WIRE_VERTEX_COUNT);
+    points = normalizeWirePath(points, start, points[last]!, FIXED_SPAN_WIRE_VERTEX_COUNT);
   }
-  points = pinPathEndpoints(points, start, end, roles);
+  points = pinPathEndpoints(points, start, points[points.length - 1]!, roles);
 
   return {
     ...diagram,

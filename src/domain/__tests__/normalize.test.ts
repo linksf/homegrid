@@ -191,4 +191,154 @@ describe('normalizeDiagram', () => {
       expect(diagram.layout.exposedPaths?.[wid]).toBeUndefined();
     }
   });
+
+  it('preserves cable exposed and stub paths through normalize', () => {
+    const wireId = 'w-field-b';
+    const cableId = 'cab-field';
+    const runId = 'run1';
+    const customExposed = [
+      { x: 96, y: 204 },
+      { x: 144, y: 204 },
+      { x: 144, y: 264 },
+      { x: 180, y: 264 },
+    ];
+    const customStub = [
+      { x: 84, y: 204 },
+      { x: 84, y: 180 },
+      { x: 96, y: 180 },
+      { x: 96, y: 204 },
+      { x: 96, y: 204 },
+    ];
+    const customRunMiddle = { x: 216, y: 264 };
+
+    const raw = {
+      rooms: [],
+      junctionBoxes: [
+        {
+          id: 'jb-a',
+          type: 'normal',
+          label: '',
+          x: 0,
+          y: 0,
+          width: 224,
+          height: 160,
+        },
+        {
+          id: 'jb-b',
+          type: 'normal',
+          label: '',
+          x: 400,
+          y: 0,
+          width: 224,
+          height: 160,
+        },
+      ],
+      breakers: [],
+      conduits: [],
+      cables: [
+        {
+          id: cableId,
+          junctionBoxId: 'jb-a',
+          anchor: 'middle-right',
+          wireIds: [wireId, 'w-field-w'],
+        },
+        {
+          id: 'cab-b',
+          junctionBoxId: 'jb-b',
+          anchor: 'middle-left',
+          wireIds: ['w-remote-b'],
+        },
+      ],
+      conduitRuns: [
+        {
+          id: runId,
+          cableIdA: cableId,
+          cableIdB: 'cab-b',
+          wireIds: [wireId, 'w-remote-b', 'w-field-w', 'w-remote-w'],
+        },
+      ],
+      wires: [
+        {
+          id: wireId,
+          color: 'black',
+          label: '',
+          conduitId: null,
+          cableId,
+          breakerId: null,
+          hubId: null,
+          deviceNodeId: null,
+          manualDirection: null,
+        },
+        {
+          id: 'w-field-w',
+          color: 'white',
+          label: '',
+          conduitId: null,
+          cableId,
+          breakerId: null,
+          hubId: null,
+          deviceNodeId: null,
+          manualDirection: null,
+        },
+        {
+          id: 'w-remote-b',
+          color: 'black',
+          label: '',
+          conduitId: null,
+          cableId: 'cab-b',
+          breakerId: null,
+          hubId: null,
+          deviceNodeId: null,
+          manualDirection: null,
+        },
+        {
+          id: 'w-remote-w',
+          color: 'white',
+          label: '',
+          conduitId: null,
+          cableId: 'cab-b',
+          breakerId: null,
+          hubId: null,
+          deviceNodeId: null,
+          manualDirection: null,
+        },
+      ],
+      hubs: [],
+      hubBridges: [],
+      lightBulbs: [],
+      switches: [],
+      dimmerSwitches: [],
+      outlets: [],
+      deviceNodes: [],
+      wireLinks: [],
+      layout: {
+        conduitPaths: {},
+        conduitRunPaths: {
+          [runId]: {
+            points: [
+              { x: 180, y: 264 },
+              customRunMiddle,
+              { x: 216, y: 300 },
+              { x: 264, y: 300 },
+              { x: 300, y: 300 },
+            ],
+          },
+        },
+        exposedPaths: { [wireId]: { points: customExposed } },
+        conduitStubPaths: { [cableId]: { points: customStub } },
+        wireLinkPaths: {},
+        hubBridgePaths: {},
+        hubWirePaths: {},
+      },
+    } as unknown as import('../types').Diagram;
+
+    const diagram = normalizeDiagram(raw);
+
+    expect(diagram.layout.exposedPaths?.[wireId]?.points).toEqual(customExposed);
+    expect(diagram.layout.conduitStubPaths?.[cableId]?.points).toEqual(customStub);
+    const runPts = diagram.layout.conduitRunPaths[runId]?.points;
+    expect(runPts).toHaveLength(5);
+    expect(runPts?.[1]).toEqual(customRunMiddle);
+    expect(runPts?.[2]).toEqual({ x: 216, y: 300 });
+  });
 });

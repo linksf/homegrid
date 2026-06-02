@@ -1,3 +1,4 @@
+import { resolveExposedCableWirePath } from '../domain/exposed-wire-endpoints';
 import { anchorPoint } from '../domain/anchors';
 import {
   conduitStubResolvedPath,
@@ -13,7 +14,12 @@ import {
 } from '../domain/path-editing';
 import { conduitEndpointRoles, moveConduitJoint } from '../domain/path-routing';
 import { deviceWireDisplayPath, moveDeviceWireJoint } from '../domain/device-wire-geometry';
-import { resolveExposedCableWirePath } from '../domain/exposed-wire-endpoints';
+import {
+  conduitRunDisplayPath,
+  moveConduitRunJoint,
+  refreshConduitRunPaths,
+  draggableConduitRunVertexIndices,
+} from '../domain/conduit-run-geometry';
 import { hubBridgeDisplayPath, moveHubBridgeJoint } from '../domain/hub-bridge-geometry';
 import { hubWireDisplayPath, moveHubWireJoint } from '../domain/hub-wire-geometry';
 import { moveWireJoint, wireEndpointRoles } from '../domain/wire-routing';
@@ -41,6 +47,7 @@ export type PathAnchorRef =
   | { kind: 'conduitStub'; cableId: string; index: number }
   | { kind: 'link'; linkId: string; index: number }
   | { kind: 'hubBridge'; bridgeId: string; index: number }
+  | { kind: 'conduitRun'; runId: string; index: number }
   | { kind: 'conduit'; conduitId: string; index: number };
 
 export function encodeJunctionAnchor(boxId: string, anchor: AnchorPosition): string {
@@ -80,6 +87,8 @@ export function encodePathAnchor(ref: PathAnchorRef): string {
       return `link:${ref.linkId}:${ref.index}`;
     case 'hubBridge':
       return `bridge:${ref.bridgeId}:${ref.index}`;
+    case 'conduitRun':
+      return `run:${ref.runId}:${ref.index}`;
     case 'conduit':
       return `conduit:${ref.conduitId}:${ref.index}`;
   }
@@ -105,6 +114,8 @@ export function decodePathAnchor(key: string): PathAnchorRef | null {
       return { kind: 'link', linkId: parts[1]!, index };
     case 'bridge':
       return { kind: 'hubBridge', bridgeId: parts[1]!, index };
+    case 'run':
+      return { kind: 'conduitRun', runId: parts[1]!, index };
     case 'conduit':
       return { kind: 'conduit', conduitId: parts[1]!, index };
     default:
@@ -140,6 +151,10 @@ export function pathAnchorWorldPoint(diagram: Diagram, ref: PathAnchorRef): { x:
     }
     case 'hubBridge': {
       const path = hubBridgeDisplayPath(diagram, ref.bridgeId);
+      return path[ref.index] ?? null;
+    }
+    case 'conduitRun': {
+      const path = conduitRunDisplayPath(diagram, ref.runId);
       return path[ref.index] ?? null;
     }
     case 'conduit': {
@@ -227,13 +242,7 @@ export function collectPathAnchorsInMarquee(
   for (const cable of diagram.cables) {
     const path = conduitStubResolvedPath(diagram, cable.id);
     if (!path) continue;
-    const stubEndFixed = diagram.conduitRuns.some(
-      (r) => r.cableIdA === cable.id || r.cableIdB === cable.id,
-    );
-    const indices = stubEndFixed
-      ? draggableLinkVertexIndices(path.length)
-      : draggableWireVertexIndices(path.length, true, false);
-    for (const index of indices) {
+    for (const index of draggableWireVertexIndices(path.length, true, false)) {
       const pt = path[index];
       if (pt && pointMatches(pt, rect, mode)) {
         result.add(encodePathAnchor({ kind: 'conduitStub', cableId: cable.id, index }));
@@ -257,6 +266,16 @@ export function collectPathAnchorsInMarquee(
       const pt = path[index];
       if (pt && pointMatches(pt, rect, mode)) {
         result.add(encodePathAnchor({ kind: 'hubBridge', bridgeId: bridge.id, index }));
+      }
+    }
+  }
+
+  for (const run of diagram.conduitRuns) {
+    const path = conduitRunDisplayPath(diagram, run.id);
+    for (const index of draggableConduitRunVertexIndices(path.length)) {
+      const pt = path[index];
+      if (pt && pointMatches(pt, rect, mode)) {
+        result.add(encodePathAnchor({ kind: 'conduitRun', runId: run.id, index }));
       }
     }
   }
@@ -292,12 +311,16 @@ export function movePathAnchor(
       return moveHubWireJoint(diagram, ref.wireId, ref.index, x, y);
     case 'deviceWire':
       return moveDeviceWireJoint(diagram, ref.wireId, ref.index, x, y);
-    case 'conduitStub':
-      return moveConduitStubJoint(diagram, ref.cableId, ref.index, x, y);
+    case 'conduitStub': {
+      const next = moveConduitStubJoint(diagram, ref.cableId, ref.index, x, y);
+      return refreshConduitRunPaths(next);
+    }
     case 'link':
       return moveWireLinkJoint(diagram, ref.linkId, ref.index, x, y);
     case 'hubBridge':
       return moveHubBridgeJoint(diagram, ref.bridgeId, ref.index, x, y);
+    case 'conduitRun':
+      return moveConduitRunJoint(diagram, ref.runId, ref.index, x, y);
     case 'conduit':
       return moveConduitJoint(diagram, ref.conduitId, ref.index, x, y);
   }

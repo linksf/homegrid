@@ -8,6 +8,8 @@ import {
   LIGHT_BULB_RADIUS,
 } from '../domain/device-node-geometry';
 import { wireLinkDisplayPath, wireWorldPolyline } from '../domain/wire-geometry';
+import { conduitRunDisplayPath } from '../domain/conduit-run-geometry';
+import { hubWireDisplayPath } from '../domain/hub-wire-geometry';
 import type { Diagram } from '../domain/types';
 import {
   collectJunctionAnchorsInMarquee,
@@ -298,6 +300,21 @@ export function collectMarqueeSelection(
     const path = diagram.layout.hubBridgePaths[bridge.id]?.points;
     if (path && path.length >= 2 && polylineMatches(path, rect, mode)) {
       result.hubBridges.add(bridge.id);
+    }
+  }
+
+  for (const run of diagram.conduitRuns) {
+    const path = conduitRunDisplayPath(diagram, run.id);
+    if (path.length >= 2 && polylineMatches(path, rect, mode)) {
+      result.conduitRuns.add(run.id);
+    }
+  }
+
+  for (const wire of diagram.wires) {
+    if (!wire.hubId) continue;
+    const path = hubWireDisplayPath(diagram, wire.id);
+    if (path.length >= 2 && polylineMatches(path, rect, mode)) {
+      result.hubWires.add(wire.id);
     }
   }
 

@@ -1,5 +1,5 @@
 import { anchorPoint } from './anchors';
-import { HUB_GRID_INSET } from './grid';
+import { GRID_SIZE, HUB_DIAMOND_OFFSET, snapGridCoord } from './grid';
 import { resolveWirePath } from './wire-routing';
 import type { Diagram, Hub, HubSlot, JunctionBox, Wire } from './types';
 
@@ -11,26 +11,32 @@ export function isHubSlot(n: number): n is HubSlot {
   return n === 0 || n === 1 || n === 2 || n === 3;
 }
 
-/** Grid-aligned hub positions inset one cell from each corner of the box interior. */
+function hubDiamondOffset(box: Pick<JunctionBox, 'width' | 'height'>): number {
+  const maxFromWidth = Math.floor((box.width - GRID_SIZE * 2) / 2 / GRID_SIZE) * GRID_SIZE;
+  const maxFromHeight = Math.floor((box.height - GRID_SIZE * 2) / 2 / GRID_SIZE) * GRID_SIZE;
+  const max = Math.min(maxFromWidth, maxFromHeight);
+  return Math.max(GRID_SIZE, Math.min(HUB_DIAMOND_OFFSET, max));
+}
+
+/** Grid-aligned hub positions in a diamond around the box center (top, right, bottom, left). */
 export function hubSlotWorldPoint(
   box: Pick<JunctionBox, 'x' | 'y' | 'width' | 'height'>,
   slot: HubSlot,
 ): { x: number; y: number } {
-  const left = box.x + HUB_GRID_INSET;
-  const right = box.x + box.width - HUB_GRID_INSET;
-  const top = box.y + HUB_GRID_INSET;
-  const bottom = box.y + box.height - HUB_GRID_INSET;
+  const cx = snapGridCoord(box.x + box.width / 2);
+  const cy = snapGridCoord(box.y + box.height / 2);
+  const d = hubDiamondOffset(box);
   switch (slot) {
     case 0:
-      return { x: left, y: top };
+      return { x: cx, y: cy - d };
     case 1:
-      return { x: right, y: top };
+      return { x: cx + d, y: cy };
     case 2:
-      return { x: left, y: bottom };
+      return { x: cx, y: cy + d };
     case 3:
-      return { x: right, y: bottom };
+      return { x: cx - d, y: cy };
     default:
-      return { x: left, y: top };
+      return { x: cx, y: cy - d };
   }
 }
 
@@ -38,12 +44,12 @@ export function hubWorldPoint(box: JunctionBox, hub: Hub): { x: number; y: numbe
   return hubSlotWorldPoint(box, hub.slot);
 }
 
-/** @deprecated Slots are grid-fixed; kept for normalize-hubs migration. */
+/** Normalized diamond positions for legacy u/v hub migration. */
 export const HUB_SLOT_POSITIONS = {
-  0: { u: 0, v: 0 },
-  1: { u: 1, v: 0 },
-  2: { u: 0, v: 1 },
-  3: { u: 1, v: 1 },
+  0: { u: 0.5, v: 0 },
+  1: { u: 1, v: 0.5 },
+  2: { u: 0.5, v: 1 },
+  3: { u: 0, v: 0.5 },
 } as const;
 
 export function hubById(diagram: Diagram, hubId: string): Hub | undefined {

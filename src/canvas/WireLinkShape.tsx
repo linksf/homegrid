@@ -1,9 +1,11 @@
 import type { CSSProperties, JSX } from 'react';
+import type { ContextMenuBindHandlers } from '../editor/use-context-menu-gesture';
 import { wireLinkDisplayPath } from '../domain/wire-geometry';
 import type { Diagram, ResolvedWire, WireColor, WireLink } from '../domain/types';
 import { isDirectionOpposedLink, wireLinkFlowDirection } from '../domain/wire-link-utils';
 import { WireChevronPath } from './WireChevronPath';
 import { WIRE_STROKE_HEX } from './wire-colors';
+import { HIT_STROKE_SCREEN_PX } from './hit-targets';
 
 function pathD(points: { x: number; y: number }[]): string {
   return points.map((pt, idx) => `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ');
@@ -55,6 +57,7 @@ type WireLinkShapeProps = {
   selected?: boolean;
   interactive?: boolean;
   onSelect?: () => void;
+  contextMenuHandlers?: ContextMenuBindHandlers;
 };
 
 export function WireLinkShape({
@@ -65,6 +68,7 @@ export function WireLinkShape({
   selected,
   interactive,
   onSelect,
+  contextMenuHandlers,
 }: WireLinkShapeProps): JSX.Element | null {
   if (points.length < 2) return null;
 
@@ -118,19 +122,29 @@ export function WireLinkShape({
       />
       {interactive && (
         <path
-          className="wire-link-hit"
+          className="wire-link-hit diagram-hit-stroke"
           d={hitD}
           fill="none"
           stroke="transparent"
-          strokeWidth={32}
+          strokeWidth={HIT_STROKE_SCREEN_PX}
           strokeLinecap="round"
           strokeLinejoin="round"
           pointerEvents="stroke"
+          {...contextMenuHandlers}
           onPointerDown={(e) => {
             if (e.button !== 0) return;
             e.stopPropagation();
+            contextMenuHandlers?.onPointerDown?.(e);
             onSelect?.();
           }}
+          onPointerMove={contextMenuHandlers?.onPointerMove}
+          onPointerUp={(e) => {
+            contextMenuHandlers?.onPointerUp?.(e);
+          }}
+          onPointerCancel={(e) => {
+            contextMenuHandlers?.onPointerCancel?.(e);
+          }}
+          onContextMenu={contextMenuHandlers?.onContextMenu}
         />
       )}
       {warn && (
@@ -151,6 +165,9 @@ type WireLinkLayerProps = {
   selectedLinkIds: Set<string>;
   interactive: boolean;
   onSelectLink?: (linkId: string) => void;
+  bindContextMenu?: (
+    target: import('../editor/context-menu-target').ContextMenuTarget,
+  ) => import('../editor/use-context-menu-gesture').ContextMenuBindHandlers;
 };
 
 export function WireLinkLayer({
@@ -159,6 +176,7 @@ export function WireLinkLayer({
   selectedLinkIds,
   interactive,
   onSelectLink,
+  bindContextMenu,
 }: WireLinkLayerProps): JSX.Element {
   return (
     <g className="wire-link-layer" role="presentation" aria-label="Wire links">
@@ -175,6 +193,7 @@ export function WireLinkLayer({
             selected={selectedLinkIds.has(link.id)}
             interactive={interactive}
             onSelect={() => onSelectLink?.(link.id)}
+            contextMenuHandlers={bindContextMenu?.({ kind: 'link', linkId: link.id })}
           />
         );
       })}

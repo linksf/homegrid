@@ -7,6 +7,8 @@ export type DiagramSelection = {
   cables: Set<string>;
   hubs: Set<string>;
   hubBridges: Set<string>;
+  /** Hub tie paths (Connect tool); wire ids. */
+  hubWires: Set<string>;
   links: Set<string>;
   lightBulbs: Set<string>;
   switches: Set<string>;
@@ -29,6 +31,7 @@ export function emptySelection(): DiagramSelection {
     cables: new Set(),
     hubs: new Set(),
     hubBridges: new Set(),
+    hubWires: new Set(),
     links: new Set(),
     lightBulbs: new Set(),
     switches: new Set(),
@@ -50,6 +53,7 @@ export function cloneSelection(selection: DiagramSelection): DiagramSelection {
     cables: new Set(selection.cables),
     hubs: new Set(selection.hubs),
     hubBridges: new Set(selection.hubBridges),
+    hubWires: new Set(selection.hubWires),
     links: new Set(selection.links),
     lightBulbs: new Set(selection.lightBulbs),
     switches: new Set(selection.switches),
@@ -71,6 +75,7 @@ export function selectionTotalCount(selection: DiagramSelection): number {
     selection.cables.size +
     selection.hubs.size +
     selection.hubBridges.size +
+    selection.hubWires.size +
     selection.links.size +
     selection.lightBulbs.size +
     selection.switches.size +
@@ -131,6 +136,12 @@ export function setSingleHub(id: string): DiagramSelection {
 export function setSingleHubBridge(id: string): DiagramSelection {
   const next = emptySelection();
   next.hubBridges.add(id);
+  return next;
+}
+
+export function setSingleHubWire(id: string): DiagramSelection {
+  const next = emptySelection();
+  next.hubWires.add(id);
   return next;
 }
 

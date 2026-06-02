@@ -7,27 +7,27 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --wirer-bg: #f0f1f3;
-  --wirer-fg: #525252;
-  --wirer-surface: #ffffff;
+  --homegrid-bg: #f0f1f3;
+  --homegrid-fg: #525252;
+  --homegrid-surface: #ffffff;
   /** Diagram sheet — medium-bright blue for wire contrast. */
-  --wirer-canvas: #6ba8dc;
+  --homegrid-canvas: #6ba8dc;
   /** Junction boxes — muted dark green. */
   --junction-box-fill: #3a4a3f;
   --junction-box-fill-breaker: #354640;
   --wire-red: #c62828;
   --wire-black: #1a1a1a;
   --wire-white: #f5f5f5;
-  color: var(--wirer-fg);
-  background-color: var(--wirer-bg);
+  color: var(--homegrid-fg);
+  background-color: var(--homegrid-bg);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --wirer-bg: #141416;
-    --wirer-fg: #e8e8e8;
-    --wirer-surface: #222226;
-    --wirer-canvas: #6ba8dc;
+    --homegrid-bg: #141416;
+    --homegrid-fg: #e8e8e8;
+    --homegrid-surface: #222226;
+    --homegrid-canvas: #6ba8dc;
     --wire-black: #1a1a1a;
     --wire-white: #f0f0f0;
   }
@@ -38,12 +38,22 @@ body,
 #root {
   margin: 0;
   min-height: 100vh;
-  color: var(--wirer-fg);
-  background-color: var(--wirer-bg);
+  color: var(--homegrid-fg);
+  background-color: var(--homegrid-bg);
+  touch-action: manipulation;
 }
 
 body {
   margin: 0;
+}
+
+input,
+textarea,
+select,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 #root {
@@ -62,8 +72,8 @@ html:has(.app--editor) #root {
 }
 
 .error-fallback {
-  color: var(--wirer-fg);
-  background: var(--wirer-bg);
+  color: var(--homegrid-fg);
+  background: var(--homegrid-bg);
   min-height: 100vh;
 }
 
@@ -108,9 +118,9 @@ html:has(.app--editor) #root {
   padding: 0 1rem;
   font: inherit;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 35%, var(--wirer-surface));
-  background: var(--wirer-surface);
-  color: var(--wirer-fg);
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 35%, var(--homegrid-surface));
+  background: var(--homegrid-surface);
+  color: var(--homegrid-fg);
   cursor: pointer;
 }
 
@@ -121,14 +131,14 @@ html:has(.app--editor) #root {
 }
 
 .btn--primary {
-  background: var(--wirer-fg);
-  color: var(--wirer-surface);
-  border-color: var(--wirer-fg);
+  background: var(--homegrid-fg);
+  color: var(--homegrid-surface);
+  border-color: var(--homegrid-fg);
 }
 
 .btn--active {
-  background: color-mix(in srgb, var(--wirer-fg) 12%, var(--wirer-surface));
-  border-color: color-mix(in srgb, var(--wirer-fg) 60%, var(--wirer-surface));
+  background: color-mix(in srgb, var(--homegrid-fg) 12%, var(--homegrid-surface));
+  border-color: color-mix(in srgb, var(--homegrid-fg) 60%, var(--homegrid-surface));
 }
 
 .btn--danger {
@@ -163,13 +173,13 @@ html:has(.app--editor) #root {
   font-size: 0.85em;
   padding: 0.1em 0.35em;
   border-radius: 4px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 25%, transparent);
 }
 
 .editor-label-settings {
   padding: 0 0 0.85rem;
   margin-bottom: 0.85rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--wirer-fg) 12%, var(--wirer-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--homegrid-fg) 12%, var(--homegrid-surface));
 }
 
 .editor-label-settings__title {
@@ -186,7 +196,7 @@ html:has(.app--editor) #root {
 .editor-label-settings__slider {
   width: 100%;
   margin-top: 0.35rem;
-  accent-color: var(--wirer-fg);
+  accent-color: var(--homegrid-fg);
 }
 
 .inspector__field--row {
@@ -216,6 +226,11 @@ html:has(.app--editor) #root {
 .conduit-hit,
 .cable-footprint {
   cursor: pointer;
+}
+
+.wire-hit,
+.cable-wire-hit {
+  pointer-events: stroke;
 }
 
 .cable-footprint.cable-footprint--inactive {
@@ -274,25 +289,12 @@ html:has(.app--editor) #root {
   flex-shrink: 0;
 }
 
-.editor-toolbar--scroll {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding-bottom: 0.15rem;
-}
-
-.editor-toolbar--scroll::-webkit-scrollbar {
-  display: none;
-}
-
 .editor-toolbar__divider {
   width: 1px;
   align-self: stretch;
   min-height: 2.75rem;
   margin: 0 0.15rem;
-  background: color-mix(in srgb, var(--wirer-fg) 18%, transparent);
+  background: color-mix(in srgb, var(--homegrid-fg) 18%, transparent);
 }
 
 .toolbar-btn {
@@ -303,15 +305,15 @@ html:has(.app--editor) #root {
   width: 2.75rem;
   height: 2.75rem;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 16%, transparent);
   border-radius: 0.45rem;
-  background: var(--wirer-surface);
-  color: var(--wirer-fg);
+  background: var(--homegrid-surface);
+  color: var(--homegrid-fg);
   cursor: pointer;
 }
 
 .toolbar-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--wirer-fg) 8%, var(--wirer-surface));
+  background: color-mix(in srgb, var(--homegrid-fg) 8%, var(--homegrid-surface));
 }
 
 .toolbar-btn:disabled {
@@ -320,9 +322,9 @@ html:has(.app--editor) #root {
 }
 
 .toolbar-btn--active {
-  border-color: color-mix(in srgb, var(--wirer-accent) 70%, transparent);
-  background: color-mix(in srgb, var(--wirer-accent) 16%, var(--wirer-surface));
-  color: var(--wirer-accent);
+  border-color: color-mix(in srgb, var(--homegrid-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--homegrid-accent) 16%, var(--homegrid-surface));
+  color: var(--homegrid-accent);
 }
 
 .toolbar-btn__key {
@@ -346,10 +348,10 @@ html:has(.app--editor) #root {
   height: 2.75rem;
   max-width: 6.5rem;
   padding: 0 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 16%, transparent);
   border-radius: 0.45rem;
-  background: var(--wirer-surface);
-  color: var(--wirer-fg);
+  background: var(--homegrid-surface);
+  color: var(--homegrid-fg);
   font-size: 0.75rem;
 }
 
@@ -360,7 +362,7 @@ html:has(.app--editor) #root {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.25rem 1.5rem 1rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--wirer-fg) 14%, var(--wirer-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--homegrid-fg) 14%, var(--homegrid-surface));
 }
 
 .home-screen__subtitle {
@@ -431,13 +433,13 @@ html:has(.app--editor) #root {
   padding: 0.5rem 0.5rem 0.5rem 0.75rem;
   min-height: 52px;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
-  background: color-mix(in srgb, var(--wirer-fg) 5%, var(--wirer-surface));
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 18%, var(--homegrid-surface));
+  background: color-mix(in srgb, var(--homegrid-fg) 5%, var(--homegrid-surface));
 }
 
 .job-row--selected {
-  border-color: color-mix(in srgb, var(--wirer-fg) 45%, var(--wirer-surface));
-  background: color-mix(in srgb, var(--wirer-fg) 10%, var(--wirer-surface));
+  border-color: color-mix(in srgb, var(--homegrid-fg) 45%, var(--homegrid-surface));
+  background: color-mix(in srgb, var(--homegrid-fg) 10%, var(--homegrid-surface));
 }
 
 .job-row__checkbox {
@@ -483,8 +485,8 @@ html:has(.app--editor) #root {
   margin: 0.35rem 0.5rem 0.35rem 0.75rem;
   padding: 0.45rem 0.65rem;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--wirer-accent, #2563eb) 55%, var(--wirer-fg));
-  background: var(--wirer-surface);
+  border: 1px solid color-mix(in srgb, var(--homegrid-accent, #2563eb) 55%, var(--homegrid-fg));
+  background: var(--homegrid-surface);
   font: inherit;
   font-weight: 600;
   color: inherit;
@@ -529,13 +531,13 @@ html:has(.app--editor) #root {
 }
 
 .editor-screen__title-input:hover {
-  border-color: color-mix(in srgb, var(--wirer-fg) 18%, transparent);
+  border-color: color-mix(in srgb, var(--homegrid-fg) 18%, transparent);
 }
 
 .editor-screen__title-input:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--wirer-accent, #2563eb) 55%, var(--wirer-fg));
-  background: var(--wirer-surface);
+  border-color: color-mix(in srgb, var(--homegrid-accent, #2563eb) 55%, var(--homegrid-fg));
+  background: var(--homegrid-surface);
 }
 
 .canvas-viewport {
@@ -544,20 +546,63 @@ html:has(.app--editor) #root {
   flex: 1 1 0;
   min-height: 0;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 22%, var(--wirer-surface));
-  background-color: var(--wirer-canvas);
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 22%, var(--homegrid-surface));
+  background-color: var(--homegrid-canvas);
 }
 
 .canvas-viewport__frame {
-  fill: var(--wirer-canvas);
-  stroke: color-mix(in srgb, var(--wire-black) 18%, var(--wirer-canvas));
+  fill: var(--homegrid-canvas);
+  stroke: color-mix(in srgb, var(--wire-black) 18%, var(--homegrid-canvas));
   stroke-width: 1;
 }
 
 .canvas-viewport__sheet {
   fill: transparent;
   stroke: transparent;
+}
+
+/* Screen-space hit strokes stay ~28px wide regardless of canvas zoom. */
+.diagram-hit-stroke {
+  vector-effect: non-scaling-stroke;
+}
+
+.canvas-viewport--tool-connect-wires .hub-connect-hit {
+  cursor: crosshair;
+}
+
+.canvas-viewport--pen-hover {
+  cursor: none;
+}
+
+.pen-hover-banner {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 4;
+  max-width: min(420px, calc(100% - 24px));
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--homegrid-accent) 55%, var(--homegrid-fg));
+  background: color-mix(in srgb, var(--homegrid-surface) 92%, transparent);
+  color: var(--homegrid-fg);
+  font-family: var(--homegrid-font);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+  pointer-events: none;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--homegrid-fg) 12%, transparent);
+}
+
+.pen-hover-indicator__ring {
+  fill: color-mix(in srgb, var(--homegrid-accent) 12%, transparent);
+  stroke: var(--homegrid-accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.85;
 }
 
 /* Default canvas cursor per editor tool */
@@ -695,17 +740,20 @@ html:has(.app--editor) #root {
 }
 
 .diagram-grid__line {
-  stroke: color-mix(in srgb, var(--wirer-fg) 10%, transparent);
+  stroke: color-mix(in srgb, var(--homegrid-fg) 10%, transparent);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 
 .diagram-grid__line--major {
-  stroke: color-mix(in srgb, var(--wirer-fg) 14%, transparent);
+  stroke: color-mix(in srgb, var(--homegrid-fg) 14%, transparent);
 }
 
 .diagram-svg {
   isolation: isolate;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .junction-box-frame {
@@ -727,7 +775,7 @@ html:has(.app--editor) #root {
 .room__outline {
   fill: none;
   stroke: #6d4fb8;
-  stroke-width: 4px;
+  stroke-width: 8px;
   stroke-dasharray: 12 8;
   stroke-linecap: round;
   pointer-events: none;
@@ -735,7 +783,7 @@ html:has(.app--editor) #root {
 
 .room--selected .room__outline {
   stroke: #5536a3;
-  stroke-width: 5px;
+  stroke-width: 10px;
 }
 
 .room__hit {
@@ -746,13 +794,13 @@ html:has(.app--editor) #root {
 
 .room__label {
   font-weight: 700;
-  fill: color-mix(in srgb, #5536a3 90%, var(--wirer-fg));
+  fill: color-mix(in srgb, #5536a3 90%, var(--homegrid-fg));
   pointer-events: none;
   user-select: none;
 }
 
 .room__handle {
-  fill: var(--wirer-surface);
+  fill: var(--homegrid-surface);
   stroke: #6d4fb8;
   stroke-width: 2.5px;
 }
@@ -777,7 +825,7 @@ html:has(.app--editor) #root {
 .room-place-preview {
   fill: color-mix(in srgb, #6d4fb8 12%, transparent);
   stroke: #6d4fb8;
-  stroke-width: 3px;
+  stroke-width: 6px;
   stroke-dasharray: 10 7;
   pointer-events: none;
 }
@@ -790,13 +838,13 @@ html:has(.app--editor) #root {
 }
 
 .room--door-placing .room__door-target:hover {
-  stroke: color-mix(in srgb, var(--wirer-accent) 30%, transparent);
+  stroke: color-mix(in srgb, var(--homegrid-accent) 30%, transparent);
 }
 
 .room__door-preview {
   fill: none;
-  stroke: var(--wirer-accent);
-  stroke-width: 6px;
+  stroke: var(--homegrid-accent);
+  stroke-width: 12px;
   stroke-linecap: round;
   pointer-events: none;
 }
@@ -813,7 +861,7 @@ html:has(.app--editor) #root {
   display: grid;
   gap: 0.35rem;
   padding: 0.65rem;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 14%, transparent);
   border-radius: 8px;
 }
 
@@ -842,6 +890,9 @@ html:has(.app--editor) #root {
   stroke-width: 2px;
   stroke-linejoin: round;
   pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .junction-box__label--breaker {
@@ -859,20 +910,20 @@ html:has(.app--editor) #root {
 }
 
 .junction-anchor {
-  fill: color-mix(in srgb, var(--wirer-fg) 15%, transparent);
-  stroke: color-mix(in srgb, var(--wirer-fg) 45%, transparent);
+  fill: color-mix(in srgb, var(--homegrid-fg) 15%, transparent);
+  stroke: color-mix(in srgb, var(--homegrid-fg) 45%, transparent);
   stroke-width: 1;
 }
 
 .junction-anchor--selected {
-  fill: color-mix(in srgb, var(--wirer-accent) 35%, transparent);
-  stroke: var(--wirer-accent);
+  fill: color-mix(in srgb, var(--homegrid-accent) 35%, transparent);
+  stroke: var(--homegrid-accent);
   stroke-width: 2;
 }
 
 .junction-handle {
-  fill: color-mix(in srgb, var(--wirer-surface) 80%, var(--wirer-fg) 20%);
-  stroke: var(--wirer-fg);
+  fill: color-mix(in srgb, var(--homegrid-surface) 80%, var(--homegrid-fg) 20%);
+  stroke: var(--homegrid-fg);
   stroke-width: 1.5;
   cursor: nwse-resize;
 }
@@ -900,8 +951,8 @@ html:has(.app--editor) #root {
 }
 
 .hub-slot {
-  fill: color-mix(in srgb, var(--wirer-fg) 6%, transparent);
-  stroke: color-mix(in srgb, var(--wirer-fg) 18%, transparent);
+  fill: color-mix(in srgb, var(--homegrid-fg) 6%, transparent);
+  stroke: color-mix(in srgb, var(--homegrid-fg) 18%, transparent);
   stroke-width: 1.5px;
   stroke-dasharray: 3 3;
 }
@@ -912,19 +963,19 @@ html:has(.app--editor) #root {
 }
 
 .hub__ring {
-  fill: color-mix(in srgb, var(--wirer-accent, #c9a227) 35%, var(--wirer-surface));
-  stroke: color-mix(in srgb, var(--wirer-accent, #c9a227) 85%, var(--wirer-fg));
+  fill: color-mix(in srgb, var(--homegrid-accent, #c9a227) 35%, var(--homegrid-surface));
+  stroke: color-mix(in srgb, var(--homegrid-accent, #c9a227) 85%, var(--homegrid-fg));
   stroke-width: 2px;
 }
 
 .hub__core {
-  fill: color-mix(in srgb, var(--wirer-accent, #c9a227) 70%, var(--wirer-fg));
+  fill: color-mix(in srgb, var(--homegrid-accent, #c9a227) 70%, var(--homegrid-fg));
   stroke: none;
 }
 
 .hub--selected .hub__ring {
   stroke-width: 3px;
-  stroke: var(--wirer-fg);
+  stroke: var(--homegrid-fg);
 }
 
 .hub--pending .hub__ring {
@@ -942,8 +993,17 @@ html:has(.app--editor) #root {
   pointer-events: none;
 }
 
+.hub-wire-link-hit {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.hub-wire-link--selected .hub-wire-link__stroke {
+  stroke-width: 3.5px;
+}
+
 .hub-bridge__path {
-  stroke: color-mix(in srgb, var(--wirer-accent, #c9a227) 90%, var(--wirer-fg));
+  stroke: color-mix(in srgb, var(--homegrid-accent, #c9a227) 90%, var(--homegrid-fg));
   stroke-width: 3px;
   stroke-dasharray: 10 6;
 }
@@ -953,13 +1013,13 @@ html:has(.app--editor) #root {
 }
 
 .light-bulb__body {
-  fill: color-mix(in srgb, #f5e6a8 55%, var(--wirer-surface));
-  stroke: color-mix(in srgb, var(--wirer-fg) 70%, transparent);
+  fill: color-mix(in srgb, #f5e6a8 55%, var(--homegrid-surface));
+  stroke: color-mix(in srgb, var(--homegrid-fg) 70%, transparent);
   stroke-width: 2px;
 }
 
 .light-bulb--selected .light-bulb__body {
-  stroke: var(--wirer-fg);
+  stroke: var(--homegrid-fg);
   stroke-width: 3px;
 }
 
@@ -968,20 +1028,23 @@ html:has(.app--editor) #root {
 .hub-label,
 .wire-label {
   pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .light-bulb__label {
-  fill: var(--wirer-fg);
+  fill: var(--homegrid-fg);
 }
 
 .switch-device__body {
-  fill: color-mix(in srgb, var(--wirer-fg) 8%, var(--wirer-surface));
-  stroke: color-mix(in srgb, var(--wirer-fg) 65%, transparent);
+  fill: color-mix(in srgb, var(--homegrid-fg) 8%, var(--homegrid-surface));
+  stroke: color-mix(in srgb, var(--homegrid-fg) 65%, transparent);
   stroke-width: 2px;
 }
 
 .switch-device--selected .switch-device__body {
-  stroke: var(--wirer-fg);
+  stroke: var(--homegrid-fg);
   stroke-width: 3px;
 }
 
@@ -989,7 +1052,7 @@ html:has(.app--editor) #root {
   fill: color-mix(
     in srgb,
     #ffe566 calc(var(--bulb-brightness, 1) * 100%),
-    color-mix(in srgb, #f5e6a8 55%, var(--wirer-surface))
+    color-mix(in srgb, #f5e6a8 55%, var(--homegrid-surface))
   );
   filter: drop-shadow(
     0 0 calc(4px + var(--bulb-brightness, 1) * 10px)
@@ -999,13 +1062,13 @@ html:has(.app--editor) #root {
 
 .switch-device__state {
   font-size: 10px;
-  fill: color-mix(in srgb, var(--wirer-fg) 75%, transparent);
+  fill: color-mix(in srgb, var(--homegrid-fg) 75%, transparent);
   pointer-events: none;
   user-select: none;
 }
 
 .switch-device__path {
-  stroke: color-mix(in srgb, var(--wirer-fg) 35%, transparent);
+  stroke: color-mix(in srgb, var(--homegrid-fg) 35%, transparent);
   stroke-width: 2px;
   pointer-events: none;
 }
@@ -1016,32 +1079,32 @@ html:has(.app--editor) #root {
 }
 
 .switch-device--closed .switch-device__body {
-  fill: color-mix(in srgb, #5cb85c 12%, var(--wirer-surface));
+  fill: color-mix(in srgb, #5cb85c 12%, var(--homegrid-surface));
 }
 
 .breaker-toggle__body {
-  fill: color-mix(in srgb, var(--wirer-fg) 8%, var(--wirer-surface));
-  stroke: color-mix(in srgb, var(--wirer-fg) 35%, var(--wirer-border));
+  fill: color-mix(in srgb, var(--homegrid-fg) 8%, var(--homegrid-surface));
+  stroke: color-mix(in srgb, var(--homegrid-fg) 35%, var(--homegrid-border));
   stroke-width: 2px;
 }
 
 .breaker-toggle--selected .breaker-toggle__body {
-  stroke: var(--wirer-accent);
+  stroke: var(--homegrid-accent);
   stroke-width: 2.5px;
 }
 
 .breaker-toggle--closed .breaker-toggle__body {
-  fill: color-mix(in srgb, #5cb85c 14%, var(--wirer-surface));
-  stroke: color-mix(in srgb, #5cb85c 50%, var(--wirer-fg));
+  fill: color-mix(in srgb, #5cb85c 14%, var(--homegrid-surface));
+  stroke: color-mix(in srgb, #5cb85c 50%, var(--homegrid-fg));
 }
 
 .breaker-toggle--open .breaker-toggle__body {
-  fill: color-mix(in srgb, #d9534f 10%, var(--wirer-surface));
-  stroke: color-mix(in srgb, #d9534f 45%, var(--wirer-fg));
+  fill: color-mix(in srgb, #d9534f 10%, var(--homegrid-surface));
+  stroke: color-mix(in srgb, #d9534f 45%, var(--homegrid-fg));
 }
 
 .breaker-toggle__state {
-  fill: var(--wirer-fg);
+  fill: var(--homegrid-fg);
   font-size: 11px;
   font-weight: 600;
   pointer-events: none;
@@ -1061,12 +1124,12 @@ html:has(.app--editor) #root {
 }
 
 .switch-device__label {
-  fill: var(--wirer-fg);
+  fill: var(--homegrid-fg);
 }
 
 .dimmer-device__body {
-  fill: color-mix(in srgb, #e6a700 10%, var(--wirer-surface));
-  stroke: color-mix(in srgb, #e6a700 55%, var(--wirer-fg));
+  fill: color-mix(in srgb, #e6a700 10%, var(--homegrid-surface));
+  stroke: color-mix(in srgb, #e6a700 55%, var(--homegrid-fg));
   stroke-width: 2px;
 }
 
@@ -1076,93 +1139,93 @@ html:has(.app--editor) #root {
 }
 
 .dimmer-device--on .dimmer-device__body {
-  fill: color-mix(in srgb, #5cb85c 14%, var(--wirer-surface));
+  fill: color-mix(in srgb, #5cb85c 14%, var(--homegrid-surface));
   stroke: #5cb85c;
 }
 
 .dimmer-device__icon {
   font-size: 14px;
-  fill: color-mix(in srgb, #e6a700 85%, var(--wirer-fg));
+  fill: color-mix(in srgb, #e6a700 85%, var(--homegrid-fg));
   pointer-events: none;
   user-select: none;
 }
 
 .dimmer-device__state {
   font-size: 10px;
-  fill: color-mix(in srgb, var(--wirer-fg) 75%, transparent);
+  fill: color-mix(in srgb, var(--homegrid-fg) 75%, transparent);
   pointer-events: none;
   user-select: none;
 }
 
 .dimmer-device__level-track {
-  fill: color-mix(in srgb, var(--wirer-fg) 12%, transparent);
+  fill: color-mix(in srgb, var(--homegrid-fg) 12%, transparent);
   pointer-events: none;
 }
 
 .dimmer-device__level-fill {
-  fill: color-mix(in srgb, #e6a700 80%, var(--wirer-fg));
+  fill: color-mix(in srgb, #e6a700 80%, var(--homegrid-fg));
   pointer-events: none;
 }
 
 .dimmer-device__label {
-  fill: var(--wirer-fg);
+  fill: var(--homegrid-fg);
 }
 
 .outlet-device__body {
-  fill: color-mix(in srgb, var(--wirer-fg) 8%, var(--wirer-surface));
-  stroke: color-mix(in srgb, var(--wirer-fg) 65%, transparent);
+  fill: color-mix(in srgb, var(--homegrid-fg) 8%, var(--homegrid-surface));
+  stroke: color-mix(in srgb, var(--homegrid-fg) 65%, transparent);
   stroke-width: 2px;
 }
 
 .outlet-device--selected .outlet-device__body {
-  stroke: var(--wirer-fg);
+  stroke: var(--homegrid-fg);
   stroke-width: 3px;
 }
 
 .outlet-device--energized .outlet-device__body {
-  fill: color-mix(in srgb, #5cb85c 12%, var(--wirer-surface));
+  fill: color-mix(in srgb, #5cb85c 12%, var(--homegrid-surface));
   stroke: #5cb85c;
 }
 
 .outlet-device__face {
-  fill: color-mix(in srgb, var(--wirer-fg) 6%, var(--wirer-surface));
-  stroke: color-mix(in srgb, var(--wirer-fg) 35%, transparent);
+  fill: color-mix(in srgb, var(--homegrid-fg) 6%, var(--homegrid-surface));
+  stroke: color-mix(in srgb, var(--homegrid-fg) 35%, transparent);
   stroke-width: 1.5px;
 }
 
 .outlet-device__slot-divider {
-  stroke: color-mix(in srgb, var(--wirer-fg) 30%, transparent);
+  stroke: color-mix(in srgb, var(--homegrid-fg) 30%, transparent);
   stroke-width: 1.5px;
 }
 
 .outlet-device__label {
-  fill: var(--wirer-fg);
+  fill: var(--homegrid-fg);
 }
 
 .device-node__stub {
-  stroke: color-mix(in srgb, #6b9bd1 55%, var(--wirer-fg));
+  stroke: color-mix(in srgb, #6b9bd1 55%, var(--homegrid-fg));
   stroke-width: 2px;
   pointer-events: none;
 }
 
 .device-node__ring {
-  fill: var(--wirer-surface);
-  stroke: color-mix(in srgb, #4a7eb8 90%, var(--wirer-fg));
+  fill: var(--homegrid-surface);
+  stroke: color-mix(in srgb, #4a7eb8 90%, var(--homegrid-fg));
   stroke-width: 2.5px;
 }
 
 .device-node__core {
-  fill: color-mix(in srgb, #6b9bd1 70%, var(--wirer-fg));
+  fill: color-mix(in srgb, #6b9bd1 70%, var(--homegrid-fg));
   stroke: none;
 }
 
 .device-node--conduit .device-node__ring {
-  stroke: color-mix(in srgb, #6b9bd1 95%, var(--wirer-fg));
+  stroke: color-mix(in srgb, #6b9bd1 95%, var(--homegrid-fg));
 }
 
 .device-node--selected .device-node__ring {
   stroke-width: 3px;
-  stroke: var(--wirer-fg);
+  stroke: var(--homegrid-fg);
 }
 
 .device-node--pending .device-node__ring {
@@ -1171,7 +1234,7 @@ html:has(.app--editor) #root {
 }
 
 .device-wire-link {
-  stroke: color-mix(in srgb, #6b9bd1 75%, var(--wirer-fg));
+  stroke: color-mix(in srgb, #6b9bd1 75%, var(--homegrid-fg));
   stroke-width: 2px;
   stroke-dasharray: 5 4;
   pointer-events: none;
@@ -1267,8 +1330,8 @@ html:has(.app--editor) #root {
   align-items: stretch;
   border-radius: 999px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 22%, var(--wirer-surface));
-  background: color-mix(in srgb, var(--wirer-surface) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 22%, var(--homegrid-surface));
+  background: color-mix(in srgb, var(--homegrid-surface) 92%, transparent);
   backdrop-filter: blur(8px);
   box-shadow: 0 4px 18px rgb(0 0 0 / 14%);
 }
@@ -1279,7 +1342,7 @@ html:has(.app--editor) #root {
   padding: 0 0.65rem;
   border: none;
   background: transparent;
-  color: var(--wirer-fg);
+  color: var(--homegrid-fg);
   font: inherit;
   font-size: 1.25rem;
   font-weight: 600;
@@ -1288,7 +1351,7 @@ html:has(.app--editor) #root {
 }
 
 .canvas-zoom-controls__btn + .canvas-zoom-controls__btn {
-  border-left: 1px solid color-mix(in srgb, var(--wirer-fg) 14%, var(--wirer-surface));
+  border-left: 1px solid color-mix(in srgb, var(--homegrid-fg) 14%, var(--homegrid-surface));
 }
 
 .canvas-zoom-controls__btn--label {
@@ -1299,7 +1362,19 @@ html:has(.app--editor) #root {
 }
 
 .canvas-zoom-controls__btn:active {
-  background: color-mix(in srgb, var(--wirer-fg) 10%, var(--wirer-surface));
+  background: color-mix(in srgb, var(--homegrid-fg) 10%, var(--homegrid-surface));
+}
+
+/* Fit-all is a touch affordance; keyboard users have Shift+F. */
+@media (hover: hover) and (pointer: fine) {
+  .canvas-zoom-controls__btn--fit-all {
+    display: none;
+  }
+}
+
+.canvas-zoom-controls__btn--fit-all {
+  font-size: 0.95rem;
+  letter-spacing: -0.04em;
 }
 
 /* Collapsible info / inspector panel */
@@ -1316,9 +1391,9 @@ html:has(.app--editor) #root {
   min-height: 44px;
   padding: 0 0.85rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 22%, var(--wirer-surface));
-  background: var(--wirer-surface);
-  color: var(--wirer-fg);
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 22%, var(--homegrid-surface));
+  background: var(--homegrid-surface);
+  color: var(--homegrid-fg);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 600;
@@ -1359,7 +1434,7 @@ html:has(.app--editor) #root {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
-@media (max-width: 767px) {
+@media (max-width: 640px) {
   html,
   body,
   #root {
@@ -1372,6 +1447,7 @@ html:has(.app--editor) #root {
     min-height: 0;
     padding: 0.55rem 0.65rem 0;
     padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
   }
 
   .editor-screen--deck .editor-screen__header {
@@ -1391,6 +1467,7 @@ html:has(.app--editor) #root {
 
   .editor-toolbar {
     margin-bottom: 0.45rem;
+    gap: 0.4rem;
   }
 
   .toolbar-btn__key {
@@ -1398,7 +1475,7 @@ html:has(.app--editor) #root {
   }
 
   .toolbar-variant-select {
-    max-width: 6.5rem;
+    max-width: 5.75rem;
     font-size: 0.78rem;
   }
 
@@ -1438,8 +1515,8 @@ html:has(.app--editor) #root {
     max-height: min(52vh, 460px);
     padding: 0.65rem 0.75rem 0.85rem;
     border-radius: 14px 14px 0 0;
-    border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
-    background: var(--wirer-surface);
+    border: 1px solid color-mix(in srgb, var(--homegrid-fg) 18%, var(--homegrid-surface));
+    background: var(--homegrid-surface);
     box-shadow: 0 -10px 36px rgb(0 0 0 / 18%);
   }
 
@@ -1467,7 +1544,7 @@ html:has(.app--editor) #root {
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 641px) {
   .editor-screen--deck .editor-screen__banner {
     flex-shrink: 0;
   }
@@ -1553,8 +1630,8 @@ html:has(.app--editor) #root {
 
 .issues-panel {
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
-  background: color-mix(in srgb, var(--wirer-fg) 4%, var(--wirer-surface));
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 18%, var(--homegrid-surface));
+  background: color-mix(in srgb, var(--homegrid-fg) 4%, var(--homegrid-surface));
   padding: 1rem 1.1rem;
 }
 
@@ -1581,7 +1658,7 @@ html:has(.app--editor) #root {
 .issues-panel__block + .issues-panel__block {
   margin-top: 0.85rem;
   padding-top: 0.85rem;
-  border-top: 1px solid color-mix(in srgb, var(--wirer-fg) 12%, var(--wirer-surface));
+  border-top: 1px solid color-mix(in srgb, var(--homegrid-fg) 12%, var(--homegrid-surface));
 }
 
 .issues-panel__subtitle {
@@ -1613,8 +1690,8 @@ html:has(.app--editor) #root {
   text-align: left;
   padding: 0.55rem 0.65rem;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 16%, var(--wirer-surface));
-  background: var(--wirer-surface);
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 16%, var(--homegrid-surface));
+  background: var(--homegrid-surface);
   font: inherit;
   color: inherit;
   cursor: pointer;
@@ -1625,7 +1702,7 @@ html:has(.app--editor) #root {
 }
 
 .issues-panel__row:hover {
-  background: color-mix(in srgb, var(--wirer-fg) 6%, var(--wirer-surface));
+  background: color-mix(in srgb, var(--homegrid-fg) 6%, var(--homegrid-surface));
 }
 
 .issues-panel__row--selected {
@@ -1646,8 +1723,8 @@ html:has(.app--editor) #root {
 
 .inspector {
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 18%, var(--wirer-surface));
-  background: color-mix(in srgb, var(--wirer-fg) 4%, var(--wirer-surface));
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 18%, var(--homegrid-surface));
+  background: color-mix(in srgb, var(--homegrid-fg) 4%, var(--homegrid-surface));
   padding: 1rem 1.1rem;
 }
 
@@ -1692,9 +1769,9 @@ html:has(.app--editor) #root {
   min-height: 40px;
   font: inherit;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 35%, var(--wirer-surface));
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 35%, var(--homegrid-surface));
   padding: 0 0.5rem;
-  background: var(--wirer-surface);
+  background: var(--homegrid-surface);
   color: inherit;
 }
 
@@ -1711,11 +1788,11 @@ html:has(.app--editor) #root {
 }
 
 .conduit-dialog {
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 20%, var(--wirer-surface));
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 20%, var(--homegrid-surface));
   border-radius: 12px;
   padding: 0;
-  color: var(--wirer-fg);
-  background-color: var(--wirer-surface);
+  color: var(--homegrid-fg);
+  background-color: var(--homegrid-surface);
   max-width: min(420px, 92vw);
 }
 
@@ -1760,9 +1837,9 @@ html:has(.app--editor) #root {
   min-height: 40px;
   font: inherit;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--wirer-fg) 35%, var(--wirer-surface));
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 35%, var(--homegrid-surface));
   padding: 0 0.5rem;
-  background: var(--wirer-surface);
+  background: var(--homegrid-surface);
   color: inherit;
 }
 
@@ -1808,7 +1885,7 @@ html:has(.app--editor) #root {
 }
 
 .wire-chevron-group--conflict .wire-chevron {
-  fill: color-mix(in srgb, #b91c1c 75%, var(--wirer-fg));
+  fill: color-mix(in srgb, #b91c1c 75%, var(--homegrid-fg));
   stroke: #ef4444;
   stroke-width: 1.35;
   paint-order: stroke fill;
@@ -1851,7 +1928,7 @@ html:has(.app--editor) #root {
 }
 
 .wire-link__warn-bg {
-  fill: color-mix(in srgb, #fef3c7 90%, var(--wirer-surface));
+  fill: color-mix(in srgb, #fef3c7 90%, var(--homegrid-surface));
   stroke: #b45309;
   stroke-width: 1.25;
 }
@@ -1868,7 +1945,7 @@ html:has(.app--editor) #root {
   padding: 0.65rem 0.9rem;
   border-radius: 10px;
   border: 1px solid #b45309;
-  background: color-mix(in srgb, #fef3c7 35%, var(--wirer-surface));
+  background: color-mix(in srgb, #fef3c7 35%, var(--homegrid-surface));
   font-size: 0.9rem;
   display: flex;
   align-items: flex-start;
@@ -1908,7 +1985,7 @@ html:has(.app--editor) #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: color-mix(in srgb, var(--wirer-fg) 55%, transparent);
+  color: color-mix(in srgb, var(--homegrid-fg) 55%, transparent);
   font-size: 1.25rem;
 }
 
@@ -1917,7 +1994,7 @@ html:has(.app--editor) #root {
 }
 
 .path-joint-handle {
-  fill: var(--wirer-surface);
+  fill: var(--homegrid-surface);
   stroke: #2563eb;
   stroke-width: 2.5;
   pointer-events: all;
@@ -1934,6 +2011,8 @@ html:has(.app--editor) #root {
 }
 
 .conduit-bundle--selected .path-joint-handle,
+.conduit-run--selected .path-joint-handle,
+.hub-wire-link--selected .path-joint-handle,
 .wire-link--selected .path-joint-handle {
   stroke: #1d4ed8;
   filter: drop-shadow(0 0 2px rgb(37 99 235 / 45%));
@@ -1947,7 +2026,7 @@ html:has(.app--editor) #root {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  color: var(--wirer-fg);
+  color: var(--homegrid-fg);
 }
 
 .electric-loader--inline {
@@ -1958,7 +2037,7 @@ html:has(.app--editor) #root {
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: color-mix(in srgb, var(--wirer-bg) 78%, transparent);
+  background: color-mix(in srgb, var(--homegrid-bg) 78%, transparent);
   backdrop-filter: blur(2px);
   animation: electric-overlay-in 160ms ease-out;
 }
@@ -2019,7 +2098,7 @@ html:has(.app--editor) #root {
 }
 
 .electric-loader__glass {
-  fill: color-mix(in srgb, #facc15 14%, var(--wirer-surface));
+  fill: color-mix(in srgb, #facc15 14%, var(--homegrid-surface));
   stroke: var(--wire-black);
   stroke-width: 2;
   animation: electric-glass-lit 0.9s ease-in-out infinite;
@@ -2027,7 +2106,7 @@ html:has(.app--editor) #root {
 
 @keyframes electric-glass-lit {
   55% {
-    fill: color-mix(in srgb, #facc15 60%, var(--wirer-surface));
+    fill: color-mix(in srgb, #facc15 60%, var(--homegrid-surface));
   }
 }
 
@@ -2086,6 +2165,91 @@ html:has(.app--editor) #root {
     opacity: 0.6;
   }
   .electric-loader__glass {
-    fill: color-mix(in srgb, #facc15 45%, var(--wirer-surface));
+    fill: color-mix(in srgb, #facc15 45%, var(--homegrid-surface));
   }
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 11rem;
+  max-width: min(18rem, calc(100vw - 1rem));
+  padding: 0.35rem 0;
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 18%, transparent);
+  border-radius: 8px;
+  background: var(--homegrid-surface);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--homegrid-fg) 22%, transparent);
+}
+
+.context-menu__item {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--homegrid-fg);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.context-menu__item:hover:not(:disabled),
+.context-menu__item:focus-visible {
+  background: color-mix(in srgb, var(--homegrid-fg) 8%, var(--homegrid-surface));
+  outline: none;
+}
+
+.context-menu__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.context-menu__item--danger {
+  color: #c0392b;
+}
+
+.context-menu__item--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, #c0392b 12%, var(--homegrid-surface));
+}
+
+.pick-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 11rem;
+  max-width: min(18rem, calc(100vw - 1rem));
+  padding: 0.35rem 0;
+  border: 1px solid color-mix(in srgb, var(--homegrid-fg) 18%, transparent);
+  border-radius: 8px;
+  background: var(--homegrid-surface);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--homegrid-fg) 22%, transparent);
+}
+
+.pick-menu__title {
+  margin: 0;
+  padding: 0.35rem 0.85rem 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.pick-menu__item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--homegrid-fg);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pick-menu__item:hover,
+.pick-menu__item:focus-visible {
+  background: color-mix(in srgb, var(--homegrid-fg) 8%, var(--homegrid-surface));
+  outline: none;
 }

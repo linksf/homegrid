@@ -9,6 +9,8 @@ import { resolveExposedCableWirePath } from '../domain/exposed-wire-endpoints';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { BreakerToggle } from './BreakerToggle';
 import { WireChevronPath } from './WireChevronPath';
+import { HIT_STROKE_SCREEN_PX, worldHitRadius } from './hit-targets';
+import { useDiagramViewport } from './CanvasViewport';
 
 const BREAKER_TOGGLE_INSET = 48;
 
@@ -22,21 +24,30 @@ function polylineToPath(pts: { x: number; y: number }[]): string {
   return pts.map((pt, idx) => `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ');
 }
 
-const CABLE_WIRE_HIT_STROKE = 18;
-const FOOTPRINT_STROKE = 28;
+const CABLE_WIRE_HIT_STROKE = HIT_STROKE_SCREEN_PX;
 
 type CableWallFootprintHitProps = {
   slots: { x: number; y: number }[];
   interactive: boolean;
   selected: boolean;
+  footprintRadius: number;
   onPointerDown?: (e: ReactPointerEvent<SVGPathElement | SVGCircleElement>) => void;
+  onPointerMove?: (e: ReactPointerEvent<SVGPathElement | SVGCircleElement>) => void;
+  onPointerUp?: (e: ReactPointerEvent<SVGPathElement | SVGCircleElement>) => void;
+  onPointerCancel?: (e: ReactPointerEvent<SVGPathElement | SVGCircleElement>) => void;
+  onContextMenu?: (e: React.MouseEvent<SVGPathElement | SVGCircleElement>) => void;
 };
 
 function CableWallFootprintHit({
   slots,
   interactive,
   selected,
+  footprintRadius,
   onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onContextMenu,
 }: CableWallFootprintHitProps): JSX.Element | null {
   if (slots.length === 0) return null;
 
@@ -53,26 +64,34 @@ function CableWallFootprintHit({
         className={commonClasses}
         cx={c.x}
         cy={c.y}
-        r={GRID_SIZE * 1.5}
+        r={footprintRadius}
         fill="rgb(0 0 0 / 0.001)"
         stroke="transparent"
         pointerEvents={pe}
         onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onContextMenu={onContextMenu}
       />
     );
   }
 
   return (
     <path
-      className={commonClasses}
+      className={`${commonClasses} diagram-hit-stroke`}
       d={polylineToPath(slots)}
       fill="none"
       stroke="transparent"
-      strokeWidth={FOOTPRINT_STROKE}
+      strokeWidth={HIT_STROKE_SCREEN_PX}
       strokeLinecap="round"
       strokeLinejoin="round"
       pointerEvents={pe}
       onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onContextMenu={onContextMenu}
     />
   );
 }
@@ -85,10 +104,16 @@ export type CableLayerProps = {
   tool: EditorMainTool;
   interactive: boolean;
   connectPendingWireId: string | null;
+  connectInteractionActive?: boolean;
   onSelectCable?: (cableId: string) => void;
   onWirePointerDown?: (wireId: string) => void;
   onToggleBreakerCable?: (cableId: string) => void;
+  bindContextMenu?: (
+    target: import('../editor/context-menu-target').ContextMenuTarget,
+  ) => import('../editor/use-context-menu-gesture').ContextMenuBindHandlers;
   showLabels?: boolean;
+  /** When set, tint a grouped cable's exposed wires with its conduit-group color. */
+  groupColorByCableId?: Map<string, string> | null;
 };
 
 /** Exposed cable wires at the junction-box wall plus wall footprint selection (conduit stub in a later layer). */
@@ -100,12 +125,17 @@ export function CableLayer({
   tool,
   interactive,
   connectPendingWireId,
+  connectInteractionActive = false,
   onSelectCable,
   onWirePointerDown,
   onToggleBreakerCable,
+  bindContextMenu,
   showLabels: _showLabels,
+  groupColorByCableId = null,
 }: CableLayerProps): JSX.Element {
   void _showLabels;
+  const vp = useDiagramViewport();
+  const footprintRadius = worldHitRadius(vp.scale, GRID_SIZE * 0.75);
   const footprintInteractive = interactive && tool === 'select' && Boolean(onSelectCable);
   const wireHitsInteractive = interactive && tool === 'select' && Boolean(onWirePointerDown);
 
@@ -119,6 +149,7 @@ export function CableLayer({
         const wireCount = n as 1 | 2 | 3;
         const slots = cableWallSlots(box, cable.anchor, wireCount);
         const bundleSelected = selectedCableIds.has(cable.id);
+        const groupColor = groupColorByCableId?.get(cable.id);
         const isBreaker = isBreakerCable(cable);
         const toggleInteractive = interactive && tool === 'select' && Boolean(onToggleBreakerCable);
 
@@ -132,17 +163,26 @@ export function CableLayer({
           };
         }
 
+        const cableMenu = bindContextMenu ? bindContextMenu({ kind: 'cable', cableId: cable.id }) : null;
+
         return (
           <g key={cable.id} className={['cable-bundle', bundleSelected ? 'cable-bundle--selected' : ''].filter(Boolean).join(' ')}>
             <CableWallFootprintHit
               slots={slots}
               interactive={footprintInteractive}
               selected={bundleSelected}
+              footprintRadius={footprintRadius}
+              {...(cableMenu ?? {})}
               onPointerDown={(e) => {
                 if (e.button !== 0) return;
                 e.stopPropagation();
+                cableMenu?.onPointerDown?.(e);
                 onSelectCable?.(cable.id);
               }}
+              onPointerMove={cableMenu?.onPointerMove}
+              onPointerUp={cableMenu?.onPointerUp}
+              onPointerCancel={cableMenu?.onPointerCancel}
+              onContextMenu={cableMenu?.onContextMenu}
             />
 
             {isBreaker && togglePoint ? (
@@ -171,7 +211,7 @@ export function CableLayer({
               const strokeClass = [
                 WIRE_CLASS[wire.color],
                 tool === 'select' && selectedWireIds.has(wire.id) ? 'wire-stroke--selected' : '',
-                tool === 'connect-wires' && connectPendingWireId === wire.id ? 'wire-stroke--pending-link' : '',
+                connectInteractionActive && connectPendingWireId === wire.id ? 'wire-stroke--pending-link' : '',
               ]
                 .filter(Boolean)
                 .join(' ');
@@ -184,6 +224,7 @@ export function CableLayer({
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    style={groupColor ? { stroke: groupColor } : undefined}
                   />
                   <WireChevronPath
                     points={pts}
@@ -191,8 +232,13 @@ export function CableLayer({
                     directionConflict={rw?.directionConflict ?? false}
                   />
                   {wireHitsInteractive ? (
+                    (() => {
+                      const wireMenu = bindContextMenu
+                        ? bindContextMenu({ kind: 'wire', wireId: wire.id })
+                        : null;
+                      return (
                     <path
-                      className="wire-hit cable-wire-hit"
+                      className="wire-hit cable-wire-hit diagram-hit-stroke"
                       data-wire-id={wire.id}
                       d={polylineToPath(pts)}
                       fill="none"
@@ -200,12 +246,20 @@ export function CableLayer({
                       strokeWidth={CABLE_WIRE_HIT_STROKE}
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      pointerEvents="stroke"
+                      onContextMenu={wireMenu?.onContextMenu}
                       onPointerDown={(e) => {
                         if (e.button !== 0) return;
                         e.stopPropagation();
+                        wireMenu?.onPointerDown?.(e);
                         onWirePointerDown?.(wire.id);
                       }}
+                      onPointerMove={wireMenu?.onPointerMove}
+                      onPointerUp={wireMenu?.onPointerUp}
+                      onPointerCancel={wireMenu?.onPointerCancel}
                     />
+                      );
+                    })()
                   ) : null}
                 </g>
               );

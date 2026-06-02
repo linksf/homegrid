@@ -11,17 +11,26 @@ import type { Diagram, Hub } from '../domain/types';
 import type { ApplyDiagramFn } from '../editor/apply-diagram';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { encodeJunctionAnchor, junctionBoxIdsFromAnchorKeys } from '../editor/anchor-selection';
-import { junctionBoxIdsForGroupMove, moveJunctionBoxesByDelta } from '../editor/selection-move';
+import type { ContextMenuTarget } from '../editor/context-menu-target';
+import { useEntityContextMenuGesture } from '../editor/use-context-menu-gesture';
+import { DESKTOP_LONG_PRESS_MS, TOUCH_LONG_PRESS_MS, useTouchNavigationProfile } from '../canvas/touch-profile';
+import { junctionBoxIdsForGroupMove, captureSelectionMoveSnapshot, moveSelectionByDelta } from '../editor/selection-move';
 import type { DiagramSelection } from '../editor/diagram-selection';
 import { useDiagramViewport } from './CanvasViewport';
+import { worldHitRadius, ANCHOR_HIT_RADIUS_SCREEN_PX } from './hit-targets';
+import {
+  ANCHOR_DRAG_THRESHOLD_PX,
+  clientPointerMoved,
+  LARGE_ENTITY_DRAG_THRESHOLD_PX,
+} from './pointer-drag-threshold';
 import { HubShape } from './HubShape';
 import { HubSlotMarkers } from './HubSlotMarkers';
+/** Wall anchors for cables; center omitted — hubs occupy the interior diamond. */
 const ANCHORS: AnchorPosition[] = [
   'top-left',
   'top-center',
   'top-right',
   'middle-left',
-  'center',
   'middle-right',
   'bottom-left',
   'bottom-center',
@@ -40,6 +49,7 @@ type JunctionBoxShapeProps = {
   selectedJunctionAnchorKeys: Set<string>;
   selection: DiagramSelection;
   connectPendingHubId: string | null;
+  connectInteractionActive?: boolean;
   anchorsInteractive?: boolean;
   onAnchorPointerDown?: (anchor: AnchorPosition) => void;
   onJunctionAnchorPointerDown?: (boxId: string, anchor: AnchorPosition) => void;
@@ -49,22 +59,33 @@ type JunctionBoxShapeProps = {
   onHubConduitPick?: (hubId: string) => void;
   onApplyDiagram: ApplyDiagramFn;
   onCommitHistory?: () => void;
+  onEntityContextMenu?: (target: ContextMenuTarget, clientX: number, clientY: number) => void;
+  onSurfaceLongPress?: (clientX: number, clientY: number) => void;
 };
 
 type DragKind =
   | {
+      id: 'move-pending';
+      pointerId: number;
+      startClient: { x: number; y: number };
+    }
+  | {
       id: 'move';
       pointerId: number;
       startPointer: { x: number; y: number };
-      boxIds: string[];
-      startBoxes: Map<string, { x: number; y: number }>;
+      snapshot: ReturnType<typeof captureSelectionMoveSnapshot>;
+    }
+  | {
+      id: 'anchor-move-pending';
+      pointerId: number;
+      anchor: AnchorPosition;
+      startClient: { x: number; y: number };
     }
   | {
       id: 'anchor-move';
       pointerId: number;
       startPointer: { x: number; y: number };
-      boxIds: string[];
-      startBoxes: Map<string, { x: number; y: number }>;
+      snapshot: ReturnType<typeof captureSelectionMoveSnapshot>;
     }
   | {
       id: 'resize';
@@ -96,6 +117,7 @@ export function JunctionBoxShape({
   selectedJunctionAnchorKeys,
   selection,
   connectPendingHubId,
+  connectInteractionActive = false,
   anchorsInteractive = false,
   onAnchorPointerDown,
   onJunctionAnchorPointerDown,
@@ -105,8 +127,17 @@ export function JunctionBoxShape({
   onHubConduitPick,
   onApplyDiagram,
   onCommitHistory,
+  onEntityContextMenu,
+  onSurfaceLongPress,
 }: JunctionBoxShapeProps): JSX.Element {
+  const touchNavigation = useTouchNavigationProfile();
+  const { bind: bindContextMenu } = useEntityContextMenuGesture(onEntityContextMenu ?? (() => {}), {
+    longPressMs: touchNavigation ? TOUCH_LONG_PRESS_MS : DESKTOP_LONG_PRESS_MS,
+    onLongPressAt: onSurfaceLongPress,
+  });
+  const boxMenu = onEntityContextMenu ? bindContextMenu({ kind: 'junctionBox', boxId: box.id }) : null;
   const vp = useDiagramViewport();
+  const anchorHitRadius = worldHitRadius(vp.scale, ANCHOR_HIT_RADIUS_SCREEN_PX);
   const dragSession = useRef<DragKind | null>(null);
 
   const frameClass = useMemo(() => {
@@ -128,62 +159,96 @@ export function JunctionBoxShape({
     }
 
     e.stopPropagation();
-    if (!selected) onSelect();
+    boxMenu?.onPointerDown?.(e);
 
+    if (!selected) {
+      onSelect();
+      return;
+    }
+
+    dragSession.current = {
+      id: 'move-pending',
+      pointerId: e.pointerId,
+      startClient: { x: e.clientX, y: e.clientY },
+    };
+
+    (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
+  }
+
+  function beginAnchorSelectOrMove(e: ReactPointerEvent, anchor: AnchorPosition) {
+    if (e.button !== 0 || tool !== 'select') return;
+    e.stopPropagation();
+
+    const anchorKey = encodeJunctionAnchor(box.id, anchor);
+    if (!selectedJunctionAnchorKeys.has(anchorKey)) {
+      onJunctionAnchorPointerDown?.(box.id, anchor);
+      return;
+    }
+
+    dragSession.current = {
+      id: 'anchor-move-pending',
+      pointerId: e.pointerId,
+      anchor,
+      startClient: { x: e.clientX, y: e.clientY },
+    };
+
+    (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
+  }
+
+  function activateBoxMove(e: ReactPointerEvent, pending: Extract<DragKind, { id: 'move-pending' }>) {
     const p = worldPoint(e);
     if (!p) return;
     const sx = snapGridCoord(p.x);
     const sy = snapGridCoord(p.y);
 
     const boxIds = [...junctionBoxIdsForGroupMove(selection, box.id)];
-    const startBoxes = new Map<string, { x: number; y: number }>();
-    for (const id of boxIds) {
-      const junction = diagram.junctionBoxes.find((b) => b.id === id);
-      if (junction) startBoxes.set(id, { x: junction.x, y: junction.y });
+    if (!boxIds.includes(box.id)) {
+      boxIds.push(box.id);
     }
+    const moveSelection: DiagramSelection = {
+      ...selection,
+      junctionBoxes: new Set([...selection.junctionBoxes, ...boxIds]),
+    };
+    const snapshot = captureSelectionMoveSnapshot(diagram, moveSelection);
 
     dragSession.current = {
       id: 'move',
-      pointerId: e.pointerId,
+      pointerId: pending.pointerId,
       startPointer: { x: sx, y: sy },
-      boxIds,
-      startBoxes,
+      snapshot,
     };
-
-    (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
   }
 
-  function beginAnchorMove(e: ReactPointerEvent, anchor: AnchorPosition) {
-    if (e.button !== 0 || tool !== 'select') return;
-    e.stopPropagation();
-    onJunctionAnchorPointerDown?.(box.id, anchor);
+  function activateAnchorMove(
+    e: ReactPointerEvent,
+    pending: Extract<DragKind, { id: 'anchor-move-pending' }>,
+  ) {
+    onJunctionAnchorPointerDown?.(box.id, pending.anchor);
 
     const p = worldPoint(e);
     if (!p) return;
     const sx = snapGridCoord(p.x);
     const sy = snapGridCoord(p.y);
 
-    const anchorKey = encodeJunctionAnchor(box.id, anchor);
+    const anchorKey = encodeJunctionAnchor(box.id, pending.anchor);
     const anchorKeys =
       selectedJunctionAnchorKeys.has(anchorKey) && selectedJunctionAnchorKeys.size > 0
         ? selectedJunctionAnchorKeys
         : new Set([anchorKey]);
     const boxIds = [...junctionBoxIdsFromAnchorKeys(anchorKeys)];
-    const startBoxes = new Map<string, { x: number; y: number }>();
-    for (const id of boxIds) {
-      const junction = diagram.junctionBoxes.find((b) => b.id === id);
-      if (junction) startBoxes.set(id, { x: junction.x, y: junction.y });
-    }
+    const moveSelection: DiagramSelection = {
+      ...selection,
+      junctionBoxes: new Set([...selection.junctionBoxes, ...boxIds]),
+      junctionAnchors: anchorKeys,
+    };
+    const snapshot = captureSelectionMoveSnapshot(diagram, moveSelection);
 
     dragSession.current = {
       id: 'anchor-move',
-      pointerId: e.pointerId,
+      pointerId: pending.pointerId,
       startPointer: { x: sx, y: sy },
-      boxIds,
-      startBoxes,
+      snapshot,
     };
-
-    (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
   }
 
   function beginResize(e: ReactPointerEvent, corner: ResizeCorner) {
@@ -212,8 +277,42 @@ export function JunctionBoxShape({
   }
 
   function handlePointerMove(e: ReactPointerEvent) {
-    const drag = dragSession.current;
+    let drag = dragSession.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
+
+    if (drag.id === 'move-pending') {
+      if (
+        !clientPointerMoved(
+          e.clientX,
+          e.clientY,
+          drag.startClient.x,
+          drag.startClient.y,
+          LARGE_ENTITY_DRAG_THRESHOLD_PX,
+        )
+      ) {
+        return;
+      }
+      activateBoxMove(e, drag);
+      drag = dragSession.current;
+      if (!drag || drag.id !== 'move') return;
+    }
+
+    if (drag.id === 'anchor-move-pending') {
+      if (
+        !clientPointerMoved(
+          e.clientX,
+          e.clientY,
+          drag.startClient.x,
+          drag.startClient.y,
+          ANCHOR_DRAG_THRESHOLD_PX,
+        )
+      ) {
+        return;
+      }
+      activateAnchorMove(e, drag);
+      drag = dragSession.current;
+      if (!drag || drag.id !== 'anchor-move') return;
+    }
 
     const p = worldPoint(e);
     if (!p) return;
@@ -225,7 +324,7 @@ export function JunctionBoxShape({
       const dy = sy - drag.startPointer.y;
 
       onApplyDiagram(
-        (diagram) => moveJunctionBoxesByDelta(diagram, drag.boxIds, drag.startBoxes, dx, dy),
+        (diagram) => moveSelectionByDelta(diagram, drag.snapshot, dx, dy),
         { history: false },
       );
       return;
@@ -292,6 +391,16 @@ export function JunctionBoxShape({
     const drag = dragSession.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
 
+    if (drag.id === 'move-pending' || drag.id === 'anchor-move-pending') {
+      dragSession.current = null;
+      try {
+        (e.currentTarget as SVGElement).releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+
     dragSession.current = null;
     onCommitHistory?.();
 
@@ -317,18 +426,32 @@ export function JunctionBoxShape({
         rx={6}
         ry={6}
         onPointerDown={beginMove}
-        onPointerMove={handlePointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerMove={(e) => {
+          boxMenu?.onPointerMove?.(e);
+          handlePointerMove(e);
+        }}
+        onPointerUp={(e) => {
+          boxMenu?.onPointerUp?.(e);
+          endDrag(e);
+        }}
+        onPointerCancel={(e) => {
+          boxMenu?.onPointerCancel?.(e);
+          endDrag(e);
+        }}
+        onContextMenu={boxMenu?.onContextMenu}
       />
 
-      {/* Anchor rings use r=11 (22px diameter) for tap targets */}
+      {/* Anchor hit radius scales inversely with zoom for ~44pt tap targets. */}
       {ANCHORS.map((anchor) => {
         const pt = anchorPoint(box, anchor);
         const anchorKey = encodeJunctionAnchor(box.id, anchor);
         const anchorSelected = selectedJunctionAnchorKeys.has(anchorKey);
         const placementInteractive = anchorsInteractive && Boolean(onAnchorPointerDown);
         const selectInteractive = tool === 'select' && Boolean(onJunctionAnchorPointerDown);
+
+        const anchorMenu = onEntityContextMenu
+          ? bindContextMenu({ kind: 'junctionAnchor', boxId: box.id, anchor })
+          : null;
 
         return (
           <circle
@@ -341,7 +464,7 @@ export function JunctionBoxShape({
               .join(' ')}
             cx={pt.x}
             cy={pt.y}
-            r={11}
+            r={anchorHitRadius}
             pointerEvents={placementInteractive || selectInteractive ? 'auto' : 'none'}
             data-anchor={anchor}
             onPointerDown={
@@ -351,12 +474,37 @@ export function JunctionBoxShape({
                     onAnchorPointerDown?.(anchor);
                   }
                 : selectInteractive
-                  ? (e) => beginAnchorMove(e, anchor)
+                  ? (e) => {
+                      anchorMenu?.onPointerDown?.(e);
+                      beginAnchorSelectOrMove(e, anchor);
+                    }
                   : undefined
             }
-            onPointerMove={selectInteractive ? handlePointerMove : undefined}
-            onPointerUp={selectInteractive ? endDrag : undefined}
-            onPointerCancel={selectInteractive ? endDrag : undefined}
+            onPointerMove={
+              selectInteractive
+                ? (e) => {
+                    anchorMenu?.onPointerMove?.(e);
+                    handlePointerMove(e);
+                  }
+                : undefined
+            }
+            onPointerUp={
+              selectInteractive
+                ? (e) => {
+                    anchorMenu?.onPointerUp?.(e);
+                    endDrag(e);
+                  }
+                : undefined
+            }
+            onPointerCancel={
+              selectInteractive
+                ? (e) => {
+                    anchorMenu?.onPointerCancel?.(e);
+                    endDrag(e);
+                  }
+                : undefined
+            }
+            onContextMenu={anchorMenu?.onContextMenu}
           />
         );
       })}
@@ -372,6 +520,7 @@ export function JunctionBoxShape({
           tool={tool}
           selected={selectedHubIds.has(hub.id)}
           connectPendingHubId={connectPendingHubId}
+          connectInteractionActive={connectInteractionActive}
           onSelect={() => onSelectHub(hub.id)}
           onHubPointerDown={onHubPointerDown}
           onHubConduitPick={onHubConduitPick}

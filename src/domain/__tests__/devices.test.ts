@@ -7,6 +7,8 @@ import {
   addOutlet,
   attachHubToDeviceNode,
   attachWireToDeviceNode,
+  connectHubToDeviceTerminal,
+  connectWireToDeviceTerminal,
   moveLightBulb,
   updateDimmerSwitch,
   updateOutlet,
@@ -14,7 +16,15 @@ import {
 } from '../device-mutations';
 import { buildContinuityFinder, isOutletEnergized, terminalContinuityKey } from '../continuity';
 import { addCable } from '../cable-mutations';
-import { addDeviceConduit, addHub, addJunctionBox, attachWireToHub, deviceConduitPathPoints } from '../mutations';
+import {
+  addDeviceConduit,
+  addHub,
+  addJunctionBox,
+  addLocalConduit,
+  addWireLinkToDiagram,
+  attachWireToHub,
+  deviceConduitPathPoints,
+} from '../mutations';
 import { hubWireDisplayPath } from '../hub-wire-geometry';
 
 describe('lights and switches', () => {
@@ -96,6 +106,68 @@ describe('lights and switches', () => {
     const wire = diagram.wires.find((w) => w.id === wireId)!;
     expect(wire.hubId).toBe(hubId);
     expect(wire.deviceNodeId).toBeNull();
+  });
+
+  it('auto-creates a stub wire when linking a free wire end to an empty terminal', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addJunctionBox(diagram, 100, 100);
+    const boxId = diagram.junctionBoxes.find((b) => b.type === 'normal')!.id;
+    diagram = addLocalConduit(diagram, { junctionBoxId: boxId, anchor: 'middle-right', wireColors: ['red'] });
+    const hotWireId = diagram.conduits.find((c) => c.kind === 'local')!.wireIds[0]!;
+    diagram = addLightBulb(diagram, 400, 400);
+    const terminal = diagram.deviceNodes.find((n) => n.deviceKind === 'lightBulb' && n.slot === 0)!;
+
+    diagram = connectWireToDeviceTerminal(diagram, terminal.id, hotWireId, 'end');
+
+    const deviceConduit = diagram.conduits.find((c) => c.kind === 'device' && c.deviceNodeId === terminal.id)!;
+    const stubWireId = deviceConduit.wireIds[0]!;
+    const stub = diagram.wires.find((w) => w.id === stubWireId)!;
+    expect(stub.color).toBe('red');
+    expect(stub.deviceNodeId).toBeNull();
+    expect(diagram.wireLinks).toHaveLength(1);
+    expect(diagram.wireLinks[0]!.wireIdA === hotWireId || diagram.wireLinks[0]!.wireIdB === hotWireId).toBe(true);
+    expect(diagram.wireLinks[0]!.wireIdA === stubWireId || diagram.wireLinks[0]!.wireIdB === stubWireId).toBe(true);
+  });
+
+  it('auto-creates a stub wire when linking a hub to an empty terminal', () => {
+    let diagram = createEmptyJob().diagram;
+    const panelId = diagram.junctionBoxes[0]!.id;
+    diagram = addCable(diagram, { junctionBoxId: panelId, anchor: 'middle-left', wireColors: ['black', 'white'] });
+    const hotWireId = diagram.cables.find((c) => c.role === 'breaker')!.wireIds.find(
+      (id) => diagram.wires.find((w) => w.id === id)?.color === 'black',
+    )!;
+    diagram = addJunctionBox(diagram, 200, 200);
+    const box = diagram.junctionBoxes.find((b) => b.type === 'normal')!;
+    diagram = addHub(diagram, box!.id);
+    const hubId = diagram.hubs[0]!.id;
+    diagram = attachWireToHub(diagram, hubId, hotWireId);
+    diagram = addLightBulb(diagram, 400, 400);
+    const terminal = diagram.deviceNodes.find((n) => n.deviceKind === 'lightBulb' && n.slot === 0)!;
+
+    diagram = connectHubToDeviceTerminal(diagram, hubId, terminal.id);
+
+    const deviceConduit = diagram.conduits.find((c) => c.kind === 'device' && c.deviceNodeId === terminal.id)!;
+    const stubWireId = deviceConduit.wireIds[0]!;
+    const stub = diagram.wires.find((w) => w.id === stubWireId)!;
+    expect(stub.color).toBe('black');
+    expect(stub.hubId).toBe(hubId);
+  });
+
+  it('links wire ends directly to an existing terminal stub wire', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addJunctionBox(diagram, 100, 100);
+    const boxId = diagram.junctionBoxes.find((b) => b.type === 'normal')!.id;
+    diagram = addLocalConduit(diagram, { junctionBoxId: boxId, anchor: 'middle-right', wireColors: ['black'] });
+    const remoteWireId = diagram.conduits.find((c) => c.kind === 'local')!.wireIds[0]!;
+    diagram = addLightBulb(diagram, 400, 400);
+    const terminal = diagram.deviceNodes.find((n) => n.deviceKind === 'lightBulb' && n.slot === 0)!;
+    diagram = addDeviceConduit(diagram, { deviceNodeId: terminal.id, wireColors: ['black'] });
+    const stubWireId = diagram.conduits.find((c) => c.kind === 'device')!.wireIds[0]!;
+
+    diagram = addWireLinkToDiagram(diagram, remoteWireId, 'end', stubWireId, 'end');
+
+    expect(diagram.wireLinks).toHaveLength(1);
+    expect(diagram.wires.find((w) => w.id === stubWireId)!.hubId).toBeNull();
   });
 
   it('connects a wire directly to a light terminal and allows hub on the same wire', () => {

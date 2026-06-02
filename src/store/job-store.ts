@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
+import { JOB_FILE_EXT } from '../app-brand';
 import { createEmptyJob } from '../domain/defaults';
 import { resolveDirections } from '../domain/direction';
 import type { Diagram, Job, ResolvedWire } from '../domain/types';
@@ -40,7 +41,7 @@ function downloadJobFile(job: Job): void {
   const a = document.createElement('a');
   a.href = url;
   const safe = job.name.replace(/[^\w\-]+/g, '_').slice(0, 80) || 'job';
-  a.download = `${safe}.wirer`;
+  a.download = `${safe}.${JOB_FILE_EXT}`;
   a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
@@ -53,6 +54,10 @@ export interface JobStore {
   activeJob: Job | null;
   /** Bumped when undo/redo availability changes. */
   historyTick: number;
+  /** True while the job library is being fetched from storage. */
+  libraryLoading: boolean;
+  /** True while a job is being created, opened, or imported. */
+  jobLoading: boolean;
   loadLibrary: () => Promise<void>;
   createJob: () => Promise<void>;
   openJob: (id: string) => Promise<void>;
@@ -103,27 +108,44 @@ export const useJobStore = create<JobStore>((set, get) => ({
   jobs: [],
   activeJob: null,
   historyTick: 0,
+  libraryLoading: true,
+  jobLoading: false,
 
   loadLibrary: async () => {
-    const list = await jobsDb.listJobs();
-    set({ jobs: toSummaries(list) });
+    set({ libraryLoading: true });
+    try {
+      const list = await jobsDb.listJobs();
+      set({ jobs: toSummaries(list) });
+    } finally {
+      set({ libraryLoading: false });
+    }
   },
 
   createJob: async () => {
-    const job = createEmptyJob();
-    await jobsDb.putJob(job);
-    await get().loadLibrary();
-    resetDiagramHistory(job.id);
-    set({ activeJob: job });
-    bumpHistoryTick(set);
+    set({ jobLoading: true });
+    try {
+      const job = createEmptyJob();
+      await jobsDb.putJob(job);
+      await get().loadLibrary();
+      resetDiagramHistory(job.id);
+      set({ activeJob: job });
+      bumpHistoryTick(set);
+    } finally {
+      set({ jobLoading: false });
+    }
   },
 
   openJob: async (id: string) => {
-    const job = await jobsDb.getJob(id);
-    if (!job) return;
-    resetDiagramHistory(job.id);
-    set({ activeJob: job });
-    bumpHistoryTick(set);
+    set({ jobLoading: true });
+    try {
+      const job = await jobsDb.getJob(id);
+      if (!job) return;
+      resetDiagramHistory(job.id);
+      set({ activeJob: job });
+      bumpHistoryTick(set);
+    } finally {
+      set({ jobLoading: false });
+    }
   },
 
   deleteJob: async (id: string) => {
@@ -254,13 +276,18 @@ export const useJobStore = create<JobStore>((set, get) => ({
   },
 
   importFile: async (file: File) => {
-    const json = await file.text();
-    const job = importJob(json);
-    await jobsDb.putJob(job);
-    await get().loadLibrary();
-    resetDiagramHistory(job.id);
-    set({ activeJob: job });
-    bumpHistoryTick(set);
+    set({ jobLoading: true });
+    try {
+      const json = await file.text();
+      const job = importJob(json);
+      await jobsDb.putJob(job);
+      await get().loadLibrary();
+      resetDiagramHistory(job.id);
+      set({ activeJob: job });
+      bumpHistoryTick(set);
+    } finally {
+      set({ jobLoading: false });
+    }
   },
 }));
 

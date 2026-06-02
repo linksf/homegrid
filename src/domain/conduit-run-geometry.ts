@@ -1,6 +1,7 @@
 import {
   conduitStubDisplayPath,
   conduitStubResolvedPath,
+  moveConduitStubJoint,
 } from './cable-geometry';
 import type { ConduitRun, Diagram } from './types';
 import type { Point } from './orthogonal-path';
@@ -9,6 +10,7 @@ import {
   draggableLinkVertexIndices,
   dragFixedVertex,
   FIXED_LINK_VERTEX_COUNT,
+  FIXED_SPAN_WIRE_VERTEX_COUNT,
   hasCustomLinkPathShape,
   normalizeWirePath,
   pinPathEndpoints,
@@ -76,6 +78,15 @@ export function refreshConduitRunPaths(diagram: Diagram): Diagram {
   };
 }
 
+/** Interior bends plus cable-stub junction endpoints on a conduit run. */
+export function draggableConduitRunVertexIndices(pathLength: number): number[] {
+  if (pathLength < 2) return [];
+  const indices = draggableLinkVertexIndices(pathLength);
+  indices.unshift(0);
+  indices.push(pathLength - 1);
+  return indices;
+}
+
 export function moveConduitRunJoint(
   diagram: Diagram,
   runId: string,
@@ -99,6 +110,16 @@ export function moveConduitRunJoint(
   );
   current = pinPathEndpoints(current, pinned.start, pinned.end, roles);
   if (current.length !== FIXED_LINK_VERTEX_COUNT) return diagram;
+
+  const last = current.length - 1;
+  if (vertexIndex === 0 && run.cableIdA) {
+    let next = moveConduitStubJoint(diagram, run.cableIdA, FIXED_SPAN_WIRE_VERTEX_COUNT - 1, x, y, options);
+    return refreshConduitRunPaths(next);
+  }
+  if (vertexIndex === last && run.cableIdB) {
+    let next = moveConduitStubJoint(diagram, run.cableIdB, FIXED_SPAN_WIRE_VERTEX_COUNT - 1, x, y, options);
+    return refreshConduitRunPaths(next);
+  }
 
   const indices = draggableLinkVertexIndices(current.length);
   if (!indices.includes(vertexIndex)) return diagram;

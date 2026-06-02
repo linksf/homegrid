@@ -1,5 +1,7 @@
 import type { ChangeEvent, JSX, MouseEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { APP_NAME, LEGACY_JOB_FILE_EXT, JOB_FILE_EXT } from '../app-brand';
+import { ElectricLoader } from '../components/ElectricLoader';
 import { JobNameField } from '../components/JobNameField';
 import { useJobStore, type JobSummary } from '../store/job-store';
 
@@ -33,6 +35,7 @@ type HomeScreenProps = {
 
 export function HomeScreen({ onOpenEditor }: HomeScreenProps): JSX.Element {
   const jobs = useJobStore((s) => s.jobs);
+  const libraryLoading = useJobStore((s) => s.libraryLoading);
   const createJob = useJobStore((s) => s.createJob);
   const openJob = useJobStore((s) => s.openJob);
   const deleteJob = useJobStore((s) => s.deleteJob);
@@ -120,7 +123,7 @@ export function HomeScreen({ onOpenEditor }: HomeScreenProps): JSX.Element {
     <div className="home-screen">
       <header className="home-screen__header">
         <div>
-          <h1>Wirer</h1>
+          <h1>{APP_NAME}</h1>
           <p className="home-screen__subtitle">Electrical wiring mapper</p>
         </div>
         <div className="home-screen__actions">
@@ -133,7 +136,7 @@ export function HomeScreen({ onOpenEditor }: HomeScreenProps): JSX.Element {
           <input
             ref={fileInputRef}
             type="file"
-            accept="application/json,.json,.wirer"
+            accept={`application/json,.json,.${JOB_FILE_EXT},.${LEGACY_JOB_FILE_EXT}`}
             className="visually-hidden"
             onChange={(e) => void handleFileChange(e)}
           />
@@ -141,7 +144,9 @@ export function HomeScreen({ onOpenEditor }: HomeScreenProps): JSX.Element {
       </header>
 
       <section className="home-screen__library" aria-label="Job library">
-        {jobs.length === 0 ? (
+        {libraryLoading && jobs.length === 0 ? (
+          <ElectricLoader label="Loading your jobs…" />
+        ) : jobs.length === 0 ? (
           <p className="home-screen__empty">No saved jobs yet. Create a new job or open a file. Jobs sync to Firebase Storage when online.</p>
         ) : (
           <>

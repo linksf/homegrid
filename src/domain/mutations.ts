@@ -22,7 +22,6 @@ import {
   HUB_SLOT_COUNT,
   hubById,
   hubWorldPoint,
-  wiresDirectAttachedToHub,
 } from './hub-geometry';
 import {
   deviceConduitPathPoints,
@@ -327,6 +326,15 @@ export function updateWire(
   };
 }
 
+export function updateWireColor(diagram: Diagram, wireId: string, color: WireColor): Diagram {
+  const wire = diagram.wires.find((w) => w.id === wireId);
+  if (!wire || isBreakerSeededWire(diagram, wire)) return diagram;
+  return {
+    ...diagram,
+    wires: diagram.wires.map((w) => (w.id === wireId ? { ...w, color } : w)),
+  };
+}
+
 
 export function createWireLink(
   a: Wire,
@@ -356,21 +364,20 @@ export function addWireLinkToDiagram(
   if (wireIdA === wireIdB) {
     throw new Error('Cannot link a wire to itself');
   }
-  if (wa.hubId || wb.hubId || wa.deviceNodeId || wb.deviceNodeId) {
-    throw new Error('A wire connected to a hub or terminal cannot also use a wire-to-wire link');
+  if (wa.hubId || wb.hubId) {
+    throw new Error('A wire connected to a hub cannot use a wire-to-wire link; connect through the hub instead');
   }
   for (const [wireId, endpoint, cableId] of [
     [wireIdA, endpointA, wa.cableId],
     [wireIdB, endpointB, wb.cableId],
   ] as const) {
-    if (!cableId) continue;
-    if (endpoint !== 'end') {
+    if (cableId && endpoint !== 'end') {
       throw new Error(
         'Wire links attach only at cable exposed free ends (far tip away from the box), not the wall side.',
       );
     }
     if (wireEndpointRole(diagram, wireId, endpoint) !== 'free') {
-      throw new Error('That cable wire end cannot form a wire link.');
+      throw new Error('That wire end cannot form a wire link.');
     }
   }
   if (wireLinkAtEndpoint(diagram, wireIdA, endpointA) || wireLinkAtEndpoint(diagram, wireIdB, endpointB)) {
@@ -831,21 +838,18 @@ export function updateHub(
   };
 }
 
-/** Attaches a wire to a hub (hub tie is a separate editable path from wire or terminal). */
+/** Attaches a wire to a hub (wire-nut splice — many wires may share one hub). */
 export function attachWireToHub(diagram: Diagram, hubId: string, wireId: string): Diagram {
   const hub = hubById(diagram, hubId);
   const wire = diagram.wires.find((w) => w.id === wireId);
   if (!hub || !wire) {
     throw new Error('Hub or wire not found');
   }
-  const blocking = wiresDirectAttachedToHub(diagram, hubId).filter((w) => w.id !== wireId);
-  if (blocking.length >= 1) {
-    throw new Error(
-      'Hub already has a direct wire tie; detach it or place a hub conduit stub for multi-conductor bundles',
-    );
-  }
   if (wireLinksForWire(diagram, wireId).length > 0) {
     throw new Error('Disconnect wire-to-wire links before attaching to a hub');
+  }
+  if (wire.hubId === hubId) {
+    return diagram;
   }
   const wires = diagram.wires.map((w) => {
     if (w.id !== wireId) return w;

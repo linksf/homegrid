@@ -12,7 +12,7 @@ import { lightBulbBrightness } from '../domain/continuity';
 import type { Diagram, LightBulb } from '../domain/types';
 import type { ApplyDiagramFn } from '../editor/apply-diagram';
 import type { EditorMainTool } from '../editor/editor-tools';
-import { lightBulbIdsForGroupMove, moveLightBulbsByDelta } from '../editor/selection-move';
+import { captureSelectionMoveSnapshot, lightBulbIdsForGroupMove, moveSelectionByDelta } from '../editor/selection-move';
 import type { DiagramSelection } from '../editor/diagram-selection';
 import { useDiagramViewport } from './CanvasViewport';
 import { DeviceNodeMarker } from './DeviceNodeMarker';
@@ -24,6 +24,7 @@ type LightBulbShapeProps = {
   selectedNodeIds: Set<string>;
   selection: DiagramSelection;
   connectPendingNodeId: string | null;
+  connectInteractionActive?: boolean;
   onSelect: () => void;
   onSelectNode: (nodeId: string) => void;
   onNodePointerDown?: (nodeId: string) => void;
@@ -39,6 +40,7 @@ export function LightBulbShape({
   selectedNodeIds,
   selection,
   connectPendingNodeId,
+  connectInteractionActive = false,
   onSelect,
   onSelectNode,
   onNodePointerDown,
@@ -49,14 +51,13 @@ export function LightBulbShape({
   const drag = useRef<{
     pointerId: number;
     start: { x: number; y: number };
-    bulbIds: string[];
-    startBulbs: Map<string, { x: number; y: number }>;
+    snapshot: ReturnType<typeof captureSelectionMoveSnapshot>;
   } | null>(null);
   const r = LIGHT_BULB_RADIUS;
   const nodes = deviceNodesForDevice(diagram, 'lightBulb', bulb.id);
   const brightness = lightBulbBrightness(diagram, bulb.id);
   const lit = brightness > 0;
-  const connectInteractive = tool === 'connect-wires';
+  const connectInteractive = connectInteractionActive;
   const conduitInteractive = tool === 'cable';
   const orientation = deviceOrientation(bulb);
 
@@ -72,13 +73,13 @@ export function LightBulbShape({
     if (!p) return;
 
     const bulbIds = [...lightBulbIdsForGroupMove(selection, bulb.id)];
-    const startBulbs = new Map<string, { x: number; y: number }>();
-    for (const id of bulbIds) {
-      const item = diagram.lightBulbs.find((b) => b.id === id);
-      if (item) startBulbs.set(id, { x: item.x, y: item.y });
-    }
+    const moveSelection: DiagramSelection = {
+      ...selection,
+      lightBulbs: new Set([...selection.lightBulbs, ...bulbIds]),
+    };
+    const snapshot = captureSelectionMoveSnapshot(diagram, moveSelection);
 
-    drag.current = { pointerId: e.pointerId, start: p, bulbIds, startBulbs };
+    drag.current = { pointerId: e.pointerId, start: p, snapshot };
     (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
   }
 
@@ -89,7 +90,7 @@ export function LightBulbShape({
     if (!p) return;
     const dx = p.x - session.start.x;
     const dy = p.y - session.start.y;
-    onApplyDiagram((d) => moveLightBulbsByDelta(d, session.bulbIds, session.startBulbs, dx, dy), {
+    onApplyDiagram((d) => moveSelectionByDelta(d, session.snapshot, dx, dy), {
       history: false,
     });
   }

@@ -1,4 +1,6 @@
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
+import { useDiagramViewport } from './CanvasViewport';
+import { worldHitRadius } from './hit-targets';
 
 type DeviceNodeMarkerProps = {
   /** Position in the parent device group's local coordinates. */
@@ -25,6 +27,8 @@ export function DeviceNodeMarker({
   onSelect,
   onPointerDown,
 }: DeviceNodeMarkerProps): JSX.Element {
+  const vp = useDiagramViewport();
+  const hitRadius = worldHitRadius(vp.scale);
   const className = [
     'device-node',
     selected ? 'device-node--selected' : '',
@@ -48,7 +52,7 @@ export function DeviceNodeMarker({
       {interactive && (
         <circle
           className="device-node-hit"
-          r={14}
+          r={hitRadius}
           fill="transparent"
           onPointerDown={handleDown}
           onClick={(e) => {

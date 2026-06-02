@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { APP_NAME } from './app-brand';
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -11,7 +12,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('Wirer render error:', error, info.componentStack);
+    console.error(`${APP_NAME} render error:`, error, info.componentStack);
   }
 
   render(): ReactNode {

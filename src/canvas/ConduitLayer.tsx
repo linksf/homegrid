@@ -5,6 +5,7 @@ import type { EditorMainTool } from '../editor/editor-tools';
 import { WireChevronPath } from './WireChevronPath';
 import { polylineMidpoint, wireWorldPolyline } from '../domain/wire-geometry';
 import { ZoomLabel } from './ZoomLabel';
+import { HIT_STROKE_SCREEN_PX } from './hit-targets';
 
 /** Post-cable migration: `local` / `span` bundles are drawn via `CableLayer` / `ConduitRunLayer` only. */
 const SKIP_CONDUIT_BUNDLE_KINDS = new Set<Conduit['kind']>(['local', 'span']);
@@ -22,6 +23,7 @@ type ConduitBundleProps = {
   tool: EditorMainTool;
   selectedWireIds: Set<string>;
   connectPendingWireId: string | null;
+  connectInteractionActive?: boolean;
   onWirePointerDown?: (wireId: string) => void;
   showLabels: boolean;
   selectedConduitIds?: Set<string>;
@@ -39,6 +41,7 @@ export function ConduitBundle({
   tool,
   selectedWireIds,
   connectPendingWireId,
+  connectInteractionActive = false,
   onWirePointerDown: _onWirePointerDown,
   showLabels,
   selectedConduitIds,
@@ -73,11 +76,11 @@ export function ConduitBundle({
     >
       {conduitSelectable && (
         <path
-          className="conduit-hit"
+          className="conduit-hit diagram-hit-stroke"
           d={polylineToPath(centerPath)}
           fill="none"
           stroke="transparent"
-          strokeWidth={28}
+          strokeWidth={HIT_STROKE_SCREEN_PX}
           strokeLinecap="round"
           strokeLinejoin="round"
           onPointerDown={(e) => {
@@ -94,7 +97,7 @@ export function ConduitBundle({
         const strokeClass = [
           WIRE_CLASS[wire.color],
           tool === 'select' && selectedWireIds.has(wire.id) ? 'wire-stroke--selected' : '',
-          tool === 'connect-wires' && connectPendingWireId === wire.id ? 'wire-stroke--pending-link' : '',
+          connectInteractionActive && connectPendingWireId === wire.id ? 'wire-stroke--pending-link' : '',
         ]
           .filter(Boolean)
           .join(' ');
@@ -156,6 +159,7 @@ type ConduitLayerProps = {
   tool: EditorMainTool;
   selectedWireIds: Set<string>;
   connectPendingWireId: string | null;
+  connectInteractionActive?: boolean;
   onWirePointerDown?: (wireId: string) => void;
   showLabels: boolean;
   /** When false, wire/conduit labels are omitted (e.g. drawn in DiagramLabelsLayer). */
@@ -173,6 +177,7 @@ export function ConduitLayer({
   tool,
   selectedWireIds,
   connectPendingWireId,
+  connectInteractionActive = false,
   onWirePointerDown,
   showLabels,
   renderLabels,
@@ -200,6 +205,7 @@ export function ConduitLayer({
           tool={tool}
           selectedWireIds={selectedWireIds}
           connectPendingWireId={connectPendingWireId}
+          connectInteractionActive={connectInteractionActive}
           onWirePointerDown={onWirePointerDown}
           showLabels={labelsVisible}
           selectedConduitIds={selectedConduitIds}

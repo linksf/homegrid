@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { addCable } from '../cable-mutations';
+import { refreshConduitRunPaths } from '../conduit-run-geometry';
+import { connectConduitRun } from '../conduit-run-mutations';
+import { createEmptyJob } from '../defaults';
 import {
   conduitStubResolvedPath,
   moveConduitStubJoint,
@@ -6,6 +10,7 @@ import {
   refreshCablePaths,
 } from '../cable-geometry';
 import { GRID_SIZE } from '../grid';
+import { addJunctionBox } from '../mutations';
 import type { Cable, Diagram, JunctionBox, Wire } from '../types';
 
 const box: JunctionBox = {
@@ -210,5 +215,41 @@ describe('cable exposed + stub joints', () => {
     const pts = shifted.layout.conduitStubPaths?.c1?.points!;
     expect(pts[0]).toEqual(path0[0]);
     expect(pts[index]!.y).not.toBe(path0[index]!.y);
+  });
+
+  it('allows dragging the stub tip when connected to a conduit run', () => {
+    let d = createEmptyJob().diagram;
+    d = addJunctionBox(d, GRID_SIZE * 15, GRID_SIZE * 15);
+    d = addJunctionBox(d, GRID_SIZE * 50, GRID_SIZE * 15);
+    const [boxA, boxB] = d.junctionBoxes.filter((b) => b.type === 'normal');
+    d = addCable(d, {
+      junctionBoxId: boxA!.id,
+      anchor: 'middle-right',
+      wireColors: ['black'],
+    });
+    d = addCable(d, {
+      junctionBoxId: boxB!.id,
+      anchor: 'middle-left',
+      wireColors: ['black'],
+    });
+    const cabA = d.cables.find((c) => c.junctionBoxId === boxA!.id)!;
+    const cabB = d.cables.find((c) => c.junctionBoxId === boxB!.id)!;
+    d = connectConduitRun(d, cabA.id, { kind: 'cable', cableId: cabB.id });
+    const run = d.conduitRuns[0]!;
+
+    const stubBefore = d.layout.conduitStubPaths?.[cabA.id]?.points!;
+    const tipIndex = stubBefore.length - 1;
+    const nx = stubBefore[tipIndex]!.x + 48;
+    const ny = stubBefore[tipIndex]!.y + 24;
+
+    d = refreshConduitRunPaths(moveConduitStubJoint(d, cabA.id, tipIndex, nx, ny));
+
+    const stubAfter = d.layout.conduitStubPaths?.[cabA.id]?.points!;
+    expect(stubAfter[tipIndex]!.x).toBeCloseTo(Math.round(nx / GRID_SIZE) * GRID_SIZE);
+    expect(stubAfter[tipIndex]!.y).toBeCloseTo(Math.round(ny / GRID_SIZE) * GRID_SIZE);
+    expect(stubAfter[0]).toEqual(stubBefore[0]);
+
+    const runPath = d.layout.conduitRunPaths?.[run.id]?.points!;
+    expect(runPath[0]).toEqual(stubAfter[tipIndex]);
   });
 });

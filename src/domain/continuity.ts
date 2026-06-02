@@ -1,4 +1,5 @@
 import { breakerCableClosed, isBreakerCable } from './breaker-cable';
+import { terminalHasActiveCharge } from './charge';
 import {
   conduitsOnDeviceNode,
   deviceNodeById,
@@ -294,6 +295,7 @@ function unionSameColorAcrossConduitRun(diagram: Diagram, run: Diagram['conduitR
 
 export function buildContinuityFinder(diagram: Diagram): UnionFind {
   const uf = new UnionFind();
+  const wireById = new Map(diagram.wires.map((w) => [w.id, w]));
 
   for (const wire of diagram.wires) {
     uf.find(wireContinuityKey(wire.id));
@@ -306,6 +308,7 @@ export function buildContinuityFinder(diagram: Diagram): UnionFind {
     if (!wire.hubId) continue;
     for (const other of diagram.wires) {
       if (other.id === wire.id || other.hubId !== wire.hubId) continue;
+      if (wire.color !== other.color) continue;
       if (!hubWirePairAllowed(diagram, wire.id, other.id)) continue;
       uf.union(wireContinuityKey(wire.id), wireContinuityKey(other.id));
     }
@@ -323,6 +326,9 @@ export function buildContinuityFinder(diagram: Diagram): UnionFind {
     const b = hubWireIds.get(bridge.hubIdB) ?? [];
     for (const wa of a) {
       for (const wb of b) {
+        const wireA = wireById.get(wa);
+        const wireB = wireById.get(wb);
+        if (!wireA || !wireB || wireA.color !== wireB.color) continue;
         uf.union(wireContinuityKey(wa), wireContinuityKey(wb));
       }
     }
@@ -434,6 +440,21 @@ function breakerSeedGroups(diagram: Diagram, uf: UnionFind): { hot: Set<string>;
   return { hot, neutral };
 }
 
+function terminalExternalWireGroups(diagram: Diagram, nodeId: string, uf: UnionFind): Set<string> {
+  const groups = new Set<string>();
+  for (const conduit of conduitsOnDeviceNode(diagram, nodeId)) {
+    for (const wireId of conduit.wireIds) {
+      groups.add(uf.find(wireContinuityKey(wireId)));
+    }
+  }
+  for (const wire of diagram.wires) {
+    if (wire.deviceNodeId === nodeId) {
+      groups.add(uf.find(wireContinuityKey(wire.id)));
+    }
+  }
+  return groups;
+}
+
 function terminalNetworkGroups(diagram: Diagram, nodeId: string, uf: UnionFind): Set<string> {
   const groups = new Set<string>();
   groups.add(uf.find(terminalContinuityKey(nodeId)));
@@ -462,8 +483,8 @@ export function lightBulbBrightness(diagram: Diagram, bulbId: string): number {
   const { hot, neutral } = breakerSeedGroups(diagram, uf);
   if (hot.size === 0 || neutral.size === 0) return 0;
 
-  const leftGroups = terminalNetworkGroups(diagram, nodes[0]!.id, uf);
-  const rightGroups = terminalNetworkGroups(diagram, nodes[1]!.id, uf);
+  const leftGroups = terminalExternalWireGroups(diagram, nodes[0]!.id, uf);
+  const rightGroups = terminalExternalWireGroups(diagram, nodes[1]!.id, uf);
 
   const leftHot = [...leftGroups].some((g) => hot.has(g));
   const leftNeutral = [...leftGroups].some((g) => neutral.has(g));
@@ -472,6 +493,13 @@ export function lightBulbBrightness(diagram: Diagram, bulbId: string): number {
 
   const energized = (leftHot && rightNeutral) || (leftNeutral && rightHot);
   if (!energized) return 0;
+
+  if (
+    !terminalHasActiveCharge(diagram, nodes[0]!.id) ||
+    !terminalHasActiveCharge(diagram, nodes[1]!.id)
+  ) {
+    return 0;
+  }
 
   const hotTerminalId =
     leftHot && rightNeutral
@@ -517,10 +545,15 @@ export function isOutletEnergized(diagram: Diagram, outletId: string): boolean {
   const { hot, neutral } = breakerSeedGroups(diagram, uf);
   if (hot.size === 0 || neutral.size === 0) return false;
 
-  const hotGroups = terminalNetworkGroups(diagram, hotNode.id, uf);
-  const neutralGroups = terminalNetworkGroups(diagram, neutralNode.id, uf);
+  const hotGroups = terminalExternalWireGroups(diagram, hotNode.id, uf);
+  const neutralGroups = terminalExternalWireGroups(diagram, neutralNode.id, uf);
 
   const hasHot = [...hotGroups].some((g) => hot.has(g));
   const hasNeutral = [...neutralGroups].some((g) => neutral.has(g));
-  return hasHot && hasNeutral;
+  if (!hasHot || !hasNeutral) return false;
+
+  return (
+    terminalHasActiveCharge(diagram, hotNode.id) &&
+    terminalHasActiveCharge(diagram, neutralNode.id)
+  );
 }

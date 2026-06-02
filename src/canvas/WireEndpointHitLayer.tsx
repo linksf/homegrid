@@ -2,11 +2,10 @@ import type { JSX } from 'react';
 import { wireLinkAtEndpoint } from '../domain/wire-link-utils';
 import { connectableWireEndpoints, wireEndpointPoint } from '../domain/wire-routing';
 import type { Diagram, WireEndpoint } from '../domain/types';
-import type { EditorMainTool } from '../editor/editor-tools';
 
 type WireEndpointHitLayerProps = {
   diagram: Diagram;
-  tool: EditorMainTool;
+  connectInteractionActive: boolean;
   connectPendingWireId: string | null;
   connectPendingWireEndpoint: WireEndpoint | null;
   onWireEndpointPointerDown?: (wireId: string, endpoint: WireEndpoint) => void;
@@ -15,12 +14,12 @@ type WireEndpointHitLayerProps = {
 /** Click targets on wire end anchors for the connect tool. */
 export function WireEndpointHitLayer({
   diagram,
-  tool,
+  connectInteractionActive,
   connectPendingWireId,
   connectPendingWireEndpoint,
   onWireEndpointPointerDown,
 }: WireEndpointHitLayerProps): JSX.Element | null {
-  if (tool !== 'connect-wires' || !onWireEndpointPointerDown) return null;
+  if (!connectInteractionActive || !onWireEndpointPointerDown) return null;
 
   const r = 10;
 
@@ -46,6 +45,7 @@ export function WireEndpointHitLayer({
               cx={point.x}
               cy={point.y}
               r={r}
+              pointerEvents={pending ? 'none' : 'all'}
               onPointerDown={(e) => {
                 if (e.button !== 0) return;
                 e.stopPropagation();

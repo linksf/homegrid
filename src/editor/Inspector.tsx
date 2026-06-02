@@ -36,6 +36,8 @@ export type InspectorSelection =
       breakerLocked: boolean;
     }
   | { kind: 'link'; link: WireLink; wireLabelA: string; wireLabelB: string }
+  | { kind: 'hubWire'; wire: Wire; hubLabel: string; wireLabel: string }
+  | { kind: 'conduitRun'; run: import('../domain/types').ConduitRun; cableLabelA: string; cableLabelB: string }
   | { kind: 'hubBridge'; bridge: HubBridge; hubLabelA: string; hubLabelB: string }
   | { kind: 'hub'; hub: Hub; wireLabels: string[] }
   | { kind: 'cable'; cable: Cable }
@@ -55,6 +57,8 @@ export type InspectorSelection =
         cables: number;
         hubs: number;
         hubBridges: number;
+        hubWires: number;
+        conduitRuns: number;
         links: number;
         lightBulbs: number;
         switches: number;
@@ -90,7 +94,6 @@ const BOX_WALL_ANCHORS: AnchorPosition[] = [
   'top-center',
   'top-right',
   'middle-left',
-  'center',
   'middle-right',
   'bottom-left',
   'bottom-center',
@@ -125,9 +128,11 @@ type InspectorProps = {
   onUpdateOutlet?: (patch: { label?: string; passthrough?: boolean }) => void;
   onRotateDevice?: (direction: 'cw' | 'ccw') => void;
   onUpdateRoom?: (patch: { label?: string; doors?: RoomDoor[] }) => void;
+  onUpdateRoomDoor?: (doorId: string, patch: Partial<Pick<RoomDoor, 'wall' | 'offset' | 'width'>>) => void;
   onRemoveRoomDoor?: (doorId: string) => void;
   doorPlacing?: boolean;
   onToggleDoorPlacing?: () => void;
+  onDuplicate?: () => void;
   onDelete: () => void;
   deleteError: string | null;
 };
@@ -156,9 +161,11 @@ export function Inspector({
   onUpdateOutlet,
   onRotateDevice,
   onUpdateRoom,
+  onUpdateRoomDoor,
   onRemoveRoomDoor,
   doorPlacing = false,
   onToggleDoorPlacing,
+  onDuplicate,
   onDelete,
   deleteError,
 }: InspectorProps): JSX.Element {
@@ -183,6 +190,8 @@ export function Inspector({
     if (counts.cables) parts.push(`${counts.cables} cable${counts.cables === 1 ? '' : 's'}`);
     if (counts.hubs) parts.push(`${counts.hubs} hub${counts.hubs === 1 ? '' : 's'}`);
     if (counts.hubBridges) parts.push(`${counts.hubBridges} bridge${counts.hubBridges === 1 ? '' : 's'}`);
+    if (counts.hubWires) parts.push(`${counts.hubWires} hub tie${counts.hubWires === 1 ? '' : 's'}`);
+    if (counts.conduitRuns) parts.push(`${counts.conduitRuns} conduit run${counts.conduitRuns === 1 ? '' : 's'}`);
     if (counts.links) parts.push(`${counts.links} link${counts.links === 1 ? '' : 's'}`);
     if (counts.lightBulbs) parts.push(`${counts.lightBulbs} light${counts.lightBulbs === 1 ? '' : 's'}`);
     if (counts.switches) parts.push(`${counts.switches} switch${counts.switches === 1 ? '' : 'es'}`);
@@ -196,16 +205,30 @@ export function Inspector({
       parts.push(`${counts.pathAnchors} path anchor${counts.pathAnchors === 1 ? '' : 's'}`);
     }
 
+    const canDuplicate =
+      Boolean(onDuplicate) &&
+      (counts.junctionBoxes > 0 ||
+        counts.lightBulbs > 0 ||
+        counts.switches > 0 ||
+        counts.dimmerSwitches > 0 ||
+        counts.outlets > 0 ||
+        counts.rooms > 0);
+
     return (
       <aside className="inspector" aria-label="Inspector">
         <h3 className="inspector__title">Multiple selected</h3>
         <p className="inspector__meta">{parts.join(' · ')}</p>
         <p className="inspector__hint">
           Drag junction anchors or path bends to move them together. Drag left-to-right to select everything the box
-          touches; drag right-to-left to select only items fully inside the box. Press <kbd>Delete</kbd> to remove all
-          selected items.
+          touches; drag right-to-left to select only items fully inside the box. Use <kbd>⌘D</kbd> to duplicate boxes
+          and devices. Press <kbd>Delete</kbd> to remove all selected items.
         </p>
         {deleteError && <p className="inspector__hint inspector__hint--error">{deleteError}</p>}
+        {canDuplicate ? (
+          <button type="button" className="btn btn--block" onClick={onDuplicate}>
+            Duplicate selection
+          </button>
+        ) : null}
         <button type="button" className="btn btn--danger btn--block" onClick={onDelete}>
           Delete selection
         </button>
@@ -232,6 +255,42 @@ export function Inspector({
         )}
         <p className="inspector__hint">
           Drag the square joints on the connection path to reshape it (horizontal and vertical segments only).
+        </p>
+        {deleteError && <p className="inspector__hint inspector__hint--error">{deleteError}</p>}
+        <button type="button" className="btn btn--danger btn--block" onClick={onDelete}>
+          Delete connection
+        </button>
+      </aside>
+    );
+  }
+
+  if (selection.kind === 'hubWire') {
+    return (
+      <aside className="inspector" aria-label="Inspector">
+        <h3 className="inspector__title">Hub connection</h3>
+        <p className="inspector__meta">
+          {selection.wireLabel} → {selection.hubLabel}
+        </p>
+        <p className="inspector__hint">
+          Drag the square joints on the dashed path to reshape it (horizontal and vertical segments only).
+        </p>
+        {deleteError && <p className="inspector__hint inspector__hint--error">{deleteError}</p>}
+        <button type="button" className="btn btn--danger btn--block" onClick={onDelete}>
+          Delete connection
+        </button>
+      </aside>
+    );
+  }
+
+  if (selection.kind === 'conduitRun') {
+    return (
+      <aside className="inspector" aria-label="Inspector">
+        <h3 className="inspector__title">Conduit connection</h3>
+        <p className="inspector__meta">
+          {selection.cableLabelA} ↔ {selection.cableLabelB}
+        </p>
+        <p className="inspector__hint">
+          Sheathed run between two cable stubs. Drag the square joints to reshape the path.
         </p>
         {deleteError && <p className="inspector__hint inspector__hint--error">{deleteError}</p>}
         <button type="button" className="btn btn--danger btn--block" onClick={onDelete}>
@@ -564,7 +623,11 @@ export function Inspector({
       west: 'West',
     };
 
-    function updateDoor(doorId: string, patch: Partial<RoomDoor>) {
+    function updateDoor(doorId: string, patch: Partial<Pick<RoomDoor, 'wall' | 'offset' | 'width'>>) {
+      if (onUpdateRoomDoor) {
+        onUpdateRoomDoor(doorId, patch);
+        return;
+      }
       const doors = (room.doors ?? []).map((door) =>
         door.id === doorId ? { ...door, ...patch } : door,
       );

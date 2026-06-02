@@ -542,6 +542,51 @@ describe('resolveDirections', () => {
     expect(resolvedB.get(travelerAId)?.resolvedDirection).toBeNull();
   });
 
+  it('inverts direction through a hub splice', () => {
+    const feedId = 'feed';
+    const branchAId = 'branch-a';
+    const branchBId = 'branch-b';
+    const hubId = 'hub1';
+    const d = diagram({
+      hubs: [{ id: hubId, junctionBoxId: 'jb1', label: '', slot: 0 as const }],
+      conduits: [
+        {
+          id: 'c-feed',
+          kind: 'local' as const,
+          label: '',
+          junctionBoxId: 'jb1',
+          anchor: 'middle-left',
+          wireIds: [feedId],
+        },
+        {
+          id: 'c-a',
+          kind: 'local' as const,
+          label: '',
+          junctionBoxId: 'jb1',
+          anchor: 'middle-right',
+          wireIds: [branchAId],
+        },
+        {
+          id: 'c-b',
+          kind: 'local' as const,
+          label: '',
+          junctionBoxId: 'jb1',
+          anchor: 'bottom-center',
+          wireIds: [branchBId],
+        },
+      ],
+      wires: [
+        wire({ id: feedId, color: 'black', conduitId: 'c-feed', hubId, manualDirection: 'toward' }),
+        wire({ id: branchAId, color: 'black', conduitId: 'c-a', hubId }),
+        wire({ id: branchBId, color: 'black', conduitId: 'c-b', hubId }),
+      ],
+    });
+    const resolved = resolveDirections(d);
+    expect(resolved.get(feedId)?.resolvedDirection).toBe('toward');
+    expect(resolved.get(branchAId)?.resolvedDirection).toBe('away');
+    expect(resolved.get(branchBId)?.resolvedDirection).toBe('away');
+  });
+
   it('propagates from breaker through a closed switch to the load side', () => {
     const hotId = 'hot';
     const loadId = 'load';

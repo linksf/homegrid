@@ -11,7 +11,7 @@ import { isOutletEnergized, outletConnectedSlots } from '../domain/continuity';
 import type { Diagram, Outlet } from '../domain/types';
 import type { ApplyDiagramFn } from '../editor/apply-diagram';
 import type { EditorMainTool } from '../editor/editor-tools';
-import { moveOutletsByDelta, outletIdsForGroupMove } from '../editor/selection-move';
+import { captureSelectionMoveSnapshot, moveSelectionByDelta, outletIdsForGroupMove } from '../editor/selection-move';
 import type { DiagramSelection } from '../editor/diagram-selection';
 import { useDiagramViewport } from './CanvasViewport';
 import { DeviceNodeMarker } from './DeviceNodeMarker';
@@ -24,6 +24,7 @@ type OutletShapeProps = {
   selectedNodeIds: Set<string>;
   selection: DiagramSelection;
   connectPendingNodeId: string | null;
+  connectInteractionActive?: boolean;
   onSelect: () => void;
   onSelectNode: (nodeId: string) => void;
   onNodePointerDown?: (nodeId: string) => void;
@@ -39,6 +40,7 @@ export function OutletShape({
   selectedNodeIds,
   selection,
   connectPendingNodeId,
+  connectInteractionActive = false,
   onSelect,
   onSelectNode,
   onNodePointerDown,
@@ -49,11 +51,10 @@ export function OutletShape({
   const drag = useRef<{
     pointerId: number;
     start: { x: number; y: number };
-    outletIds: string[];
-    startOutlets: Map<string, { x: number; y: number }>;
+    snapshot: ReturnType<typeof captureSelectionMoveSnapshot>;
   } | null>(null);
   const nodes = deviceNodesForDevice(diagram, 'outlet', outlet.id);
-  const connectInteractive = tool === 'connect-wires';
+  const connectInteractive = connectInteractionActive;
   const conduitInteractive = tool === 'cable';
   const energized = isOutletEnergized(diagram, outlet.id);
   const connectedPairs = outletConnectedSlots(outlet);
@@ -71,13 +72,13 @@ export function OutletShape({
     if (!p) return;
 
     const outletIds = [...outletIdsForGroupMove(selection, outlet.id)];
-    const startOutlets = new Map<string, { x: number; y: number }>();
-    for (const id of outletIds) {
-      const item = (diagram.outlets ?? []).find((o) => o.id === id);
-      if (item) startOutlets.set(id, { x: item.x, y: item.y });
-    }
+    const moveSelection: DiagramSelection = {
+      ...selection,
+      outlets: new Set([...selection.outlets, ...outletIds]),
+    };
+    const snapshot = captureSelectionMoveSnapshot(diagram, moveSelection);
 
-    drag.current = { pointerId: e.pointerId, start: p, outletIds, startOutlets };
+    drag.current = { pointerId: e.pointerId, start: p, snapshot };
     (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
   }
 
@@ -88,7 +89,7 @@ export function OutletShape({
     if (!p) return;
     const dx = p.x - session.start.x;
     const dy = p.y - session.start.y;
-    onApplyDiagram((d) => moveOutletsByDelta(d, session.outletIds, session.startOutlets, dx, dy), {
+    onApplyDiagram((d) => moveSelectionByDelta(d, session.snapshot, dx, dy), {
       history: false,
     });
   }

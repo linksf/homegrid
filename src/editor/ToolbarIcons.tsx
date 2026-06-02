@@ -70,6 +70,27 @@ export function IconLabels(props: IconProps): JSX.Element {
   );
 }
 
+/** Hide conduits in walls — dashed conduit with a slash. */
+export function IconConduitHidden(props: IconProps): JSX.Element {
+  return (
+    <IconBase {...props}>
+      <path d="M3 9h18M3 15h18" strokeDasharray="3 3" />
+      <path d="M4 20 L20 4" />
+    </IconBase>
+  );
+}
+
+/** Color-differentiate conduit groups — three offset colored strokes. */
+export function IconConduitColor(props: IconProps): JSX.Element {
+  return (
+    <IconBase {...props}>
+      <path d="M3 7h18" stroke="#2563eb" />
+      <path d="M3 12h18" stroke="#16a34a" />
+      <path d="M3 17h18" stroke="#ea580c" />
+    </IconBase>
+  );
+}
+
 /** Junction box — wiring diagram icon set. */
 export function IconBox(props: IconProps): JSX.Element {
   return (

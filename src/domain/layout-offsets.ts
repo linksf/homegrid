@@ -116,12 +116,12 @@ export function pruneLayoutOffsets(diagram: Diagram): Diagram {
   const cableIds = new Set(diagram.cables.map((c) => c.id));
   const exposedPaths: Record<string, { points: { x: number; y: number }[] }> = {};
   for (const [id, entry] of Object.entries(layout.exposedPaths ?? {})) {
-    if (cableIds.has(id) && entry?.points?.length) exposedPaths[id] = entry;
+    if (wireIds.has(id) && entry?.points?.length) exposedPaths[id] = entry;
   }
 
   const conduitStubPaths: Record<string, { points: { x: number; y: number }[] }> = {};
   for (const [id, entry] of Object.entries(layout.conduitStubPaths ?? {})) {
-    if (conduitIds.has(id) && entry?.points?.length) conduitStubPaths[id] = entry;
+    if (cableIds.has(id) && entry?.points?.length) conduitStubPaths[id] = entry;
   }
 
   return {

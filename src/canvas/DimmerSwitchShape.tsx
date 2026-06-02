@@ -12,7 +12,7 @@ import { adjustDimmerLevel, flipDimmerPosition } from '../domain/device-mutation
 import type { Diagram, DimmerSwitch } from '../domain/types';
 import type { ApplyDiagramFn } from '../editor/apply-diagram';
 import type { EditorMainTool } from '../editor/editor-tools';
-import { dimmerSwitchIdsForGroupMove, moveDimmerSwitchesByDelta } from '../editor/selection-move';
+import { captureSelectionMoveSnapshot, dimmerSwitchIdsForGroupMove, moveSelectionByDelta } from '../editor/selection-move';
 import type { DiagramSelection } from '../editor/diagram-selection';
 import { useDiagramViewport } from './CanvasViewport';
 import { DeviceNodeMarker } from './DeviceNodeMarker';
@@ -25,6 +25,7 @@ type DimmerSwitchShapeProps = {
   selectedNodeIds: Set<string>;
   selection: DiagramSelection;
   connectPendingNodeId: string | null;
+  connectInteractionActive?: boolean;
   onSelect: () => void;
   onSelectNode: (nodeId: string) => void;
   onNodePointerDown?: (nodeId: string) => void;
@@ -40,6 +41,7 @@ export function DimmerSwitchShape({
   selectedNodeIds,
   selection,
   connectPendingNodeId,
+  connectInteractionActive = false,
   onSelect,
   onSelectNode,
   onNodePointerDown,
@@ -50,11 +52,10 @@ export function DimmerSwitchShape({
   const drag = useRef<{
     pointerId: number;
     start: { x: number; y: number };
-    dimmerIds: string[];
-    startDimmers: Map<string, { x: number; y: number }>;
+    snapshot: ReturnType<typeof captureSelectionMoveSnapshot>;
   } | null>(null);
   const nodes = deviceNodesForDevice(diagram, 'dimmerSwitch', dim.id);
-  const connectInteractive = tool === 'connect-wires';
+  const connectInteractive = connectInteractionActive;
   const conduitInteractive = tool === 'cable';
   const position = normalizeDimmerLevel(dim);
   const connectedPairs = dimmerConnectedSlots(dim);
@@ -73,13 +74,13 @@ export function DimmerSwitchShape({
     if (!p) return;
 
     const dimmerIds = [...dimmerSwitchIdsForGroupMove(selection, dim.id)];
-    const startDimmers = new Map<string, { x: number; y: number }>();
-    for (const id of dimmerIds) {
-      const item = (diagram.dimmerSwitches ?? []).find((d) => d.id === id);
-      if (item) startDimmers.set(id, { x: item.x, y: item.y });
-    }
+    const moveSelection: DiagramSelection = {
+      ...selection,
+      dimmerSwitches: new Set([...selection.dimmerSwitches, ...dimmerIds]),
+    };
+    const snapshot = captureSelectionMoveSnapshot(diagram, moveSelection);
 
-    drag.current = { pointerId: e.pointerId, start: p, dimmerIds, startDimmers };
+    drag.current = { pointerId: e.pointerId, start: p, snapshot };
     (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
   }
 
@@ -90,7 +91,7 @@ export function DimmerSwitchShape({
     if (!p) return;
     const dx = p.x - session.start.x;
     const dy = p.y - session.start.y;
-    onApplyDiagram((d) => moveDimmerSwitchesByDelta(d, session.dimmerIds, session.startDimmers, dx, dy), {
+    onApplyDiagram((d) => moveSelectionByDelta(d, session.snapshot, dx, dy), {
       history: false,
     });
   }

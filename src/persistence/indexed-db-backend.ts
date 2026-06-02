@@ -7,15 +7,15 @@ import type { JobsBackend } from './backend';
 const DB_NAME = 'wirer-v1';
 const STORE = 'jobs';
 
-interface WirerDB extends DBSchema {
+interface HomeGridDB extends DBSchema {
   jobs: {
     key: string;
     value: Job;
   };
 }
 
-async function getDb(): Promise<IDBPDatabase<WirerDB>> {
-  return openDB<WirerDB>(DB_NAME, SCHEMA_VERSION, {
+async function getDb(): Promise<IDBPDatabase<HomeGridDB>> {
+  return openDB<HomeGridDB>(DB_NAME, SCHEMA_VERSION, {
     upgrade(db) {
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: 'id' });

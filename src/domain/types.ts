@@ -217,6 +217,9 @@ export interface RoomDoor {
   /** Distance from the wall start corner along that wall, grid-snapped. */
   offset: number;
   width: number;
+  /** Matching door on an adjacent room's shared wall (same opening, other side). */
+  linkedRoomId?: string;
+  linkedDoorId?: string;
 }
 
 /** Visual-only floor-plan region; does not affect wiring simulation. */

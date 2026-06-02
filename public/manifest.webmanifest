@@ -1,6 +1,6 @@
 {
-  "name": "Wirer",
-  "short_name": "Wirer",
+  "name": "HomeGrid",
+  "short_name": "HomeGrid",
   "description": "Electrical wiring diagram editor",
   "start_url": "/",
   "display": "standalone",
