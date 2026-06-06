@@ -69,6 +69,7 @@ export function normalizeDiagram(diagram: Diagram | undefined | null): Diagram {
   if (!diagram) {
     return {
       rooms: [],
+      areas: [],
       junctionBoxes: [],
       breakers: [],
       conduits: [],
@@ -111,6 +112,7 @@ export function normalizeDiagram(diagram: Diagram | undefined | null): Diagram {
 
   let normalized: Diagram = {
     rooms: Array.isArray(diagram.rooms) ? diagram.rooms : [],
+    areas: Array.isArray(diagram.areas) ? diagram.areas : [],
     junctionBoxes: Array.isArray(diagram.junctionBoxes) ? diagram.junctionBoxes : [],
     breakers: Array.isArray(diagram.breakers) ? diagram.breakers : [],
     hubs: Array.isArray(diagram.hubs) ? diagram.hubs : [],
@@ -162,10 +164,14 @@ export function normalizeDiagram(diagram: Diagram | undefined | null): Diagram {
 }
 
 export function normalizeJob(job: Job): Job {
+  const navigationMode = job.navigationMode === 'floorplan' ? 'floorplan' : 'sandbox';
   return {
     ...job,
     name: typeof job.name === 'string' ? job.name : 'Untitled job',
     notes: typeof job.notes === 'string' ? job.notes : '',
+    navigationMode,
+    floorPlanId: navigationMode === 'floorplan' ? (job.floorPlanId ?? null) : null,
+    floorPlanName: typeof job.floorPlanName === 'string' ? job.floorPlanName : undefined,
     diagram: normalizeDiagram(job.diagram),
   };
 }

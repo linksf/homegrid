@@ -12,6 +12,7 @@ import {
   switchTerminalCountForPlacement,
   type SwitchPlacementKind,
 } from '../editor/placement-options';
+import { AreaShape } from './AreaShape';
 import { DiagramGrid } from './DiagramGrid';
 import { RoomShape } from './RoomShape';
 import { CableLayer } from './CableLayer';
@@ -97,6 +98,8 @@ export type DiagramSvgProps = {
   outletPassthrough: boolean;
   onEntityContextMenu?: (target: ContextMenuTarget, clientX: number, clientY: number) => void;
   onSurfaceLongPress?: (clientX: number, clientY: number) => void;
+  /** Floor-plan rooms are read-only overlays in the wiring editor. */
+  roomsReadOnly?: boolean;
 };
 
 export function DiagramSvg({
@@ -150,6 +153,7 @@ export function DiagramSvg({
   outletPassthrough,
   onEntityContextMenu,
   onSurfaceLongPress,
+  roomsReadOnly = false,
 }: DiagramSvgProps): JSX.Element {
   const vp = useDiagramViewport();
   const touchNavigation = useTouchNavigationProfile();
@@ -319,6 +323,10 @@ export function DiagramSvg({
     >
       <DiagramGrid minX={minX} minY={minY} width={width} height={height} />
 
+      {(diagram.areas ?? []).map((area) => (
+        <AreaShape key={area.id} area={area} />
+      ))}
+
       {(diagram.rooms ?? []).map((room) => (
         <RoomShape
           key={room.id}
@@ -328,12 +336,13 @@ export function DiagramSvg({
           selected={selection.rooms.has(room.id)}
           selection={selection}
           onSelect={() => onSelectRoom?.(room.id)}
-          doorPlacing={doorPlacingRoomId === room.id}
+          doorPlacing={!roomsReadOnly && doorPlacingRoomId === room.id}
           onPlaceDoor={(wall, centerOffset) => onPlaceRoomDoor?.(room.id, wall, centerOffset)}
           onApplyDiagram={onApplyDiagram}
           onCommitHistory={onCommitHistory}
           onEntityContextMenu={onEntityContextMenu}
           onSurfaceLongPress={onSurfaceLongPress}
+          readOnly={roomsReadOnly}
         />
       ))}
 

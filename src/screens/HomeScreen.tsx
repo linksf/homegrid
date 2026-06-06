@@ -31,12 +31,12 @@ function formatRelativeTime(iso: string): string {
 
 type HomeScreenProps = {
   onOpenEditor: () => void;
+  onNewJob: () => void;
 };
 
-export function HomeScreen({ onOpenEditor }: HomeScreenProps): JSX.Element {
+export function HomeScreen({ onOpenEditor, onNewJob }: HomeScreenProps): JSX.Element {
   const jobs = useJobStore((s) => s.jobs);
   const libraryLoading = useJobStore((s) => s.libraryLoading);
-  const createJob = useJobStore((s) => s.createJob);
   const openJob = useJobStore((s) => s.openJob);
   const deleteJob = useJobStore((s) => s.deleteJob);
   const deleteJobs = useJobStore((s) => s.deleteJobs);
@@ -59,8 +59,7 @@ export function HomeScreen({ onOpenEditor }: HomeScreenProps): JSX.Element {
   const someSelected = selectedCount > 0 && !allSelected;
 
   async function handleNew(): Promise<void> {
-    await createJob();
-    onOpenEditor();
+    onNewJob();
   }
 
   async function handleOpenRow(job: JobSummary): Promise<void> {

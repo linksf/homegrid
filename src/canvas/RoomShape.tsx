@@ -38,6 +38,8 @@ type RoomShapeProps = {
   onCommitHistory?: () => void;
   onEntityContextMenu?: (target: ContextMenuTarget, clientX: number, clientY: number) => void;
   onSurfaceLongPress?: (clientX: number, clientY: number) => void;
+  /** Floor-plan rooms are navigation overlays only in the wiring editor. */
+  readOnly?: boolean;
 };
 
 type DragKind =
@@ -75,6 +77,7 @@ export function RoomShape({
   onCommitHistory,
   onEntityContextMenu,
   onSurfaceLongPress,
+  readOnly = false,
 }: RoomShapeProps): JSX.Element {
   const vp = useDiagramViewport();
   const dragSession = useRef<DragKind | null>(null);
@@ -92,7 +95,7 @@ export function RoomShape({
   }
 
   function beginMove(e: ReactPointerEvent) {
-    if (e.button !== 0 || tool !== 'select') return;
+    if (readOnly || e.button !== 0 || tool !== 'select') return;
     e.stopPropagation();
     roomMenu?.onPointerDown?.(e);
 
@@ -129,7 +132,7 @@ export function RoomShape({
   }
 
   function beginResize(e: ReactPointerEvent, corner: ResizeCorner) {
-    if (e.button !== 0 || tool !== 'select') return;
+    if (readOnly || e.button !== 0 || tool !== 'select') return;
     e.stopPropagation();
     onSelect();
 
@@ -370,7 +373,7 @@ export function RoomShape({
         />
       )}
 
-      {selected && tool === 'select' && !doorPlacing
+      {selected && tool === 'select' && !doorPlacing && !readOnly
         ? handles.map(({ corner, cx, cy }) => (
             <circle
               key={corner}

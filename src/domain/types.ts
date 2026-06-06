@@ -233,6 +233,28 @@ export interface Room {
   doors: RoomDoor[];
 }
 
+/** Navigation-only overlay region; may span multiple rooms. */
+export interface Area {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type NavigationMode = 'sandbox' | 'floorplan';
+
+/** Reusable floor-plan template stored in the library (separate from jobs). */
+export interface FloorPlan {
+  id: string;
+  name: string;
+  rooms: Room[];
+  areas: Area[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LayoutState {
   conduitPaths: Record<string, { points: { x: number; y: number }[] }>;
   exposedPaths?: Record<string, { points: { x: number; y: number }[] }>;
@@ -256,6 +278,8 @@ export interface LayoutState {
 
 export interface Diagram {
   rooms: Room[];
+  /** Navigation overlays copied from a floor plan (read-only in the wiring editor). */
+  areas?: Area[];
   junctionBoxes: JunctionBox[];
   breakers: Breaker[];
   hubs: Hub[];
@@ -280,6 +304,12 @@ export interface Job {
   createdAt: string;
   updatedAt: string;
   diagram: Diagram;
+  /** Defaults to sandbox for legacy jobs. */
+  navigationMode?: NavigationMode;
+  /** Source floor plan when navigationMode is floorplan. */
+  floorPlanId?: string | null;
+  /** Display name for the navigator root when using a floor plan. */
+  floorPlanName?: string;
 }
 
 export type ResolvedWire = Wire & {

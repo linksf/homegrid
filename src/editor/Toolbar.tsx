@@ -41,6 +41,8 @@ type ToolbarProps = {
   onSwitchPlacementKindChange: (kind: SwitchPlacementKind) => void;
   outletPassthrough: boolean;
   onOutletPassthroughChange: (passthrough: boolean) => void;
+  /** Hide room placement when using a floor-plan job. */
+  hideRoomTool?: boolean;
 };
 
 type ToolButtonProps = {
@@ -88,6 +90,7 @@ export function Toolbar({
   onSwitchPlacementKindChange,
   outletPassthrough,
   onOutletPassthroughChange,
+  hideRoomTool = false,
 }: ToolbarProps): JSX.Element {
   return (
     <div className="editor-toolbar" role="toolbar" aria-label="Editor tools">
@@ -138,13 +141,15 @@ export function Toolbar({
         icon={<IconBox />}
         label="Junction box"
       />
-      <ToolButton
-        tool="place-room"
-        active={tool === 'place-room'}
-        onClick={() => onToolChange('place-room')}
-        icon={<IconRoom />}
-        label="Room"
-      />
+      {!hideRoomTool ? (
+        <ToolButton
+          tool="place-room"
+          active={tool === 'place-room'}
+          onClick={() => onToolChange('place-room')}
+          icon={<IconRoom />}
+          label="Room"
+        />
+      ) : null}
       <ToolButton
         tool="place-light-bulb"
         active={tool === 'place-light-bulb'}

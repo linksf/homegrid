@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyJob } from '../../domain/defaults';
+import { normalizeJob } from '../../domain/normalize';
 import { exportJob, importJob } from '../file-io';
 
 async function blobToText(blob: Blob): Promise<string> {
@@ -19,7 +20,7 @@ describe('file-io', () => {
     expect(blob.type).toBe('application/json');
     const json = await blobToText(blob);
     expect(JSON.parse(json).schemaVersion).toBe(1);
-    expect(importJob(json)).toEqual(job);
+    expect(importJob(json)).toEqual(normalizeJob(job));
   });
 
   it('importJob rejects unknown schema version', () => {

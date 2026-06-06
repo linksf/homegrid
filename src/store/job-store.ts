@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { JOB_FILE_EXT } from '../app-brand';
-import { createEmptyJob } from '../domain/defaults';
+import { createJobWithNavigation, type CreateJobOptions } from '../domain/floor-plan-defaults';
 import { resolveDirections } from '../domain/direction';
 import type { Diagram, Job, ResolvedWire } from '../domain/types';
 import * as jobsDb from '../persistence/db';
@@ -59,7 +59,7 @@ export interface JobStore {
   /** True while a job is being created, opened, or imported. */
   jobLoading: boolean;
   loadLibrary: () => Promise<void>;
-  createJob: () => Promise<void>;
+  createJob: (options?: CreateJobOptions) => Promise<void>;
   openJob: (id: string) => Promise<void>;
   deleteJob: (id: string) => Promise<void>;
   deleteJobs: (ids: string[]) => Promise<void>;
@@ -121,10 +121,10 @@ export const useJobStore = create<JobStore>((set, get) => ({
     }
   },
 
-  createJob: async () => {
+  createJob: async (options) => {
     set({ jobLoading: true });
     try {
-      const job = createEmptyJob();
+      const job = createJobWithNavigation(options ?? { mode: 'sandbox' });
       await jobsDb.putJob(job);
       await get().loadLibrary();
       resetDiagramHistory(job.id);

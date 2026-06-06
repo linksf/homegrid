@@ -96,6 +96,8 @@ import { Toolbar } from '../editor/Toolbar';
 import type { SwitchPlacementKind } from '../editor/placement-options';
 import { Inspector, type InspectorSelection } from '../editor/Inspector';
 import { IssuesPanel } from '../editor/IssuesPanel';
+import { NavigatorPanel } from '../editor/NavigatorPanel';
+import type { NavigatorNode } from '../editor/navigator-tree';
 import { ConduitDialog, type ConduitDialogState } from '../editor/ConduitDialog';
 import { EditorLabelSettings } from '../editor/EditorLabelSettings';
 import {
@@ -246,6 +248,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     readBooleanPreference(COLOR_CONDUIT_GROUPS_KEY, false),
   );
   const [labelSizePx, setLabelSizePx] = useState(readLabelSizePreference);
+  const [navigatorNodeId, setNavigatorNodeId] = useState<string | null>(null);
 
   const viewportApiRef = useRef<DiagramViewportSnapshot | null>(null);
   const duplicateClipboardRef = useRef<DuplicateClipboard | null>(null);
@@ -411,6 +414,39 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
 
   function clearSelection() {
     setSelection(emptySelection());
+  }
+
+  function handleNavigatorSelect(node: NavigatorNode): void {
+    setNavigatorNodeId(node.id);
+    switch (node.kind) {
+      case 'junctionBox':
+        setSelection(setSingleJunctionBox(node.id));
+        break;
+      case 'lightBulb':
+        setSelection(setSingleLightBulb(node.id));
+        break;
+      case 'switch':
+        setSelection(setSingleSwitch(node.id));
+        break;
+      case 'dimmerSwitch':
+        setSelection(setSingleDimmerSwitch(node.id));
+        break;
+      case 'outlet':
+        setSelection(setSingleOutlet(node.id));
+        break;
+      case 'room':
+        setSelection(setSingleRoom(node.id));
+        break;
+      case 'floorplan':
+      case 'area':
+      case 'unassigned':
+        clearSelection();
+        break;
+    }
+  }
+
+  function handleNavigatorZoom(bounds: { x: number; y: number; width: number; height: number }): void {
+    viewportApiRef.current?.fitToRect(bounds);
   }
 
   function applySelectionFromTarget(target: ContextMenuTarget) {
@@ -1284,6 +1320,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   const selectedSwitchId = soleSelectedId(selection.switches);
   const selectedDimmerId = soleSelectedId(selection.dimmerSwitches);
   const selectedOutletId = soleSelectedId(selection.outlets);
+  const roomsReadOnly = (job.navigationMode ?? 'sandbox') === 'floorplan';
   const selectedRoomId = soleSelectedId(selection.rooms);
   const selectedBoxId = soleSelectedId(selection.junctionBoxes);
   const multiCount = selectionTotalCount(selection);
@@ -1578,6 +1615,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         onSwitchPlacementKindChange={setSwitchPlacementKind}
         outletPassthrough={outletPassthrough}
         onOutletPassthroughChange={setOutletPassthrough}
+        hideRoomTool={roomsReadOnly}
       />
 
       {opposedFlowBanner && (
@@ -1593,6 +1631,12 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
       )}
 
       <div className="editor-screen__main">
+        <NavigatorPanel
+          job={job}
+          activeNodeId={navigatorNodeId}
+          onSelectNode={handleNavigatorSelect}
+          onZoomToBounds={handleNavigatorZoom}
+        />
         <div className="editor-screen__canvas-col">
           <div className="editor-screen__viewport">
             <LabelSizeProvider labelScreenPx={labelSizePx}>
@@ -1733,6 +1777,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 outletPassthrough={outletPassthrough}
                 onEntityContextMenu={handleEntityContextMenu}
                 onSurfaceLongPress={handleSurfaceLongPress}
+                roomsReadOnly={roomsReadOnly}
                 />
               </CanvasViewport>
             </LabelSizeProvider>
