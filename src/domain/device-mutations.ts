@@ -537,6 +537,37 @@ function deviceStubWireId(diagram: Diagram, nodeId: string): string {
   return wireId;
 }
 
+function initiatingWireColorFromTerminal(diagram: Diagram, nodeId: string): WireColor {
+  for (const wireId of wireIdsOnDeviceTerminal(diagram, nodeId)) {
+    const wire = diagram.wires.find((w) => w.id === wireId);
+    if (wire) return wire.color;
+  }
+  return 'black';
+}
+
+function ensureLinkableTerminalWire(
+  diagram: Diagram,
+  nodeId: string,
+  preferredColor: WireColor | null = null,
+): { diagram: Diagram; wireId: string; endpoint: WireEndpoint } {
+  const linkable = findLinkableTerminalWire(diagram, nodeId);
+  if (linkable) {
+    return { diagram, wireId: linkable.wireId, endpoint: linkable.endpoint };
+  }
+
+  if (wireIdsOnDeviceTerminal(diagram, nodeId).length > 0) {
+    throw new Error('Terminal wire has no free end available for a link');
+  }
+
+  const color = preferredColor ?? initiatingWireColorFromTerminal(diagram, nodeId);
+  const next = addDeviceConduit(diagram, { deviceNodeId: nodeId, wireColors: [color] });
+  const created = findLinkableTerminalWire(next, nodeId);
+  if (!created) {
+    throw new Error('Could not create a wire on this terminal');
+  }
+  return { diagram: next, wireId: created.wireId, endpoint: created.endpoint };
+}
+
 /**
  * Connect tool: link a free wire end to a device terminal (creates a matching stub wire when empty).
  */
@@ -563,13 +594,49 @@ export function connectWireToDeviceTerminal(
     return addWireLinkToDiagram(diagram, wireId, endpoint, target.wireId, target.endpoint);
   }
 
-  if (wireIdsOnDeviceTerminal(diagram, nodeId).length > 0) {
-    throw new Error('Terminal wire has no free end available for a link');
+  const ensured = ensureLinkableTerminalWire(diagram, nodeId, wire.color);
+  return addWireLinkToDiagram(
+    ensured.diagram,
+    wireId,
+    endpoint,
+    ensured.wireId,
+    ensured.endpoint,
+  );
+}
+
+/**
+ * Connect tool: link two device terminals (creates matching stub wires when empty).
+ */
+export function connectDeviceTerminals(
+  diagram: Diagram,
+  nodeIdA: string,
+  nodeIdB: string,
+): Diagram {
+  if (nodeIdA === nodeIdB) {
+    throw new Error('Cannot connect a terminal to itself');
+  }
+  if (!deviceNodeById(diagram, nodeIdA) || !deviceNodeById(diagram, nodeIdB)) {
+    throw new Error('Terminal not found');
   }
 
-  let next = addDeviceConduit(diagram, { deviceNodeId: nodeId, wireColors: [wire.color] });
-  const stubWireId = deviceStubWireId(next, nodeId);
-  return addWireLinkToDiagram(next, wireId, endpoint, stubWireId, 'end');
+  let next = diagram;
+  const terminalA = ensureLinkableTerminalWire(next, nodeIdA);
+  next = terminalA.diagram;
+  const colorA = next.wires.find((w) => w.id === terminalA.wireId)?.color ?? 'black';
+  const terminalB = ensureLinkableTerminalWire(next, nodeIdB, colorA);
+  next = terminalB.diagram;
+
+  if (terminalA.wireId === terminalB.wireId) {
+    throw new Error('Cannot link a wire to itself');
+  }
+
+  return addWireLinkToDiagram(
+    next,
+    terminalA.wireId,
+    terminalA.endpoint,
+    terminalB.wireId,
+    terminalB.endpoint,
+  );
 }
 
 /**

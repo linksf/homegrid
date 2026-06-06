@@ -7,6 +7,7 @@ import {
   addOutlet,
   attachHubToDeviceNode,
   attachWireToDeviceNode,
+  connectDeviceTerminals,
   connectHubToDeviceTerminal,
   connectWireToDeviceTerminal,
   moveLightBulb,
@@ -232,6 +233,26 @@ describe('lights and switches', () => {
     const node = diagram.deviceNodes.find((n) => n.deviceKind === 'lightBulb' && n.slot === 0)!;
     expect(() => addDeviceConduit(diagram, { deviceNodeId: node.id, wireColors: ['black', 'white'] })).toThrow(
       /exactly one/i,
+    );
+  });
+
+  it('links a switch terminal to an outlet terminal', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addSwitch(diagram, 100, 100);
+    const switchNode = diagram.deviceNodes.find((n) => n.deviceKind === 'switch' && n.slot === 0)!;
+    diagram = addOutlet(diagram, 300, 100, false);
+    const outletHot = diagram.deviceNodes.find((n) => n.deviceKind === 'outlet' && n.slot === 0)!;
+
+    diagram = connectDeviceTerminals(diagram, switchNode.id, outletHot.id);
+
+    expect(diagram.wireLinks).toHaveLength(1);
+    const switchStub = diagram.conduits.find((c) => c.kind === 'device' && c.deviceNodeId === switchNode.id)!;
+    const outletStub = diagram.conduits.find((c) => c.kind === 'device' && c.deviceNodeId === outletHot.id)!;
+    expect(switchStub).toBeTruthy();
+    expect(outletStub).toBeTruthy();
+    const link = diagram.wireLinks[0]!;
+    expect([link.wireIdA, link.wireIdB]).toEqual(
+      expect.arrayContaining([switchStub.wireIds[0], outletStub.wireIds[0]]),
     );
   });
 });

@@ -41,6 +41,7 @@ import {
 } from '../domain/wire-link-utils';
 import { resolveDirections } from '../domain/direction';
 import {
+  connectDeviceTerminals,
   connectHubToDeviceTerminal,
   connectWireToDeviceTerminal,
   detachWireFromDeviceNode,
@@ -63,7 +64,8 @@ import { hitContextMenuTarget, hitContextMenuTargetsAt } from '../editor/context
 import { contextMenuTargetLabel } from '../editor/context-menu-target-label';
 import { resolveTapCycleTarget, type TapCycleState } from '../editor/tap-selection';
 import { CanvasZoomControls } from '../canvas/CanvasZoomControls';
-import { diagramContentBounds, selectionContentBounds } from '../editor/diagram-bounds';
+import { diagramContentBounds, selectionContentBounds, wireContentBounds, wireLinkContentBounds } from '../editor/diagram-bounds';
+import type { DiagramIssue } from '../editor/diagram-issues';
 import {
   captureSelectionForDuplicate,
   DUPLICATE_OFFSET,
@@ -659,6 +661,20 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     [connectPending, job, penInputActive],
   );
 
+  const handleSelectDiagramIssue = useCallback(
+    (issue: DiagramIssue) => {
+      if (!job) return;
+      if (issue.kind === 'direction-conflict') {
+        setSelection(setSingleWire(issue.wireId));
+        viewportApiRef.current?.fitToRect(wireContentBounds(job.diagram, issue.wireId));
+        return;
+      }
+      setSelection(setSingleLink(issue.linkId));
+      viewportApiRef.current?.fitToRect(wireLinkContentBounds(job.diagram, issue.linkId));
+    },
+    [job],
+  );
+
   const handlePenHoverClear = useCallback(() => setPenHover(null), []);
 
   const handlePickMenuTarget = useCallback((target: ContextMenuTarget) => {
@@ -1026,6 +1042,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         updateDiagram((d) =>
           connectWireToDeviceTerminal(d, connectPending.id, target.wireId, target.endpoint),
         );
+      } else if (connectPending.kind === 'node' && target.kind === 'node') {
+        updateDiagram((d) => connectDeviceTerminals(d, connectPending.id, target.id));
       }
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Could not connect.');
@@ -1747,8 +1765,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
             resolvedByWireId={resolvedByWireId}
             selectedWireId={selectedWireId}
             selectedLinkId={selectedLinkId}
-            onSelectWire={(id) => setSelection(setSingleWire(id))}
-            onSelectLink={(id) => setSelection(setSingleLink(id))}
+            onSelectIssue={handleSelectDiagramIssue}
             onExport={exportActive}
             onExportSvg={handleExportSvg}
             onExportPng={handleExportPng}

@@ -98,6 +98,18 @@ function linkDirectionFromWireEndpoint(
   return exits ? 'toward' : 'away';
 }
 
+/**
+ * Map wire-resolved flow onto a tie segment polyline (start→end) where the wire
+ * meets the segment at `pathAttachment` on its `wireEndpoint`.
+ */
+export function tieSegmentFlowDirection(
+  direction: WireDirection,
+  wireEndpoint: WireEndpoint,
+  pathAttachment: 'start' | 'end',
+): WireDirection {
+  return linkDirectionFromWireEndpoint(direction, wireEndpoint, pathAttachment);
+}
+
 /** True when both linked wires push flow into the link (a genuine head-on conflict). */
 export function isDirectionOpposedLink(
   link: WireLink,
@@ -119,19 +131,53 @@ export function isDirectionOpposedLink(
 /** Flow direction along a wire-to-wire link path (wire A → wire B). */
 export function wireLinkFlowDirection(
   link: WireLink,
-  resolvedA: Pick<ResolvedWire, 'resolvedDirection'> | undefined,
-  resolvedB: Pick<ResolvedWire, 'resolvedDirection'> | undefined,
+  resolvedA: (Pick<ResolvedWire, 'resolvedDirection'> & Partial<Pick<ResolvedWire, 'color'>>) | undefined,
+  resolvedB: (Pick<ResolvedWire, 'resolvedDirection'> & Partial<Pick<ResolvedWire, 'color'>>) | undefined,
 ): { direction: WireDirection | null; conflict: boolean } {
   const dirA = resolvedA?.resolvedDirection ?? null;
   const dirB = resolvedB?.resolvedDirection ?? null;
   const epA = link.endpointA ?? 'end';
   const epB = link.endpointB ?? 'end';
+  const whiteNeutral =
+    resolvedA?.color === 'white' && resolvedB?.color === 'white';
 
   const fromA = dirA != null ? linkDirectionFromWireEndpoint(dirA, epA, 'start') : null;
   const fromB = dirB != null ? linkDirectionFromWireEndpoint(dirB, epB, 'end') : null;
 
   if (fromA != null && fromB != null) {
+    if (whiteNeutral) {
+      if (fromA === fromB) {
+        return { direction: fromA, conflict: false };
+      }
+      // Neutral splices can meet head-on; skip misleading link arrows.
+      return { direction: null, conflict: false };
+    }
     return { direction: fromA, conflict: fromA !== fromB };
   }
   return { direction: fromA ?? fromB, conflict: false };
+}
+
+/** Keep flow markers off corner segments where a tie/link continues the run. */
+export function wireChevronTrim(
+  diagram: Diagram,
+  wireId: string,
+): { trimStart: number; trimEnd: number } {
+  const CORNER_TRIM = 36;
+  let trimStart = 0;
+  let trimEnd = 0;
+
+  const wire = diagram.wires.find((w) => w.id === wireId);
+  if (!wire) return { trimStart, trimEnd };
+
+  if (wire.hubId || wire.deviceNodeId) {
+    trimEnd = Math.max(trimEnd, CORNER_TRIM);
+  }
+
+  for (const endpoint of ['start', 'end'] as const) {
+    if (!wireLinkAtEndpoint(diagram, wireId, endpoint)) continue;
+    if (endpoint === 'start') trimStart = Math.max(trimStart, CORNER_TRIM);
+    else trimEnd = Math.max(trimEnd, CORNER_TRIM);
+  }
+
+  return { trimStart, trimEnd };
 }

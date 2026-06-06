@@ -252,7 +252,7 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
 
     const assignedDir = new Map<string, WireDirection>();
     const assignedSource = new Map<string, DirectionSource>();
-    let conflict = false;
+    const conflictWires = new Set<string>();
 
     for (const id of comp) {
       const d = seedDir.get(id);
@@ -265,7 +265,7 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
         assignedDir.set(id, d);
         assignedSource.set(id, src);
       } else if (prev !== d) {
-        conflict = true;
+        conflictWires.add(id);
       }
     }
 
@@ -281,7 +281,8 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
           assignedSource.set(v, 'propagated');
           queue.push(v);
         } else if (assignedDir.get(v)! !== dv) {
-          conflict = true;
+          conflictWires.add(u);
+          conflictWires.add(v);
         }
       }
     }
@@ -297,7 +298,7 @@ export function resolveDirections(diagram: Diagram): Map<string, ResolvedWire> {
         ...w,
         resolvedDirection: rd,
         directionSource: rs,
-        directionConflict: conflict,
+        directionConflict: conflictWires.has(id),
       });
     }
   };

@@ -3,6 +3,7 @@ import { hubWireDisplayPath } from '../domain/hub-wire-geometry';
 import { hubBridgeDisplayPath } from '../domain/hub-bridge-geometry';
 import type { Diagram, WireColor } from '../domain/types';
 import { WIRE_STROKE_HEX } from './wire-colors';
+import { wireStrokeStyle } from './wire-stroke-style';
 import { HIT_STROKE_SCREEN_PX } from './hit-targets';
 
 function pathD(points: { x: number; y: number }[]): string {
@@ -35,7 +36,7 @@ function HubWireLinkPath({
 }) {
   const d = pathD(points);
   const stroke = WIRE_STROKE_HEX[color];
-  const whiteHalo = color === 'white' ? { filter: 'drop-shadow(0 0 1px #1a1a1a)' } : undefined;
+  const halo = wireStrokeStyle(color);
 
   return (
     <>
@@ -57,7 +58,7 @@ function HubWireLinkPath({
         strokeDasharray="6 5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={whiteHalo}
+        style={halo}
       />
     </>
   );

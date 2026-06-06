@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import type { WireDirection } from '../domain/types';
+import type { WireColor, WireDirection } from '../domain/types';
 import { polylineLength } from '../domain/wire-geometry';
 
 type Pt79 = { x: number; y: number };
@@ -61,6 +61,11 @@ export type WireChevronPathProps = {
   directionConflict: boolean;
   /** Tighter spacing for short wire-to-wire links. */
   compact?: boolean;
+  /** Adds contrast when chevrons sit on or beside a light neutral stroke. */
+  wireColor?: WireColor;
+  /** Skip markers near fixed endpoints (links, hubs, device terminals). */
+  trimStart?: number;
+  trimEnd?: number;
 };
 
 /** Flow markers along a wire stroke; reversed for `toward` vs `away`. */
@@ -69,6 +74,9 @@ export function WireChevronPath({
   resolvedDirection,
   directionConflict,
   compact = false,
+  wireColor,
+  trimStart = 0,
+  trimEnd = 0,
 }: WireChevronPathProps): JSX.Element | null {
   if (resolvedDirection == null || points.length < 2) {
     return null;
@@ -77,19 +85,20 @@ export function WireChevronPath({
   const total = polylineLength(points);
   const spacing = compact ? 28 : CHEVRON_EVERY;
   const minTotal = compact ? 12 : spacing * 0.75;
-  if (total < minTotal) {
+  const span = total - trimStart - trimEnd;
+  if (span < minTotal) {
     return null;
   }
 
   const flip = resolvedDirection === 'toward';
   const polys: string[] = [];
 
-  if (total < spacing * 0.75) {
-    const p = pointAtLength(points, total / 2);
+  if (span < spacing * 0.75) {
+    const p = pointAtLength(points, trimStart + span / 2);
     if (p) polys.push(chevronPolygon(p.x, p.y, p.tx, p.ty, flip));
   } else {
-    let d = spacing * 0.5;
-    while (d < total - spacing * 0.35) {
+    let d = trimStart + spacing * 0.5;
+    while (d < total - trimEnd - spacing * 0.35) {
       const p = pointAtLength(points, d);
       if (p) {
         polys.push(chevronPolygon(p.x, p.y, p.tx, p.ty, flip));
@@ -102,7 +111,11 @@ export function WireChevronPath({
     return null;
   }
 
-  const groupClass = ['wire-chevron-group', directionConflict ? 'wire-chevron-group--conflict' : '']
+  const groupClass = [
+    'wire-chevron-group',
+    directionConflict ? 'wire-chevron-group--conflict' : '',
+    wireColor === 'white' ? 'wire-chevron-group--on-white' : '',
+  ]
     .filter(Boolean)
     .join(' ');
 

@@ -8,8 +8,10 @@ import type { Diagram, ResolvedWire, WireColor } from '../domain/types';
 import { resolveExposedCableWirePath } from '../domain/exposed-wire-endpoints';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { BreakerToggle } from './BreakerToggle';
+import { wireChevronTrim } from '../domain/wire-link-utils';
 import { WireChevronPath } from './WireChevronPath';
 import { HIT_STROKE_SCREEN_PX, worldHitRadius } from './hit-targets';
+import { wireStrokeStyle } from './wire-stroke-style';
 import { useDiagramViewport } from './CanvasViewport';
 
 const BREAKER_TOGGLE_INSET = 48;
@@ -208,6 +210,7 @@ export function CableLayer({
               if (!pts || pts.length < 2) return null;
 
               const rw = resolvedByWireId.get(wireId);
+              const chevronTrim = wireChevronTrim(diagram, wireId);
               const strokeClass = [
                 WIRE_CLASS[wire.color],
                 tool === 'select' && selectedWireIds.has(wire.id) ? 'wire-stroke--selected' : '',
@@ -224,12 +227,18 @@ export function CableLayer({
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    style={groupColor ? { stroke: groupColor } : undefined}
+                    style={{
+                      ...(groupColor ? { stroke: groupColor } : undefined),
+                      ...wireStrokeStyle(wire.color),
+                    }}
                   />
                   <WireChevronPath
                     points={pts}
                     resolvedDirection={rw?.resolvedDirection ?? null}
                     directionConflict={rw?.directionConflict ?? false}
+                    wireColor={wire.color}
+                    trimStart={chevronTrim.trimStart}
+                    trimEnd={chevronTrim.trimEnd}
                   />
                   {wireHitsInteractive ? (
                     (() => {

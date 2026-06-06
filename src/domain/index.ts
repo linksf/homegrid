@@ -119,6 +119,7 @@ export {
   addOutlet,
   attachHubToDeviceNode,
   attachWireToDeviceNode,
+  connectDeviceTerminals,
   connectHubToDeviceTerminal,
   connectWireToDeviceTerminal,
   deleteLightBulb,
@@ -225,4 +226,9 @@ export {
   junctionBoxForWire,
   occupiedHubSlots,
 } from './hub-geometry';
-export { isDirectionOpposedLink, wireLinkFlowDirection } from './wire-link-utils';
+export {
+  isDirectionOpposedLink,
+  tieSegmentFlowDirection,
+  wireChevronTrim,
+  wireLinkFlowDirection,
+} from './wire-link-utils';

@@ -2,8 +2,10 @@ import type { JSX } from 'react';
 import { conduitCenterPath } from '../domain/layout-offsets';
 import type { Conduit, Diagram, ResolvedWire, WireColor } from '../domain/types';
 import type { EditorMainTool } from '../editor/editor-tools';
+import { wireChevronTrim } from '../domain/wire-link-utils';
 import { WireChevronPath } from './WireChevronPath';
 import { polylineMidpoint, wireWorldPolyline } from '../domain/wire-geometry';
+import { wireStrokeStyle } from './wire-stroke-style';
 import { ZoomLabel } from './ZoomLabel';
 import { HIT_STROKE_SCREEN_PX } from './hit-targets';
 
@@ -94,6 +96,7 @@ export function ConduitBundle({
         const pts = wireWorldPolyline(diagram, wire.id);
         if (!pts || pts.length < 2) return null;
         const rw = resolvedByWireId.get(wire.id);
+        const chevronTrim = wireChevronTrim(diagram, wire.id);
         const strokeClass = [
           WIRE_CLASS[wire.color],
           tool === 'select' && selectedWireIds.has(wire.id) ? 'wire-stroke--selected' : '',
@@ -110,11 +113,15 @@ export function ConduitBundle({
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
+              style={wireStrokeStyle(wire.color)}
             />
             <WireChevronPath
               points={pts}
               resolvedDirection={rw?.resolvedDirection ?? null}
               directionConflict={rw?.directionConflict ?? false}
+              wireColor={wire.color}
+              trimStart={chevronTrim.trimStart}
+              trimEnd={chevronTrim.trimEnd}
             />
             {showLabels && (() => {
               const mid = polylineMidpoint(pts);

@@ -1614,7 +1614,9 @@ html:has(.app--editor) #root {
   }
 
   .editor-panel > .issues-panel {
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-height: 0;
+    max-height: min(38vh, 280px);
   }
 
   .editor-screen--deck .editor-screen__helper {
@@ -1629,10 +1631,23 @@ html:has(.app--editor) #root {
 }
 
 .issues-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(42vh, 320px);
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--homegrid-fg) 18%, var(--homegrid-surface));
   background: color-mix(in srgb, var(--homegrid-fg) 4%, var(--homegrid-surface));
   padding: 1rem 1.1rem;
+}
+
+.issues-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.15rem;
 }
 
 .issues-panel__header {
@@ -1642,6 +1657,7 @@ html:has(.app--editor) #root {
   justify-content: space-between;
   gap: 0.65rem;
   margin-bottom: 0.75rem;
+  flex-shrink: 0;
 }
 
 .issues-panel__title {
@@ -1662,12 +1678,19 @@ html:has(.app--editor) #root {
 }
 
 .issues-panel__subtitle {
-  margin: 0 0 0.45rem;
+  margin: 0 0 0.35rem;
   font-size: 0.82rem;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   opacity: 0.78;
+}
+
+.issues-panel__hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  opacity: 0.72;
 }
 
 .issues-panel__empty {
@@ -1695,10 +1718,14 @@ html:has(.app--editor) #root {
   font: inherit;
   color: inherit;
   cursor: pointer;
+}
+
+.issues-panel__row-text {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  min-width: 0;
 }
 
 .issues-panel__row:hover {
@@ -1713,6 +1740,12 @@ html:has(.app--editor) #root {
 .issues-panel__row-label {
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+.issues-panel__row-detail {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  opacity: 0.82;
 }
 
 .issues-panel__row-meta {
@@ -1889,6 +1922,10 @@ html:has(.app--editor) #root {
   stroke: #ef4444;
   stroke-width: 1.35;
   paint-order: stroke fill;
+}
+
+.wire-chevron-group--on-white .wire-chevron {
+  filter: drop-shadow(0 0 1px #1a1a1a);
 }
 
 .wire-stroke--selected {

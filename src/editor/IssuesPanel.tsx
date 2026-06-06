@@ -1,54 +1,48 @@
 import type { JSX } from 'react';
 import { JOB_FILE_EXT } from '../app-brand';
 import type { Diagram, ResolvedWire } from '../domain/types';
-import { isDirectionOpposedLink } from '../domain/wire-link-utils';
-
-function wireTitle(diagram: Diagram, wireId: string): string {
-  const w = diagram.wires.find((x) => x.id === wireId);
-  if (!w) return wireId;
-  const label = w.label.trim();
-  return label.length > 0 ? label : `${w.color} wire`;
-}
+import {
+  collectDiagramIssues,
+  directionConflictIssues,
+  opposedFlowIssues,
+  type DiagramIssue,
+} from './diagram-issues';
 
 type IssuesPanelProps = {
   diagram: Diagram;
   resolvedByWireId: Map<string, ResolvedWire>;
   selectedWireId: string | null;
   selectedLinkId: string | null;
-  onSelectWire: (wireId: string) => void;
-  onSelectLink: (linkId: string) => void;
+  onSelectIssue: (issue: DiagramIssue) => void;
   onExport: () => void;
   onExportSvg?: () => void;
   onExportPng?: () => void;
   onBack: () => void;
 };
 
+function issueSelected(
+  issue: DiagramIssue,
+  selectedWireId: string | null,
+  selectedLinkId: string | null,
+): boolean {
+  if (issue.kind === 'direction-conflict') return selectedWireId === issue.wireId;
+  return selectedLinkId === issue.linkId;
+}
+
 export function IssuesPanel({
   diagram,
   resolvedByWireId,
   selectedWireId,
   selectedLinkId,
-  onSelectWire,
-  onSelectLink,
+  onSelectIssue,
   onExport,
   onExportSvg,
   onExportPng,
   onBack,
 }: IssuesPanelProps): JSX.Element {
-  const conflictWires = diagram.wires
-    .filter((w) => resolvedByWireId.get(w.id)?.directionConflict)
-    .slice()
-    .sort((a, b) => a.id.localeCompare(b.id));
-
-  const opposedLinks = diagram.wireLinks
-    .filter((link) =>
-      isDirectionOpposedLink(
-        link,
-        resolvedByWireId.get(link.wireIdA),
-        resolvedByWireId.get(link.wireIdB),
-      ),
-    )
-    .slice();
+  const allIssues = collectDiagramIssues(diagram, resolvedByWireId);
+  const directionIssues = directionConflictIssues(allIssues);
+  const flowIssues = opposedFlowIssues(allIssues);
 
   return (
     <section className="issues-panel" aria-label="Issues">
@@ -74,63 +68,74 @@ export function IssuesPanel({
         </div>
       </div>
 
-      <div className="issues-panel__block">
-        <h4 className="issues-panel__subtitle">Direction conflicts</h4>
-        {conflictWires.length === 0 ? (
-          <p className="issues-panel__empty">None</p>
-        ) : (
-          <ul className="issues-panel__list">
-            {conflictWires.map((w) => (
-              <li key={w.id}>
-                <button
-                  type="button"
-                  className={[
-                    'issues-panel__row',
-                    selectedWireId === w.id ? 'issues-panel__row--selected' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={() => onSelectWire(w.id)}
-                >
-                  <span className="issues-panel__row-label">{wireTitle(diagram, w.id)}</span>
-                  <span className="issues-panel__row-meta">{w.color}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="issues-panel__block">
-        <h4 className="issues-panel__subtitle">Opposing flow at connections</h4>
-        {opposedLinks.length === 0 ? (
-          <p className="issues-panel__empty">None</p>
-        ) : (
-          <ul className="issues-panel__list">
-            {opposedLinks.map((link) => {
-              const a = wireTitle(diagram, link.wireIdA);
-              const b = wireTitle(diagram, link.wireIdB);
-              return (
-                <li key={link.id}>
+      <div className="issues-panel__body">
+        <div className="issues-panel__block">
+          <h4 className="issues-panel__subtitle">Direction conflicts</h4>
+          <p className="issues-panel__hint">
+            Only wires directly involved in a mismatch are listed — not every wire on the same circuit.
+          </p>
+          {directionIssues.length === 0 ? (
+            <p className="issues-panel__empty">None</p>
+          ) : (
+            <ul className="issues-panel__list">
+              {directionIssues.map((issue) => (
+                <li key={issue.wireId}>
                   <button
                     type="button"
                     className={[
                       'issues-panel__row',
-                      selectedLinkId === link.id ? 'issues-panel__row--selected' : '',
+                      issueSelected(issue, selectedWireId, selectedLinkId)
+                        ? 'issues-panel__row--selected'
+                        : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
-                    onClick={() => onSelectLink(link.id)}
+                    onClick={() => onSelectIssue(issue)}
                   >
-                    <span className="issues-panel__row-label">
-                      {a} ↔ {b}
+                    <span className="issues-panel__row-text">
+                      <span className="issues-panel__row-label">{issue.title}</span>
+                      <span className="issues-panel__row-detail">{issue.detail}</span>
                     </span>
                   </button>
                 </li>
-              );
-            })}
-          </ul>
-        )}
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="issues-panel__block">
+          <h4 className="issues-panel__subtitle">Opposing flow at connections</h4>
+          <p className="issues-panel__hint">
+            Both linked wires show current flowing into the splice (not out of it).
+          </p>
+          {flowIssues.length === 0 ? (
+            <p className="issues-panel__empty">None</p>
+          ) : (
+            <ul className="issues-panel__list">
+              {flowIssues.map((issue) => (
+                <li key={issue.linkId}>
+                  <button
+                    type="button"
+                    className={[
+                      'issues-panel__row',
+                      issueSelected(issue, selectedWireId, selectedLinkId)
+                        ? 'issues-panel__row--selected'
+                        : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => onSelectIssue(issue)}
+                  >
+                    <span className="issues-panel__row-text">
+                      <span className="issues-panel__row-label">{issue.title}</span>
+                      <span className="issues-panel__row-detail">{issue.detail}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   );

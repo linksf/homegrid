@@ -1,10 +1,11 @@
-import type { CSSProperties, JSX } from 'react';
+import type { JSX } from 'react';
 import type { ContextMenuBindHandlers } from '../editor/use-context-menu-gesture';
 import { wireLinkDisplayPath } from '../domain/wire-geometry';
 import type { Diagram, ResolvedWire, WireColor, WireLink } from '../domain/types';
 import { isDirectionOpposedLink, wireLinkFlowDirection } from '../domain/wire-link-utils';
 import { WireChevronPath } from './WireChevronPath';
 import { WIRE_STROKE_HEX } from './wire-colors';
+import { wireStrokeStyle } from './wire-stroke-style';
 import { HIT_STROKE_SCREEN_PX } from './hit-targets';
 
 function pathD(points: { x: number; y: number }[]): string {
@@ -13,10 +14,6 @@ function pathD(points: { x: number; y: number }[]): string {
 
 /** Equal dash/gap length so two offset strokes interleave (A, B, A, B, …). */
 const ALTERNATING_DASH = 8;
-
-function wireStrokeStyle(color: WireColor): CSSProperties | undefined {
-  return color === 'white' ? { filter: 'drop-shadow(0 0 1px #1a1a1a)' } : undefined;
-}
 
 type AlternatingDashedPathProps = {
   d: string;
@@ -119,6 +116,7 @@ export function WireLinkShape({
         resolvedDirection={linkDirection}
         directionConflict={linkDirectionConflict}
         compact
+        wireColor={colorA === colorB ? colorA : undefined}
       />
       {interactive && (
         <path
