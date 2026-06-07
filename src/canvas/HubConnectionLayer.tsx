@@ -1,6 +1,7 @@
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import { hubWireDisplayPath } from '../domain/hub-wire-geometry';
 import { hubBridgeDisplayPath } from '../domain/hub-bridge-geometry';
+import { energyHueStrokeStyle } from '../domain/energy-hue';
 import type { Diagram, WireColor } from '../domain/types';
 import { WIRE_STROKE_HEX } from './wire-colors';
 import { wireStrokeStyle } from './wire-stroke-style';
@@ -21,6 +22,8 @@ type HubConnectionLayerProps = {
   selectedHubWireIds: Set<string>;
   selectedHubBridgeIds: Set<string>;
   interactive: boolean;
+  showEnergyFlow?: boolean;
+  energyHueByWireId?: Map<string, number>;
   onSelectHubWire?: (wireId: string) => void;
   onSelectHubBridge?: (bridgeId: string) => void;
 };
@@ -29,13 +32,17 @@ function HubWireLinkPath({
   points,
   color,
   selected,
+  showEnergyFlow = false,
+  energyHue,
 }: {
   points: { x: number; y: number }[];
   color: WireColor;
   selected: boolean;
+  showEnergyFlow?: boolean;
+  energyHue?: number;
 }) {
   const d = pathD(points);
-  const stroke = WIRE_STROKE_HEX[color];
+  const stroke = showEnergyFlow && energyHue != null ? energyHueStrokeStyle(energyHue)?.stroke : WIRE_STROKE_HEX[color];
   const halo = wireStrokeStyle(color);
 
   return (
@@ -69,6 +76,8 @@ export function HubConnectionLayer({
   selectedHubWireIds,
   selectedHubBridgeIds,
   interactive,
+  showEnergyFlow = false,
+  energyHueByWireId,
   onSelectHubWire,
   onSelectHubBridge,
 }: HubConnectionLayerProps): JSX.Element {
@@ -94,7 +103,13 @@ export function HubConnectionLayer({
             className={['hub-wire-link', selected ? 'hub-wire-link--selected' : ''].filter(Boolean).join(' ')}
             data-hub-wire-id={wireId}
           >
-            <HubWireLinkPath points={points} color={color} selected={selected} />
+            <HubWireLinkPath
+              points={points}
+              color={color}
+              selected={selected}
+              showEnergyFlow={showEnergyFlow}
+              energyHue={energyHueByWireId?.get(wireId)}
+            />
             {interactive && (
               <path
                 className="hub-wire-link-hit diagram-hit-stroke"

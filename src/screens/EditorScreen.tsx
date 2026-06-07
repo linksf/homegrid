@@ -87,7 +87,7 @@ import {
   MIN_LABEL_SCREEN_PX,
 } from '../canvas/LabelSizeContext';
 import { DiagramSvg } from '../canvas/DiagramSvg';
-import { useJobStore, useResolvedWireMap } from '../store/job-store';
+import { useJobStore, useEnergyHueMap, useResolvedWireMap } from '../store/job-store';
 import { viewportCursorClass } from '../editor/editor-cursor';
 import type { EditorMainTool } from '../editor/editor-tools';
 import { toolForShortcutKey } from '../editor/editor-shortcuts';
@@ -148,6 +148,7 @@ const OPPOSED_FLOW_SESSION_KEY = `${PREFERENCE_KEY_PREFIX}opposed-flow-toast`;
 const SHOW_LABELS_KEY = `${PREFERENCE_KEY_PREFIX}show-labels`;
 const HIDE_CONDUITS_KEY = `${PREFERENCE_KEY_PREFIX}hide-conduits`;
 const COLOR_CONDUIT_GROUPS_KEY = `${PREFERENCE_KEY_PREFIX}color-conduit-groups`;
+const SHOW_ENERGY_FLOW_KEY = `${PREFERENCE_KEY_PREFIX}show-energy-flow`;
 const LABEL_SIZE_KEY = `${PREFERENCE_KEY_PREFIX}label-size-px`;
 
 type ConnectPending =
@@ -232,6 +233,7 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   });
   const exportActive = useJobStore((s) => s.exportActive);
   const resolvedByWireId = useResolvedWireMap();
+  const energyHueByWireId = useEnergyHueMap(resolvedByWireId);
 
   const [tool, setTool] = useState<EditorMainTool>('select');
   const [selection, setSelection] = useState<DiagramSelection>(() => emptySelection());
@@ -246,6 +248,9 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   const [hideConduits, setHideConduits] = useState(() => readBooleanPreference(HIDE_CONDUITS_KEY, false));
   const [colorConduitGroups, setColorConduitGroups] = useState(() =>
     readBooleanPreference(COLOR_CONDUIT_GROUPS_KEY, false),
+  );
+  const [showEnergyFlow, setShowEnergyFlow] = useState(() =>
+    readBooleanPreference(SHOW_ENERGY_FLOW_KEY, false),
   );
   const [labelSizePx, setLabelSizePx] = useState(readLabelSizePreference);
   const [navigatorNodeId, setNavigatorNodeId] = useState<string | null>(null);
@@ -273,6 +278,10 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
   const applyColorConduitGroups = useCallback((value: boolean) => {
     setColorConduitGroups(value);
     writeBooleanPreference(COLOR_CONDUIT_GROUPS_KEY, value);
+  }, []);
+  const applyShowEnergyFlow = useCallback((value: boolean) => {
+    setShowEnergyFlow(value);
+    writeBooleanPreference(SHOW_ENERGY_FLOW_KEY, value);
   }, []);
 
   const handleCopySelection = useCallback(() => {
@@ -934,6 +943,12 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
           return;
         }
 
+        if (e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          applyShowEnergyFlow(!showEnergyFlow);
+          return;
+        }
+
         if (e.key.toLowerCase() === 'f') {
           e.preventDefault();
           fitView(e.shiftKey ? 'all' : 'selection-or-all');
@@ -988,8 +1003,10 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
     redoDiagram,
     hideConduits,
     colorConduitGroups,
+    showEnergyFlow,
     applyHideConduits,
     applyColorConduitGroups,
+    applyShowEnergyFlow,
     fitView,
     handleCopySelection,
     handlePasteSelection,
@@ -1626,6 +1643,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
         onHideConduitsChange={applyHideConduits}
         colorConduitGroups={colorConduitGroups}
         onColorConduitGroupsChange={applyColorConduitGroups}
+        showEnergyFlow={showEnergyFlow}
+        onShowEnergyFlowChange={applyShowEnergyFlow}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undoDiagram}
@@ -1792,6 +1811,8 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
                 showLabels={showLabels}
                 hideConduits={hideConduits}
                 colorConduitGroups={colorConduitGroups}
+                showEnergyFlow={showEnergyFlow}
+                energyHueByWireId={energyHueByWireId}
                 switchPlacementKind={switchPlacementKind}
                 outletPassthrough={outletPassthrough}
                 onEntityContextMenu={handleEntityContextMenu}

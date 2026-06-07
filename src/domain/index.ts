@@ -166,6 +166,17 @@ export {
 } from './device-node-geometry';
 export { resolveDirections } from './direction';
 export {
+  ENERGY_HUE_LEVELS,
+  energyChevronStyle,
+  energyHueCss,
+  energyHueStrokeStyle,
+  mergeEnergyStrokeStyle,
+  minEnergyHue,
+  resolveEnergyHue,
+  wireLinkEnergyHue,
+} from './energy-hue';
+export { buildWireFlowAdjacency } from './wire-flow-adjacency';
+export {
   areWiresConnected,
   defaultSwitchPosition,
   defaultDimmerPosition,

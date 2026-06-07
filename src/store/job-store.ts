@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { JOB_FILE_EXT } from '../app-brand';
 import { createJobWithNavigation, type CreateJobOptions } from '../domain/floor-plan-defaults';
 import { resolveDirections } from '../domain/direction';
+import { resolveEnergyHue } from '../domain/energy-hue';
 import type { Diagram, Job, ResolvedWire } from '../domain/types';
 import * as jobsDb from '../persistence/db';
 import { exportJob, importJob } from '../persistence/file-io';
@@ -313,4 +314,30 @@ export function useResolvedWireMap(): Map<string, ResolvedWire> {
       return new Map();
     }
   }, [diagram, switchStateKey, dimmerStateKey]);
+}
+
+/** Energy hue levels (0–63) from breaker panels along resolved flow paths. */
+export function useEnergyHueMap(
+  resolvedByWireId: Map<string, ResolvedWire>,
+): Map<string, number> {
+  const diagram = useJobStore((s) => s.activeJob?.diagram);
+  const switchStateKey = useJobStore((s) =>
+    (s.activeJob?.diagram.switches ?? [])
+      .map((sw) => `${sw.id}:${sw.terminalCount}:${sw.position ?? ''}`)
+      .join('|'),
+  );
+  const dimmerStateKey = useJobStore((s) =>
+    (s.activeJob?.diagram.dimmerSwitches ?? [])
+      .map((dim) => `${dim.id}:${dim.level ?? ''}:${dim.position ?? ''}`)
+      .join('|'),
+  );
+  return useMemo(() => {
+    if (!diagram?.wires) return new Map();
+    try {
+      return resolveEnergyHue(diagram, resolvedByWireId);
+    } catch (err) {
+      console.error('resolveEnergyHue failed:', err);
+      return new Map();
+    }
+  }, [diagram, resolvedByWireId, switchStateKey, dimmerStateKey]);
 }

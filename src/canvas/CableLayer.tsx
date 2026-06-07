@@ -11,7 +11,7 @@ import { BreakerToggle } from './BreakerToggle';
 import { wireChevronTrim } from '../domain/wire-link-utils';
 import { WireChevronPath } from './WireChevronPath';
 import { HIT_STROKE_SCREEN_PX, worldHitRadius } from './hit-targets';
-import { wireStrokeStyle } from './wire-stroke-style';
+import { wirePathStrokeStyle } from './wire-render-style';
 import { useDiagramViewport } from './CanvasViewport';
 
 const BREAKER_TOGGLE_INSET = 48;
@@ -116,6 +116,8 @@ export type CableLayerProps = {
   showLabels?: boolean;
   /** When set, tint a grouped cable's exposed wires with its conduit-group color. */
   groupColorByCableId?: Map<string, string> | null;
+  showEnergyFlow?: boolean;
+  energyHueByWireId?: Map<string, number>;
 };
 
 /** Exposed cable wires at the junction-box wall plus wall footprint selection (conduit stub in a later layer). */
@@ -134,6 +136,8 @@ export function CableLayer({
   bindContextMenu,
   showLabels: _showLabels,
   groupColorByCableId = null,
+  showEnergyFlow = false,
+  energyHueByWireId,
 }: CableLayerProps): JSX.Element {
   void _showLabels;
   const vp = useDiagramViewport();
@@ -227,16 +231,21 @@ export function CableLayer({
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    style={{
-                      ...(groupColor ? { stroke: groupColor } : undefined),
-                      ...wireStrokeStyle(wire.color),
-                    }}
+                    style={wirePathStrokeStyle({
+                      showEnergyFlow,
+                      wireId: wire.id,
+                      color: wire.color,
+                      energyHueByWireId: energyHueByWireId ?? new Map(),
+                      groupColor,
+                    })}
                   />
                   <WireChevronPath
                     points={pts}
                     resolvedDirection={rw?.resolvedDirection ?? null}
                     directionConflict={rw?.directionConflict ?? false}
                     wireColor={wire.color}
+                    showEnergyFlow={showEnergyFlow}
+                    energyHue={showEnergyFlow ? (energyHueByWireId?.get(wire.id) ?? null) : null}
                     trimStart={chevronTrim.trimStart}
                     trimEnd={chevronTrim.trimEnd}
                   />

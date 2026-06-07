@@ -5,7 +5,7 @@ import type { EditorMainTool } from '../editor/editor-tools';
 import { wireChevronTrim } from '../domain/wire-link-utils';
 import { WireChevronPath } from './WireChevronPath';
 import { polylineMidpoint, wireWorldPolyline } from '../domain/wire-geometry';
-import { wireStrokeStyle } from './wire-stroke-style';
+import { wirePathStrokeStyle } from './wire-render-style';
 import { ZoomLabel } from './ZoomLabel';
 import { HIT_STROKE_SCREEN_PX } from './hit-targets';
 
@@ -30,6 +30,8 @@ type ConduitBundleProps = {
   showLabels: boolean;
   selectedConduitIds?: Set<string>;
   onSelectConduit?: (conduitId: string) => void;
+  showEnergyFlow?: boolean;
+  energyHueByWireId?: Map<string, number>;
 };
 
 function polylineToPath(pts: { x: number; y: number }[]): string {
@@ -48,6 +50,8 @@ export function ConduitBundle({
   showLabels,
   selectedConduitIds,
   onSelectConduit,
+  showEnergyFlow = false,
+  energyHueByWireId,
 }: ConduitBundleProps): JSX.Element | null {
   const wires = conduit.wireIds
     .map((id) => diagram.wires.find((w) => w.id === id))
@@ -113,13 +117,20 @@ export function ConduitBundle({
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
-              style={wireStrokeStyle(wire.color)}
+              style={wirePathStrokeStyle({
+                showEnergyFlow,
+                wireId: wire.id,
+                color: wire.color,
+                energyHueByWireId: energyHueByWireId ?? new Map(),
+              })}
             />
             <WireChevronPath
               points={pts}
               resolvedDirection={rw?.resolvedDirection ?? null}
               directionConflict={rw?.directionConflict ?? false}
               wireColor={wire.color}
+              showEnergyFlow={showEnergyFlow}
+              energyHue={showEnergyFlow ? (energyHueByWireId?.get(wire.id) ?? null) : null}
               trimStart={chevronTrim.trimStart}
               trimEnd={chevronTrim.trimEnd}
             />
@@ -174,6 +185,8 @@ type ConduitLayerProps = {
   selectedConduitIds?: Set<string>;
   onSelectConduit?: (conduitId: string) => void;
   onApplyDiagram?: (mutator: (diagram: Diagram) => Diagram) => void;
+  showEnergyFlow?: boolean;
+  energyHueByWireId?: Map<string, number>;
 };
 
 export function ConduitLayer({
@@ -191,6 +204,8 @@ export function ConduitLayer({
   selectedConduitIds,
   onSelectConduit,
   onApplyDiagram: _onApplyDiagram,
+  showEnergyFlow = false,
+  energyHueByWireId,
 }: ConduitLayerProps): JSX.Element {
   const labelsVisible = renderLabels ?? showLabels;
   const conduits = diagram.conduits.filter(
@@ -217,6 +232,8 @@ export function ConduitLayer({
           showLabels={labelsVisible}
           selectedConduitIds={selectedConduitIds}
           onSelectConduit={onSelectConduit}
+          showEnergyFlow={showEnergyFlow}
+          energyHueByWireId={energyHueByWireId}
         />
       ))}
     </g>

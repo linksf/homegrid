@@ -13,6 +13,7 @@ import {
   IconConduitColor,
   IconConduitConnect,
   IconConduitHidden,
+  IconEnergyFlow,
   IconLabels,
   IconLight,
   IconLink,
@@ -33,6 +34,8 @@ type ToolbarProps = {
   onHideConduitsChange: (hide: boolean) => void;
   colorConduitGroups: boolean;
   onColorConduitGroupsChange: (color: boolean) => void;
+  showEnergyFlow: boolean;
+  onShowEnergyFlowChange: (show: boolean) => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -82,6 +85,8 @@ export function Toolbar({
   onHideConduitsChange,
   colorConduitGroups,
   onColorConduitGroupsChange,
+  showEnergyFlow,
+  onShowEnergyFlowChange,
   canUndo,
   canRedo,
   onUndo,
@@ -262,6 +267,18 @@ export function Toolbar({
       >
         <IconConduitColor />
         <span className="toolbar-btn__key">G</span>
+      </button>
+
+      <button
+        type="button"
+        className={['toolbar-btn', showEnergyFlow ? 'toolbar-btn--active' : ''].filter(Boolean).join(' ')}
+        aria-pressed={showEnergyFlow}
+        aria-label="Show energy flow hues (Y)"
+        title="Show energy flow hues (Y)"
+        onClick={() => onShowEnergyFlowChange(!showEnergyFlow)}
+      >
+        <IconEnergyFlow />
+        <span className="toolbar-btn__key">Y</span>
       </button>
     </div>
   );

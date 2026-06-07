@@ -1,6 +1,7 @@
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import { conduitStubResolvedPath } from '../domain/cable-geometry';
 import type { Diagram } from '../domain/types';
+import { bundlePathStrokeStyle } from './wire-render-style';
 import { HIT_STROKE_SCREEN_PX } from './hit-targets';
 
 function pathD(points: { x: number; y: number }[]): string {
@@ -22,6 +23,8 @@ export type ConduitRunLayerProps = {
   groupColorByRunId?: Map<string, string> | null;
   /** When set, tint each cable stub's sheath with its group color. */
   groupColorByCableId?: Map<string, string> | null;
+  showEnergyFlow?: boolean;
+  energyHueByWireId?: Map<string, number>;
   onSelectConduitRun?: (id: string) => void;
   /** Select tool — choose a cable bundle from its stub hit target */
   onSelectCableConduit?: (cableId: string) => void;
@@ -43,6 +46,8 @@ export function ConduitRunLayer({
   conduitConnectActive = false,
   groupColorByRunId = null,
   groupColorByCableId = null,
+  showEnergyFlow = false,
+  energyHueByWireId,
   onSelectConduitRun,
   onSelectCableConduit,
   conduitConnectInteractive = false,
@@ -65,6 +70,12 @@ export function ConduitRunLayer({
         const d = pathD(pts);
         const selected = selectedConduitRunIds.has(run.id);
         const runColor = groupColorByRunId?.get(run.id);
+        const runEnergyStyle = bundlePathStrokeStyle({
+          showEnergyFlow,
+          wireIds: run.wireIds,
+          energyHueByWireId: energyHueByWireId ?? new Map(),
+          groupColor: runColor,
+        });
 
         return (
           <g
@@ -77,7 +88,7 @@ export function ConduitRunLayer({
               className="conduit-run__sheath"
               d={d}
               fill="none"
-              style={runColor ? { stroke: runColor } : undefined}
+              style={runEnergyStyle}
             />
             {runInteractive && (
               <path
@@ -109,6 +120,12 @@ export function ConduitRunLayer({
         if (!pts || pts.length < 2) return null;
 
         const stubColor = groupColorByCableId?.get(cable.id);
+        const stubEnergyStyle = bundlePathStrokeStyle({
+          showEnergyFlow,
+          wireIds: cable.wireIds,
+          energyHueByWireId: energyHueByWireId ?? new Map(),
+          groupColor: stubColor,
+        });
 
         const d = pathD(pts);
         const selectedStub = selectedCableIds.has(cable.id);
@@ -155,7 +172,7 @@ export function ConduitRunLayer({
               className="conduit-run__sheath"
               d={d}
               fill="none"
-              style={stubColor ? { stroke: stubColor } : undefined}
+              style={stubEnergyStyle}
             />
             {stubHitActive && (
               <path
@@ -170,11 +187,8 @@ export function ConduitRunLayer({
                 onPointerDown={(e: ReactPointerEvent<SVGPathElement>) => {
                   if (e.button !== 0) return;
                   e.stopPropagation();
-                  if (stubConnectMode) {
-                    onConduitConnectStubPick?.(cable.id);
-                  } else {
-                    onSelectCableConduit?.(cable.id);
-                  }
+                  if (stubConnectMode) onConduitConnectStubPick?.(cable.id);
+                  else onSelectCableConduit?.(cable.id);
                 }}
               />
             )}

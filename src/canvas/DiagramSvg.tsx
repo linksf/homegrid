@@ -94,6 +94,8 @@ export type DiagramSvgProps = {
   showLabels: boolean;
   hideConduits: boolean;
   colorConduitGroups: boolean;
+  showEnergyFlow: boolean;
+  energyHueByWireId: Map<string, number>;
   switchPlacementKind: SwitchPlacementKind;
   outletPassthrough: boolean;
   onEntityContextMenu?: (target: ContextMenuTarget, clientX: number, clientY: number) => void;
@@ -149,6 +151,8 @@ export function DiagramSvg({
   showLabels,
   hideConduits,
   colorConduitGroups,
+  showEnergyFlow,
+  energyHueByWireId,
   switchPlacementKind,
   outletPassthrough,
   onEntityContextMenu,
@@ -360,6 +364,8 @@ export function DiagramSvg({
         selectedConduitIds={selection.conduits}
         onSelectConduit={onSelectConduit}
         onApplyDiagram={onApplyDiagram}
+        showEnergyFlow={showEnergyFlow}
+        energyHueByWireId={energyHueByWireId}
       />
 
       <ConduitRunLayer
@@ -371,6 +377,8 @@ export function DiagramSvg({
         conduitConnectActive={tool === 'conduit-connect'}
         groupColorByRunId={groupColorByRunId}
         groupColorByCableId={groupColorByCableId}
+        showEnergyFlow={showEnergyFlow}
+        energyHueByWireId={energyHueByWireId}
         onSelectConduitRun={onSelectConduitRun}
         onSelectCableConduit={tool === 'select' ? onSelectCableConduit : undefined}
         conduitConnectInteractive={tool === 'conduit-connect'}
@@ -420,6 +428,8 @@ export function DiagramSvg({
         onWirePointerDown={onWirePointerDown}
         onToggleBreakerCable={onToggleBreakerCable}
         groupColorByCableId={groupColorByCableId}
+        showEnergyFlow={showEnergyFlow}
+        energyHueByWireId={energyHueByWireId}
         bindContextMenu={onEntityContextMenu ? bindContextMenu : undefined}
       />
 
@@ -438,13 +448,21 @@ export function DiagramSvg({
         selectedConduitIds={selection.conduits}
         onSelectConduit={onSelectConduit}
         onApplyDiagram={onApplyDiagram}
+        showEnergyFlow={showEnergyFlow}
+        energyHueByWireId={energyHueByWireId}
       />
 
-      <DeviceConnectionLayer diagram={diagram} />
+      <DeviceConnectionLayer
+        diagram={diagram}
+        showEnergyFlow={showEnergyFlow}
+        energyHueByWireId={energyHueByWireId}
+      />
 
       <HubConnectionLayer
         diagram={diagram}
         selectedHubWireIds={selection.hubWires}
+        showEnergyFlow={showEnergyFlow}
+        energyHueByWireId={energyHueByWireId}
         selectedHubBridgeIds={selection.hubBridges}
         interactive={tool === 'select' && !connectInteractionActive}
         onSelectHubWire={onSelectHubWire}
@@ -542,6 +560,8 @@ export function DiagramSvg({
         selectedConduitIds={selection.conduits}
         onSelectConduit={onSelectConduit}
         onApplyDiagram={onApplyDiagram}
+        showEnergyFlow={showEnergyFlow}
+        energyHueByWireId={energyHueByWireId}
       />
 
       <WireLinkLayer
@@ -550,6 +570,8 @@ export function DiagramSvg({
         selectedLinkIds={selection.links}
         interactive={tool === 'select'}
         onSelectLink={onSelectLink}
+        showEnergyFlow={showEnergyFlow}
+        energyHueByWireId={energyHueByWireId}
         bindContextMenu={onEntityContextMenu ? bindContextMenu : undefined}
       />
 

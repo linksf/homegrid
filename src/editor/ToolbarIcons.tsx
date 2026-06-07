@@ -91,6 +91,18 @@ export function IconConduitColor(props: IconProps): JSX.Element {
   );
 }
 
+/** Energy flow hue visualization. */
+export function IconEnergyFlow(props: IconProps): JSX.Element {
+  return (
+    <IconBase {...props}>
+      <path d="M4 6c4 2 4 10 8 12" stroke="#dc2626" />
+      <path d="M12 18 16 14 12 10" stroke="#dc2626" fill="none" />
+      <path d="M12 6c4 2 4 10 8 12" stroke="#2563eb" />
+      <path d="M20 18 16 14 20 10" stroke="#2563eb" fill="none" />
+    </IconBase>
+  );
+}
+
 /** Junction box — wiring diagram icon set. */
 export function IconBox(props: IconProps): JSX.Element {
   return (

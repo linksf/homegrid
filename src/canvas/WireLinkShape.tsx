@@ -3,6 +3,7 @@ import type { ContextMenuBindHandlers } from '../editor/use-context-menu-gesture
 import { wireLinkDisplayPath } from '../domain/wire-geometry';
 import type { Diagram, ResolvedWire, WireColor, WireLink } from '../domain/types';
 import { isDirectionOpposedLink, wireLinkFlowDirection } from '../domain/wire-link-utils';
+import { energyHueStrokeStyle, wireLinkEnergyHue } from '../domain/energy-hue';
 import { WireChevronPath } from './WireChevronPath';
 import { WIRE_STROKE_HEX } from './wire-colors';
 import { wireStrokeStyle } from './wire-stroke-style';
@@ -55,6 +56,8 @@ type WireLinkShapeProps = {
   interactive?: boolean;
   onSelect?: () => void;
   contextMenuHandlers?: ContextMenuBindHandlers;
+  showEnergyFlow?: boolean;
+  energyHueByWireId?: Map<string, number>;
 };
 
 export function WireLinkShape({
@@ -66,6 +69,8 @@ export function WireLinkShape({
   interactive,
   onSelect,
   contextMenuHandlers,
+  showEnergyFlow = false,
+  energyHueByWireId,
 }: WireLinkShapeProps): JSX.Element | null {
   if (points.length < 2) return null;
 
@@ -83,9 +88,13 @@ export function WireLinkShape({
 
   const pathClass = ['wire-link__path', selected ? 'wire-link__path--selected' : ''].filter(Boolean).join(' ');
   const d = pathD(displayPoints);
+  const linkHue = showEnergyFlow ? wireLinkEnergyHue(link, energyHueByWireId ?? new Map()) : null;
+  const linkEnergyStyle = energyHueStrokeStyle(linkHue);
 
   const paths =
-    colorA === colorB ? (
+    showEnergyFlow && linkEnergyStyle ? (
+      <path className={pathClass} d={d} style={linkEnergyStyle} />
+    ) : colorA === colorB ? (
       <path className={pathClass} d={d} stroke={WIRE_STROKE_HEX[colorA]} style={wireStrokeStyle(colorA)} />
     ) : (
       <AlternatingDashedPath d={d} className={pathClass} colorA={colorA} colorB={colorB} />
@@ -117,6 +126,10 @@ export function WireLinkShape({
         directionConflict={linkDirectionConflict}
         compact
         wireColor={colorA === colorB ? colorA : undefined}
+        showEnergyFlow={showEnergyFlow}
+        energyHue={
+          showEnergyFlow ? wireLinkEnergyHue(link, energyHueByWireId ?? new Map()) : null
+        }
       />
       {interactive && (
         <path
@@ -166,6 +179,8 @@ type WireLinkLayerProps = {
   bindContextMenu?: (
     target: import('../editor/context-menu-target').ContextMenuTarget,
   ) => import('../editor/use-context-menu-gesture').ContextMenuBindHandlers;
+  showEnergyFlow?: boolean;
+  energyHueByWireId?: Map<string, number>;
 };
 
 export function WireLinkLayer({
@@ -175,6 +190,8 @@ export function WireLinkLayer({
   interactive,
   onSelectLink,
   bindContextMenu,
+  showEnergyFlow = false,
+  energyHueByWireId,
 }: WireLinkLayerProps): JSX.Element {
   return (
     <g className="wire-link-layer" role="presentation" aria-label="Wire links">
@@ -192,6 +209,8 @@ export function WireLinkLayer({
             interactive={interactive}
             onSelect={() => onSelectLink?.(link.id)}
             contextMenuHandlers={bindContextMenu?.({ kind: 'link', linkId: link.id })}
+            showEnergyFlow={showEnergyFlow}
+            energyHueByWireId={energyHueByWireId}
           />
         );
       })}

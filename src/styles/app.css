@@ -1950,6 +1950,10 @@ html:has(.app--editor) #root {
   filter: drop-shadow(0 0 1px #1a1a1a);
 }
 
+.wire-chevron-group--energy .wire-chevron {
+  stroke-width: 0.75;
+}
+
 .wire-stroke--selected {
   stroke-width: 7.5;
   filter: drop-shadow(0 0 3px rgb(37 99 235 / 55%));

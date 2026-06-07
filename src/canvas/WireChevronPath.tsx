@@ -1,4 +1,5 @@
-import type { JSX } from 'react';
+import type { CSSProperties, JSX } from 'react';
+import { energyChevronStyle } from '../domain/energy-hue';
 import type { WireColor, WireDirection } from '../domain/types';
 import { polylineLength } from '../domain/wire-geometry';
 
@@ -63,6 +64,10 @@ export type WireChevronPathProps = {
   compact?: boolean;
   /** Adds contrast when chevrons sit on or beside a light neutral stroke. */
   wireColor?: WireColor;
+  /** Energy-flow overlay active — unenergized segments hide chevrons instead of default gold. */
+  showEnergyFlow?: boolean;
+  /** When set, tints chevrons to match energy-flow hue instead of default gold. */
+  energyHue?: number | null;
   /** Skip markers near fixed endpoints (links, hubs, device terminals). */
   trimStart?: number;
   trimEnd?: number;
@@ -75,12 +80,20 @@ export function WireChevronPath({
   directionConflict,
   compact = false,
   wireColor,
+  showEnergyFlow = false,
+  energyHue = null,
   trimStart = 0,
   trimEnd = 0,
 }: WireChevronPathProps): JSX.Element | null {
   if (resolvedDirection == null || points.length < 2) {
     return null;
   }
+
+  if (showEnergyFlow && energyHue == null) {
+    return null;
+  }
+
+  const energyStyle = energyHue != null ? energyChevronStyle(energyHue) : undefined;
 
   const total = polylineLength(points);
   const spacing = compact ? 28 : CHEVRON_EVERY;
@@ -113,16 +126,19 @@ export function WireChevronPath({
 
   const groupClass = [
     'wire-chevron-group',
+    energyStyle ? 'wire-chevron-group--energy' : '',
     directionConflict ? 'wire-chevron-group--conflict' : '',
     wireColor === 'white' ? 'wire-chevron-group--on-white' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
+  const polygonStyle: CSSProperties | undefined = energyStyle ?? undefined;
+
   return (
     <g className={groupClass} aria-hidden>
       {polys.map((pts, i) => (
-        <polygon key={i} className="wire-chevron" points={pts} />
+        <polygon key={i} className="wire-chevron" points={pts} style={polygonStyle} />
       ))}
     </g>
   );
