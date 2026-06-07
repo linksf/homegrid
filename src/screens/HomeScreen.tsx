@@ -2,7 +2,9 @@ import type { ChangeEvent, JSX, MouseEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { APP_NAME, LEGACY_JOB_FILE_EXT, JOB_FILE_EXT } from '../app-brand';
 import { ElectricLoader } from '../components/ElectricLoader';
+import { FloorPlanNameField } from '../components/FloorPlanNameField';
 import { JobNameField } from '../components/JobNameField';
+import { useFloorPlanStore, type FloorPlanSummary } from '../store/floor-plan-store';
 import { useJobStore, type JobSummary } from '../store/job-store';
 
 function formatRelativeTime(iso: string): string {
@@ -32,11 +34,21 @@ function formatRelativeTime(iso: string): string {
 type HomeScreenProps = {
   onOpenEditor: () => void;
   onNewJob: () => void;
+  onNewFloorPlan: () => void;
+  onOpenFloorPlan: (id: string) => void;
 };
 
-export function HomeScreen({ onOpenEditor, onNewJob }: HomeScreenProps): JSX.Element {
+export function HomeScreen({
+  onOpenEditor,
+  onNewJob,
+  onNewFloorPlan,
+  onOpenFloorPlan,
+}: HomeScreenProps): JSX.Element {
   const jobs = useJobStore((s) => s.jobs);
   const libraryLoading = useJobStore((s) => s.libraryLoading);
+  const floorPlans = useFloorPlanStore((s) => s.floorPlans);
+  const floorPlanLibraryLoading = useFloorPlanStore((s) => s.libraryLoading);
+  const deleteFloorPlan = useFloorPlanStore((s) => s.deleteFloorPlan);
   const openJob = useJobStore((s) => s.openJob);
   const deleteJob = useJobStore((s) => s.deleteJob);
   const deleteJobs = useJobStore((s) => s.deleteJobs);
@@ -44,6 +56,7 @@ export function HomeScreen({ onOpenEditor, onNewJob }: HomeScreenProps): JSX.Ele
   const importFile = useJobStore((s) => s.importFile);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renamingFloorPlanId, setRenamingFloorPlanId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -71,6 +84,17 @@ export function HomeScreen({ onOpenEditor, onNewJob }: HomeScreenProps): JSX.Ele
     e.stopPropagation();
     if (!window.confirm(`Delete “${job.name}”? This cannot be undone.`)) return;
     await deleteJob(job.id);
+  }
+
+  async function handleDeleteFloorPlan(e: MouseEvent, plan: FloorPlanSummary): Promise<void> {
+    e.stopPropagation();
+    if (!window.confirm(`Delete “${plan.name}”? This cannot be undone.`)) return;
+    await deleteFloorPlan(plan.id);
+  }
+
+  function handleStartFloorPlanRename(e: MouseEvent, plan: FloorPlanSummary): void {
+    e.stopPropagation();
+    setRenamingFloorPlanId(plan.id);
   }
 
   function handleStartRename(e: MouseEvent, job: JobSummary): void {
@@ -142,7 +166,62 @@ export function HomeScreen({ onOpenEditor, onNewJob }: HomeScreenProps): JSX.Ele
         </div>
       </header>
 
-      <section className="home-screen__library" aria-label="Job library">
+      <section className="home-screen__library home-screen__section" aria-label="Floor plan library">
+        <div className="home-screen__section-header">
+          <h2 className="home-screen__section-title">Floor plans</h2>
+          <button type="button" className="btn btn--small" onClick={onNewFloorPlan}>
+            New floor plan
+          </button>
+        </div>
+        {floorPlanLibraryLoading && floorPlans.length === 0 ? (
+          <ElectricLoader label="Loading floor plans…" />
+        ) : floorPlans.length === 0 ? (
+          <p className="home-screen__empty">
+            No saved floor plans yet. Create one to reuse rooms and areas across wiring jobs.
+          </p>
+        ) : (
+          <ul className="job-list">
+            {floorPlans.map((plan) => (
+              <li key={plan.id} className="job-row">
+                {renamingFloorPlanId === plan.id ? (
+                  <FloorPlanNameField
+                    floorPlanId={plan.id}
+                    name={plan.name || 'Untitled floor plan'}
+                    className="job-row__rename-input"
+                    ariaLabel={`Rename ${plan.name}`}
+                    autoFocus
+                    onFinished={() => setRenamingFloorPlanId(null)}
+                  />
+                ) : (
+                  <button type="button" className="job-row__open" onClick={() => onOpenFloorPlan(plan.id)}>
+                    <span className="job-row__name">{plan.name || 'Untitled floor plan'}</span>
+                    <span className="job-row__meta">{formatRelativeTime(plan.updatedAt)}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn--small job-row__rename"
+                  aria-label={`Rename ${plan.name}`}
+                  onClick={(e) => handleStartFloorPlanRename(e, plan)}
+                >
+                  Rename
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--danger btn--small job-row__delete"
+                  aria-label={`Delete ${plan.name}`}
+                  onClick={(e) => void handleDeleteFloorPlan(e, plan)}
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="home-screen__library home-screen__section" aria-label="Job library">
+        <h2 className="home-screen__section-title">Jobs</h2>
         {libraryLoading && jobs.length === 0 ? (
           <ElectricLoader label="Loading your jobs…" />
         ) : jobs.length === 0 ? (

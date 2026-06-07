@@ -12,6 +12,8 @@ type AppScreen = 'home' | 'editor' | 'floorplan-editor';
 
 export default function App() {
   const loadLibrary = useJobStore((s) => s.loadLibrary);
+  const loadFloorPlanLibrary = useFloorPlanStore((s) => s.loadLibrary);
+  const openFloorPlan = useFloorPlanStore((s) => s.openFloorPlan);
   const jobLoading = useJobStore((s) => s.jobLoading);
   const createJob = useJobStore((s) => s.createJob);
   const createFloorPlan = useFloorPlanStore((s) => s.createFloorPlan);
@@ -21,7 +23,8 @@ export default function App() {
 
   useEffect(() => {
     void loadLibrary();
-  }, [loadLibrary]);
+    void loadFloorPlanLibrary();
+  }, [loadLibrary, loadFloorPlanLibrary]);
 
   async function handleNewJobChoice(choice: NewJobChoice): Promise<void> {
     setNewJobOpen(false);
@@ -47,12 +50,25 @@ export default function App() {
     setScreen('editor');
   }
 
+  async function handleNewFloorPlan(): Promise<void> {
+    await createFloorPlan();
+    setScreen('floorplan-editor');
+  }
+
+  async function handleOpenFloorPlan(id: string): Promise<void> {
+    const plan = await openFloorPlan(id);
+    if (!plan) return;
+    setScreen('floorplan-editor');
+  }
+
   return (
     <main className={screen === 'editor' ? 'app app--editor' : 'app'}>
       {screen === 'home' ? (
         <HomeScreen
           onOpenEditor={() => setScreen('editor')}
           onNewJob={() => setNewJobOpen(true)}
+          onNewFloorPlan={() => void handleNewFloorPlan()}
+          onOpenFloorPlan={(id) => void handleOpenFloorPlan(id)}
         />
       ) : screen === 'floorplan-editor' ? (
         <FloorPlanEditorScreen onBack={() => setScreen('home')} onDone={() => void handleFloorPlanDone()} />

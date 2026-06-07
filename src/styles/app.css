@@ -376,6 +376,28 @@ html:has(.app--editor) #root {
   gap: 0.5rem;
 }
 
+.home-screen__section + .home-screen__section {
+  margin-top: 2rem;
+}
+
+.home-screen__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.home-screen__section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.home-screen__section-header .home-screen__section-title {
+  margin-bottom: 0;
+}
+
 .home-screen__library {
   padding: 1rem 1.5rem 2rem;
 }
