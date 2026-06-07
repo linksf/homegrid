@@ -61,6 +61,11 @@ export function wireLinkContentBounds(diagram: Diagram, linkId: string): Bounds 
   return boundsFromPoints(wireLinkDisplayPath(diagram, linkId));
 }
 
+/** Bounds around a conduit run path between two cable stubs. */
+export function conduitRunContentBounds(diagram: Diagram, runId: string): Bounds | null {
+  return boundsFromPoints(diagram.layout.conduitRunPaths?.[runId]?.points ?? []);
+}
+
 /** Union bounds of selected boxes/rooms/devices and selected wires/links. */
 export function selectionContentBounds(diagram: Diagram, selection: DiagramSelection): Bounds | null {
   let acc: Bounds | null = null;

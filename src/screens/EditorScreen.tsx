@@ -418,24 +418,43 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
 
   function handleNavigatorSelect(node: NavigatorNode): void {
     setNavigatorNodeId(node.id);
+    const entityId = node.entityId ?? node.id;
     switch (node.kind) {
       case 'junctionBox':
-        setSelection(setSingleJunctionBox(node.id));
+        setSelection(setSingleJunctionBox(entityId));
+        break;
+      case 'hub':
+        setSelection(setSingleHub(entityId));
+        break;
+      case 'cable':
+        setSelection(setSingleCable(entityId));
         break;
       case 'lightBulb':
-        setSelection(setSingleLightBulb(node.id));
+        setSelection(setSingleLightBulb(entityId));
         break;
       case 'switch':
-        setSelection(setSingleSwitch(node.id));
+        setSelection(setSingleSwitch(entityId));
         break;
       case 'dimmerSwitch':
-        setSelection(setSingleDimmerSwitch(node.id));
+        setSelection(setSingleDimmerSwitch(entityId));
         break;
       case 'outlet':
-        setSelection(setSingleOutlet(node.id));
+        setSelection(setSingleOutlet(entityId));
+        break;
+      case 'deviceNode':
+        setSelection(setSingleDeviceNode(entityId));
+        break;
+      case 'wire':
+        setSelection(setSingleWire(entityId));
+        break;
+      case 'wireLink':
+        setSelection(setSingleLink(entityId));
+        break;
+      case 'conduitRun':
+        setSelection(setSingleConduitRun(entityId));
         break;
       case 'room':
-        setSelection(setSingleRoom(node.id));
+        setSelection(setSingleRoom(entityId));
         break;
       case 'floorplan':
       case 'area':

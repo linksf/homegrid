@@ -2292,6 +2292,16 @@ html:has(.app--editor) #root {
 }
 
 /* Navigator sidebar */
+.navigator-rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.navigator-rail__toggle {
+  display: none;
+}
+
 .navigator-panel {
   width: min(240px, 28vw);
   flex-shrink: 0;
@@ -2311,6 +2321,7 @@ html:has(.app--editor) #root {
   gap: 0.5rem;
   padding: 0.55rem 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--homegrid-fg) 10%, var(--homegrid-surface));
+  flex-shrink: 0;
 }
 
 .navigator-panel__title {
@@ -2515,8 +2526,89 @@ html:has(.app--editor) #root {
   border: 1px solid color-mix(in srgb, var(--homegrid-fg) 14%, var(--homegrid-surface));
 }
 
+@media (min-width: 641px) {
+  .navigator-rail {
+    width: min(240px, 28vw);
+    flex-shrink: 0;
+    align-self: stretch;
+  }
+
+  .navigator-rail .navigator-panel {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    max-height: none;
+  }
+}
+
 @media (max-width: 640px) {
-  .navigator-panel {
+  .navigator-rail {
+    position: fixed;
+    left: 0.65rem;
+    bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
+    z-index: 29;
+    pointer-events: none;
+    width: auto;
+  }
+
+  .navigator-rail__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    pointer-events: auto;
+    min-height: 44px;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--homegrid-fg) 18%, var(--homegrid-surface));
+    background: color-mix(in srgb, var(--homegrid-surface) 94%, transparent);
+    color: var(--homegrid-fg);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 650;
+    box-shadow: 0 4px 18px rgb(0 0 0 / 14%);
+    backdrop-filter: blur(8px);
+  }
+
+  .navigator-rail__toggle-icon {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 2px;
+    border: 2px solid currentColor;
+    transform: rotate(45deg);
+  }
+
+  .navigator-rail--open .navigator-rail__toggle-icon {
+    transform: rotate(0deg);
+  }
+
+  .navigator-rail--collapsed .navigator-panel {
     display: none;
+  }
+
+  .navigator-rail--open .navigator-panel {
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    margin-bottom: 0.45rem;
+    width: min(280px, calc(100vw - 1.3rem));
+    max-height: min(52vh, 460px);
+    overflow: hidden;
+    box-shadow: 0 -10px 36px rgb(0 0 0 / 18%);
+  }
+
+  .navigator-rail--open .navigator-tree {
+    flex: none;
+    width: 100%;
+    max-height: calc(min(52vh, 460px) - 2.75rem);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .editor-screen__main .navigator-rail {
+    align-self: auto;
+  }
+
+  .navigator-rail--open ~ .editor-screen__canvas-col .canvas-zoom-controls {
+    bottom: calc(4.25rem + min(52vh, 460px) + 1rem + env(safe-area-inset-bottom, 0px));
   }
 }
