@@ -464,8 +464,28 @@ export function removeRoomDoor(diagram: Diagram, roomId: string, doorId: string)
 }
 
 export function deleteRoom(diagram: Diagram, roomId: string): Diagram {
-  return {
+  const room = (diagram.rooms ?? []).find((r) => r.id === roomId);
+  if (!room) return diagram;
+
+  let next: Diagram = {
     ...diagram,
-    rooms: (diagram.rooms ?? []).filter((room) => room.id !== roomId),
+    rooms: (diagram.rooms ?? []).filter((r) => r.id !== roomId),
+  };
+
+  for (const door of room.doors ?? []) {
+    if (!door.linkedRoomId || !door.linkedDoorId) continue;
+    const neighbor = (next.rooms ?? []).find((r) => r.id === door.linkedRoomId);
+    if (!neighbor) continue;
+    next = updateRoom(next, neighbor.id, {
+      doors: (neighbor.doors ?? []).filter((d) => d.id !== door.linkedDoorId),
+    });
+  }
+
+  return {
+    ...next,
+    rooms: (next.rooms ?? []).map((r) => ({
+      ...r,
+      doors: (r.doors ?? []).filter((d) => d.linkedRoomId !== roomId),
+    })),
   };
 }

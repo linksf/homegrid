@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyJob } from '../defaults';
 import { addLightBulb } from '../device-mutations';
-import { createJobWithNavigation } from '../floor-plan-defaults';
+import { createJobWithNavigation, applyFloorPlanToJob } from '../floor-plan-defaults';
 import { addRoomFromBounds } from '../room-mutations';
 import { addCable } from '../cable-mutations';
 import { connectConduitRun } from '../conduit-run-mutations';
@@ -169,5 +169,33 @@ describe('navigator-tree', () => {
     const cableNode = boxNode?.children.find((n) => n.entityId === cable.id);
     expect(cableNode?.kind).toBe('cable');
     expect(cableNode?.children.filter((n) => n.kind === 'wire')).toHaveLength(3);
+  });
+});
+
+describe('applyFloorPlanToJob', () => {
+  it('replaces rooms and areas while keeping wiring in place', () => {
+    let job = createJobWithNavigation({ mode: 'sandbox' });
+    job = {
+      ...job,
+      diagram: {
+        ...job.diagram,
+        lightBulbs: [{ id: 'light-1', label: 'Test', x: 400, y: 300 }],
+      },
+    };
+    const next = applyFloorPlanToJob(job, {
+      id: 'fp-new',
+      name: 'Updated layout',
+      rooms: [{ id: 'bedroom', label: 'Bedroom', x: 0, y: 0, width: 400, height: 300, doors: [] }],
+      areas: [{ id: 'zone-a', label: 'Zone A', x: 0, y: 0, width: 800, height: 600 }],
+      createdAt: '',
+      updatedAt: '',
+    });
+    expect(next.navigationMode).toBe('floorplan');
+    expect(next.floorPlanId).toBe('fp-new');
+    expect(next.diagram.rooms).toHaveLength(1);
+    expect(next.diagram.rooms[0]?.label).toBe('Bedroom');
+    expect(next.diagram.areas).toHaveLength(1);
+    expect(next.diagram.lightBulbs).toHaveLength(1);
+    expect(next.diagram.lightBulbs[0]?.x).toBe(400);
   });
 });

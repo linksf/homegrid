@@ -7,6 +7,7 @@ import {
   addRoomDoorAt,
   addRoomFromBounds,
   MIN_ROOM_SIZE,
+  deleteRoom,
   removeRoomDoor,
   resizeRoom,
   roomOutlineSegments,
@@ -104,5 +105,18 @@ describe('rooms', () => {
       height: GRID_SIZE * 4,
     });
     expect(diagram.rooms[0]!.width).toBeGreaterThanOrEqual(GRID_SIZE * 6);
+  });
+
+  it('deleteRoom removes linked doors on neighboring rooms', () => {
+    let diagram = createEmptyJob().diagram;
+    diagram = addRoomFromBounds(diagram, 0, 0, 192, 144);
+    diagram = addRoomFromBounds(diagram, 180, 0, 372, 144);
+    const roomA = diagram.rooms[0]!;
+    diagram = addRoomDoorAt(diagram, roomA.id, 'east', 72);
+
+    diagram = deleteRoom(diagram, roomA.id);
+
+    expect(diagram.rooms).toHaveLength(1);
+    expect(diagram.rooms[0]!.doors).toHaveLength(0);
   });
 });

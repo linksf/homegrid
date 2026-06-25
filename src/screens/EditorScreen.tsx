@@ -215,9 +215,10 @@ function readLabelSizePreference(): number {
 
 type EditorScreenProps = {
   onBack: () => void;
+  onManageFloorPlan?: () => void;
 };
 
-export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
+export function EditorScreen({ onBack, onManageFloorPlan }: EditorScreenProps): JSX.Element {
   const job = useJobStore((s) => s.activeJob);
   const updateDiagram = useJobStore((s) => s.updateDiagram);
   const commitDiagramHistory = useJobStore((s) => s.commitDiagramHistory);
@@ -1625,6 +1626,11 @@ export function EditorScreen({ onBack }: EditorScreenProps): JSX.Element {
           name={job.name || 'Untitled job'}
           className="editor-screen__title editor-screen__title-input"
         />
+        {onManageFloorPlan ? (
+          <button type="button" className="btn btn--small editor-screen__floor-plan-btn" onClick={onManageFloorPlan}>
+            Floor plan…
+          </button>
+        ) : null}
       </header>
 
       <Toolbar

@@ -1,12 +1,21 @@
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AreaShape } from '../canvas/AreaShape';
 import { CanvasViewport, type DiagramViewportSnapshot } from '../canvas/CanvasViewport';
 import { CanvasZoomControls } from '../canvas/CanvasZoomControls';
 import { DiagramGrid } from '../canvas/DiagramGrid';
 import { RoomShape } from '../canvas/RoomShape';
 import { addArea, addAreaFromBounds } from '../domain/area-mutations';
-import { addRoom, addRoomFromBounds, addRoomDoorAt, updateRoom } from '../domain/room-mutations';
+import {
+  addRoom,
+  addRoomFromBounds,
+  addRoomDoorAt,
+  deleteRoom,
+  removeRoomDoor,
+  updateRoom,
+  updateRoomDoor,
+  wallLength,
+} from '../domain/room-mutations';
 import { snapRoomDraftCorners } from '../domain/room-snap';
 import type { Diagram, FloorPlan, RoomWall } from '../domain/types';
 import { diagramFloorPlanBounds } from '../editor/navigator-tree';
@@ -22,6 +31,14 @@ type FloorPlanTool = 'select' | 'pan' | 'place-room' | 'place-area';
 type FloorPlanEditorScreenProps = {
   onBack: () => void;
   onDone: () => void;
+  doneLabel?: string;
+};
+
+const ROOM_WALL_LABELS: Record<RoomWall, string> = {
+  north: 'North',
+  east: 'East',
+  south: 'South',
+  west: 'West',
 };
 
 function planToDiagram(plan: FloorPlan): Diagram {
@@ -51,7 +68,7 @@ function planToDiagram(plan: FloorPlan): Diagram {
   };
 }
 
-export function FloorPlanEditorScreen({ onBack, onDone }: FloorPlanEditorScreenProps): JSX.Element | null {
+export function FloorPlanEditorScreen({ onBack, onDone, doneLabel = 'Start wiring job' }: FloorPlanEditorScreenProps): JSX.Element | null {
   const plan = useFloorPlanStore((s) => s.activeFloorPlan);
   const saveActiveFloorPlan = useFloorPlanStore((s) => s.saveActiveFloorPlan);
   const viewportApiRef = useRef<DiagramViewportSnapshot | null>(null);
@@ -62,6 +79,7 @@ export function FloorPlanEditorScreen({ onBack, onDone }: FloorPlanEditorScreenP
   const areaDragRef = useRef<{ pointerId: number; start: { x: number; y: number } } | null>(null);
   const [roomDraft, setRoomDraft] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const [areaDraft, setAreaDraft] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const selectedRoomId = [...selection.rooms][0] ?? null;
 
   const applyPlanMutation = useCallback(
     (mutator: (diagram: Diagram) => Diagram) => {
@@ -84,10 +102,36 @@ export function FloorPlanEditorScreen({ onBack, onDone }: FloorPlanEditorScreenP
     viewportApiRef.current?.fitToRect(bounds);
   }, [plan]);
 
+  const handleDeleteSelectedRoom = useCallback(() => {
+    if (!selectedRoomId) return;
+    applyPlanMutation((d) => deleteRoom(d, selectedRoomId));
+    setSelection(emptySelection);
+    setDoorPlacingRoomId(null);
+  }, [applyPlanMutation, selectedRoomId]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+      if (!selectedRoomId || tool !== 'select') return;
+      e.preventDefault();
+      handleDeleteSelectedRoom();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleDeleteSelectedRoom, selectedRoomId, tool]);
+
   if (!plan) return null;
 
   const diagram = planToDiagram(plan);
-  const selectedRoomId = [...selection.rooms][0] ?? null;
+  const selectedRoom = selectedRoomId ? diagram.rooms.find((r) => r.id === selectedRoomId) : undefined;
 
   function beginRoomDraft(e: ReactPointerEvent<SVGRectElement>) {
     const vp = viewportApiRef.current;
@@ -177,7 +221,7 @@ export function FloorPlanEditorScreen({ onBack, onDone }: FloorPlanEditorScreenP
         </button>
         <h1 className="editor-screen__title">{plan.name || 'Floor plan'}</h1>
         <button type="button" className="btn btn--primary" onClick={onDone}>
-          Start wiring job
+          {doneLabel}
         </button>
       </header>
 
@@ -282,19 +326,100 @@ export function FloorPlanEditorScreen({ onBack, onDone }: FloorPlanEditorScreenP
           </div>
         </div>
 
-        {selectedRoomId ? (
-          <aside className="floor-plan-editor__inspector">
-            <label className="inspector-field">
-              <span>Room label</span>
+        {selectedRoom ? (
+          <aside className="floor-plan-editor__inspector inspector" aria-label="Room inspector">
+            <h3 className="inspector__title">Room</h3>
+            <label className="inspector-field inspector__field">
+              <span className="inspector__label">Label</span>
               <input
+                className="inspector__input"
                 type="text"
-                value={diagram.rooms.find((r) => r.id === selectedRoomId)?.label ?? ''}
+                value={selectedRoom.label}
                 onChange={(e) => {
-                  const label = e.target.value;
-                  applyPlanMutation((d) => updateRoom(d, selectedRoomId, { label }));
+                  applyPlanMutation((d) => updateRoom(d, selectedRoom.id, { label: e.target.value }));
                 }}
+                placeholder="Room name"
+                autoComplete="off"
               />
             </label>
+
+            <div className="inspector__field">
+              <span className="inspector__label">Doors</span>
+              <button
+                type="button"
+                className={['btn', 'btn--block', doorPlacingRoomId === selectedRoom.id ? 'btn--active' : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-pressed={doorPlacingRoomId === selectedRoom.id}
+                onClick={() =>
+                  setDoorPlacingRoomId((prev) => (prev === selectedRoom.id ? null : selectedRoom.id))
+                }
+              >
+                {doorPlacingRoomId === selectedRoom.id
+                  ? 'Click a wall to place…'
+                  : 'Place door'}
+              </button>
+              {(selectedRoom.doors ?? []).length === 0 ? (
+                <p className="inspector__hint">No doors yet. Use Place door, then click a wall.</p>
+              ) : (
+                <ul className="inspector__door-list">
+                  {(selectedRoom.doors ?? []).map((door) => (
+                    <li key={door.id} className="inspector__door-item">
+                      <label className="inspector__door-field">
+                        <span>Wall</span>
+                        <select
+                          className="inspector__input"
+                          value={door.wall}
+                          onChange={(e) =>
+                            applyPlanMutation((d) =>
+                              updateRoomDoor(d, selectedRoom.id, door.id, { wall: e.target.value as RoomWall }),
+                            )
+                          }
+                        >
+                          {(Object.keys(ROOM_WALL_LABELS) as RoomWall[]).map((wall) => (
+                            <option key={wall} value={wall}>
+                              {ROOM_WALL_LABELS[wall]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="inspector__door-field">
+                        <span>Width</span>
+                        <input
+                          className="inspector__input"
+                          type="number"
+                          min={24}
+                          max={wallLength(selectedRoom, door.wall)}
+                          step={12}
+                          value={door.width}
+                          onChange={(e) =>
+                            applyPlanMutation((d) =>
+                              updateRoomDoor(d, selectedRoom.id, door.id, { width: Number(e.target.value) }),
+                            )
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="btn btn--small btn--danger"
+                        onClick={() =>
+                          applyPlanMutation((d) => removeRoomDoor(d, selectedRoom.id, door.id))
+                        }
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <p className="inspector__hint">
+              Select a room, then press Delete to remove it. Linked doors on neighboring rooms are removed too.
+            </p>
+            <button type="button" className="btn btn--danger btn--block" onClick={handleDeleteSelectedRoom}>
+              Delete room
+            </button>
           </aside>
         ) : null}
       </div>

@@ -398,6 +398,16 @@ html:has(.app--editor) #root {
   margin-bottom: 0;
 }
 
+.home-screen__section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.editor-screen__floor-plan-btn {
+  flex-shrink: 0;
+}
+
 .home-screen__library {
   padding: 1rem 1.5rem 2rem;
 }

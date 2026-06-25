@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { JOB_FILE_EXT } from '../app-brand';
-import { createJobWithNavigation, type CreateJobOptions } from '../domain/floor-plan-defaults';
+import { createJobWithNavigation, applyFloorPlanToJob, type CreateJobOptions } from '../domain/floor-plan-defaults';
 import { resolveDirections } from '../domain/direction';
 import { resolveEnergyHue } from '../domain/energy-hue';
-import type { Diagram, Job, ResolvedWire } from '../domain/types';
+import type { Diagram, FloorPlan, Job, ResolvedWire } from '../domain/types';
 import * as jobsDb from '../persistence/db';
 import { exportJob, importJob } from '../persistence/file-io';
 import {
@@ -74,6 +74,7 @@ export interface JobStore {
   exportActive: () => void;
   exportJobs: (ids: string[]) => Promise<void>;
   importFile: (file: File) => Promise<void>;
+  applyFloorPlan: (floorPlan: FloorPlan) => Promise<void>;
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -289,6 +290,17 @@ export const useJobStore = create<JobStore>((set, get) => ({
     } finally {
       set({ jobLoading: false });
     }
+  },
+
+  applyFloorPlan: async (floorPlan: FloorPlan) => {
+    const current = get().activeJob;
+    if (!current) return;
+    recordDiagramHistory(current.id, current.diagram);
+    const next = applyFloorPlanToJob(current, floorPlan);
+    await jobsDb.putJob(next);
+    set({ activeJob: next });
+    bumpHistoryTick(set);
+    await get().loadLibrary();
   },
 }));
 

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import { FLOOR_PLAN_FILE_EXT } from '../app-brand';
 import { createEmptyFloorPlan } from '../domain/floor-plan-defaults';
 import type { FloorPlan } from '../domain/types';
+import { exportFloorPlan, importFloorPlan } from '../persistence/floor-plan-file-io';
 import * as floorPlanDb from '../persistence/floor-plan-db';
 
 export type FloorPlanSummary = Pick<FloorPlan, 'id' | 'name' | 'updatedAt' | 'createdAt'>;
@@ -16,6 +18,20 @@ function toSummaries(plans: FloorPlan[]): FloorPlanSummary[] {
     }));
 }
 
+function downloadFloorPlanFile(plan: FloorPlan): void {
+  const blob = exportFloorPlan(plan);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safe = plan.name.replace(/[^\w\-]+/g, '_').slice(0, 80) || 'floor-plan';
+  a.download = `${safe}.${FLOOR_PLAN_FILE_EXT}`;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export interface FloorPlanStore {
   floorPlans: FloorPlanSummary[];
   activeFloorPlan: FloorPlan | null;
@@ -26,6 +42,9 @@ export interface FloorPlanStore {
   saveActiveFloorPlan: (updater: (plan: FloorPlan) => FloorPlan) => Promise<void>;
   deleteFloorPlan: (id: string) => Promise<void>;
   renameFloorPlan: (id: string, name: string) => Promise<void>;
+  importFile: (file: File) => Promise<FloorPlan>;
+  exportFloorPlan: (id: string) => Promise<void>;
+  setActiveFloorPlan: (plan: FloorPlan) => void;
 }
 
 export const useFloorPlanStore = create<FloorPlanStore>((set, get) => ({
@@ -88,5 +107,24 @@ export const useFloorPlanStore = create<FloorPlanStore>((set, get) => ({
       set({ activeFloorPlan: next });
     }
     await get().loadLibrary();
+  },
+
+  importFile: async (file) => {
+    const json = await file.text();
+    const plan = importFloorPlan(json);
+    await floorPlanDb.putFloorPlan(plan);
+    await get().loadLibrary();
+    set({ activeFloorPlan: plan });
+    return plan;
+  },
+
+  exportFloorPlan: async (id) => {
+    const plan = await floorPlanDb.getFloorPlan(id);
+    if (!plan) return;
+    downloadFloorPlanFile(plan);
+  },
+
+  setActiveFloorPlan: (plan) => {
+    set({ activeFloorPlan: plan });
   },
 }));

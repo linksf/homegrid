@@ -10,6 +10,48 @@ const SANDBOX_ROOM_SIZE = Object.freeze({
   height: GRID_SIZE * 60,
 });
 
+function cloneRoom(room: Room): Room {
+  return { ...room, doors: room.doors.map((door) => ({ ...door })) };
+}
+
+function cloneRoomsAndAreas(rooms: Room[], areas: Area[]): { rooms: Room[]; areas: Area[] } {
+  return {
+    rooms: rooms.map(cloneRoom),
+    areas: areas.map((area) => ({ ...area })),
+  };
+}
+
+/** Build a floor plan snapshot from a job's current rooms and areas. */
+export function floorPlanFromJob(job: Job): FloorPlan {
+  const now = new Date().toISOString();
+  const { rooms, areas } = cloneRoomsAndAreas(job.diagram.rooms, job.diagram.areas ?? []);
+  return {
+    id: job.floorPlanId ?? nanoid(),
+    name: job.floorPlanName?.trim() || 'Floor plan',
+    rooms,
+    areas,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/** Replace navigation rooms/areas on a job; wiring and devices stay in place. */
+export function applyFloorPlanToJob(job: Job, floorPlan: FloorPlan): Job {
+  const { rooms, areas } = cloneRoomsAndAreas(floorPlan.rooms, floorPlan.areas);
+  return {
+    ...job,
+    navigationMode: 'floorplan',
+    floorPlanId: floorPlan.id,
+    floorPlanName: floorPlan.name,
+    updatedAt: new Date().toISOString(),
+    diagram: {
+      ...job.diagram,
+      rooms,
+      areas,
+    },
+  };
+}
+
 export function createEmptyFloorPlan(name = 'Untitled floor plan'): FloorPlan {
   const now = new Date().toISOString();
   return {
@@ -62,7 +104,7 @@ export function createJobWithNavigation(options: CreateJobOptions): Job {
     floorPlanName: floorPlan.name,
     diagram: {
       ...base.diagram,
-      rooms: floorPlan.rooms.map((room) => ({ ...room, doors: room.doors.map((d) => ({ ...d })) })),
+      rooms: floorPlan.rooms.map(cloneRoom),
       areas: floorPlan.areas.map((area) => ({ ...area })),
     },
   };

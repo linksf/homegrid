@@ -1,6 +1,6 @@
 import type { ChangeEvent, JSX, MouseEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { APP_NAME, LEGACY_JOB_FILE_EXT, JOB_FILE_EXT } from '../app-brand';
+import { APP_NAME, FLOOR_PLAN_FILE_EXT, LEGACY_JOB_FILE_EXT, JOB_FILE_EXT } from '../app-brand';
 import { ElectricLoader } from '../components/ElectricLoader';
 import { FloorPlanNameField } from '../components/FloorPlanNameField';
 import { JobNameField } from '../components/JobNameField';
@@ -49,12 +49,16 @@ export function HomeScreen({
   const floorPlans = useFloorPlanStore((s) => s.floorPlans);
   const floorPlanLibraryLoading = useFloorPlanStore((s) => s.libraryLoading);
   const deleteFloorPlan = useFloorPlanStore((s) => s.deleteFloorPlan);
+  const importFloorPlanFile = useFloorPlanStore((s) => s.importFile);
+  const exportFloorPlan = useFloorPlanStore((s) => s.exportFloorPlan);
+  const loadFloorPlanLibrary = useFloorPlanStore((s) => s.loadLibrary);
   const openJob = useJobStore((s) => s.openJob);
   const deleteJob = useJobStore((s) => s.deleteJob);
   const deleteJobs = useJobStore((s) => s.deleteJobs);
   const exportJobs = useJobStore((s) => s.exportJobs);
   const importFile = useJobStore((s) => s.importFile);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const floorPlanFileInputRef = useRef<HTMLInputElement>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renamingFloorPlanId, setRenamingFloorPlanId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -142,6 +146,23 @@ export function HomeScreen({
     onOpenEditor();
   }
 
+  async function handleFloorPlanFileChange(e: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      await importFloorPlanFile(file);
+      await loadFloorPlanLibrary();
+    } catch {
+      window.alert('Could not import that file. Check that it is a valid floor plan export.');
+    }
+  }
+
+  async function handleExportFloorPlan(e: MouseEvent, plan: FloorPlanSummary): Promise<void> {
+    e.stopPropagation();
+    await exportFloorPlan(plan.id);
+  }
+
   return (
     <div className="home-screen">
       <header className="home-screen__header">
@@ -169,9 +190,21 @@ export function HomeScreen({
       <section className="home-screen__library home-screen__section" aria-label="Floor plan library">
         <div className="home-screen__section-header">
           <h2 className="home-screen__section-title">Floor plans</h2>
-          <button type="button" className="btn btn--small" onClick={onNewFloorPlan}>
-            New floor plan
-          </button>
+          <div className="home-screen__section-actions">
+            <button type="button" className="btn btn--small" onClick={onNewFloorPlan}>
+              New floor plan
+            </button>
+            <button type="button" className="btn btn--small" onClick={() => floorPlanFileInputRef.current?.click()}>
+              Import…
+            </button>
+            <input
+              ref={floorPlanFileInputRef}
+              type="file"
+              accept={`application/json,.json,.${FLOOR_PLAN_FILE_EXT}`}
+              className="visually-hidden"
+              onChange={(e) => void handleFloorPlanFileChange(e)}
+            />
+          </div>
         </div>
         {floorPlanLibraryLoading && floorPlans.length === 0 ? (
           <ElectricLoader label="Loading floor plans…" />
@@ -198,6 +231,14 @@ export function HomeScreen({
                     <span className="job-row__meta">{formatRelativeTime(plan.updatedAt)}</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="btn btn--small job-row__rename"
+                  aria-label={`Export ${plan.name}`}
+                  onClick={(e) => void handleExportFloorPlan(e, plan)}
+                >
+                  Export
+                </button>
                 <button
                   type="button"
                   className="btn btn--small job-row__rename"
